@@ -1,9 +1,9 @@
 """BLE scanning utility for locating Sesame 5 smart locks.
 
 This module provides an asynchronous function `scan_sesame` that scans for nearby
-Bluetooth Low Energy (BLE) Sesame 5 devices, based on either their MAC address
-or their device UUID. It utilizes Bleak for BLE scanning and returns a
-`Sesame5` instance upon a successful match.
+BLE Sesame 5 devices, based on either their MAC address or their device UUID.
+It utilizes Bleak for BLE scanning and returns a `Sesame5` instance
+upon a successful match.
 """
 
 import asyncio

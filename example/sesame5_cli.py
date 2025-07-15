@@ -43,7 +43,7 @@ async def main():
     sesame5 = await scan_sesame("XX:XX:XX:XX:XX:XX")
     await sesame5.connect()
     sesame5.enable_mechstatus_callback(on_mechstatus_changed)
-    await sesame5.wait_for_login("1234567890abcdef1234567890abcdef")
+    await sesame5.login("1234567890abcdef1234567890abcdef")
 
     while True:
         user_input = await asyncio.to_thread(

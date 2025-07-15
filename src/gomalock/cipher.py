@@ -1,25 +1,8 @@
-"""AES-CCM based encryption and decryption for Sesame BLE communication.
+"""AES-CCM based encryption and decryption for SesameOS3.
 
 This module provides the `BleCipher` class, which encapsulates the logic for
-encrypting and decrypting data exchanged with Sesame smart lock devices.
-It utilizes the AES (Advanced Encryption Standard) algorithm in CCM (Counter
-with CBC-MAC) mode. CCM mode provides both confidentiality (encryption) and
-authentication (integrity and authenticity) of messages.
-
-The cipher requires a session token and an application public key (which acts
-as the symmetric AES key) for initialization. It maintains separate internal
-counters for encryption and decryption operations to ensure that a unique nonce
-(Number used once) is used for each cryptographic operation with the same key.
-This is a critical requirement for the security of CCM mode.
-
-The nonce is constructed by concatenating:
-1. An 8-byte counter (little-endian).
-2. A single null byte (0x00) as a separator.
-3. The 4-byte session token.
-
-The MAC (Message Authentication Code) tag length is fixed at 4 bytes.
-A fixed Associated Authenticated Data (AAD) value of a single null byte (0x00)
-is used for all operations.
+encrypting and decrypting data exchanged with SesameOS3.
+It utilizes the AES algorithm in CCM mode.
 """
 
 from Crypto.Cipher import AES
@@ -27,16 +10,14 @@ from Crypto.Hash import CMAC
 
 
 class BleCipher:
-    """Handles AES-CCM encryption and decryption for BLE communication.
+    """Handles AES-CCM encryption and decryption for SesameOS3.
 
     This class is responsible for encrypting outgoing data and decrypting
     incoming data using AES in CCM mode. It manages session tokens,
     application keys, and nonce generation to ensure secure communication.
 
     The nonce is constructed using an internal counter, a fixed separator byte,
-    and the session token provided during initialization. It's crucial that
-    nonces are unique for each operation (encryption or decryption) with the
-    same key to maintain the security properties of CCM mode.
+    and the session token provided during initialization.
     """
 
     _MAX_COUNTER = 2**64 - 1
@@ -67,6 +48,13 @@ class BleCipher:
         self._decrypt_counter = 0
 
     def _generate_nonce(self, counter: int) -> bytes:
+        """Generates a nonce for AES-CCM encryption/decryption.
+
+        The nonce is constructed by concatenating:
+        1. An 8-byte counter (little-endian).
+        2. A single null byte (0x00) as a separator.
+        3. The 4-byte session token.
+        """
         return counter.to_bytes(8, "little") + b"\x00" + self._session_token
 
     @staticmethod
@@ -108,7 +96,7 @@ class BleCipher:
         an internal counter, a fixed separator byte (0x00), and the session token.
         The AES-CCM cipher is initialized with the application public key, the
         generated nonce, and a MAC length of 4 bytes. Associated Authenticated
-        Data (AAD) is set to a single null byte (0x00).
+        Data is set to a single null byte (0x00).
 
         The encryption counter is incremented after each operation to ensure
         nonce uniqueness for subsequent encryptions.
@@ -141,7 +129,7 @@ class BleCipher:
 
         The AES-CCM cipher is initialized with the application public key, the
         generated nonce, and a MAC length of 4 bytes. Associated Authenticated
-        Data (AAD) is set to a single null byte (0x00).
+        Data is set to a single null byte (0x00).
 
         The method attempts to decrypt the ciphertext and verify the authentication
         tag. If verification fails (e.g., due to data tampering or incorrect key/nonce),

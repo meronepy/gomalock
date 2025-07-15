@@ -1,44 +1,18 @@
 """Constants and enumerations for Sesame BLE communication.
 
 This module defines various constants and enumerations used throughout the
-`gomalock` library for interacting with Sesame smart lock devices via
-Bluetooth Low Energy (BLE).
-
-It includes:
-- Service and Characteristic UUIDs: Unique identifiers for the primary Sesame
-    BLE service and the GATT characteristics used for writing commands and
-    receiving notifications.
-- `ProductModels`: An enumeration of known Sesame device models, mapping
-    model IDs from advertisement data to human-readable names.
-- `PacketTypes`: Flags used in the custom 1-byte header of BLE packets to
-    indicate packet sequence (beginning, end) and encryption status.
-- `LoginStatus`: Represents the authentication state of the connection to a
-    Sesame device (logged in or not logged in).
-- `DeviceStatus`: Represents the overall operational status of the Sesame
-    device and its connection, combining connection state with login status.
-- `ItemCodes`: Identifiers for specific types of data or operations within
-    Sesame command and notification payloads (e.g., login, lock, mechanical status).
-- `OpCodes`: Distinguishes between different types of notifications received
-    from the device (e.g., response to a command, unsolicited publish message).
-- `ResultCodes`: Indicates the success or failure of an operation requested
-    by the client, received in response messages from the device.
-
-These constants and enumerations are crucial for correctly parsing advertisement
-data, constructing commands, and interpreting notifications and responses
-according to the Sesame BLE protocol.
+`gomalock` library for interacting with Sesame smart lock devices via BLE.
 """
 
 from enum import auto, Enum, IntEnum
 
 
 UUID_SERVICE = "0000fd81-0000-1000-8000-00805f9b34fb"
-"""str: The UUID for the primary Sesame BLE service."""
+"""The UUID for the primary Sesame BLE service."""
 UUID_WRITE = "16860002-a5ae-9856-b6d3-dbb4c676993e"
-"""str: The UUID for the GATT characteristic
-    used to write commands to the Sesame device."""
+"""The UUID for the GATT characteristic used to write commands."""
 UUID_NOTIFICATION = "16860003-a5ae-9856-b6d3-dbb4c676993e"
-"""str: The UUID for the GATT characteristic
-    used to receive notifications from the Sesame device."""
+"""The UUID for the GATT characteristic used to receive notifications."""
 
 
 class ProductModels(Enum):

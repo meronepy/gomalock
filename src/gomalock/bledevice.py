@@ -4,19 +4,6 @@ This module provides the `SesameBleDevice` class, which encapsulates the
 functionality for connecting to, disconnecting from, and interacting with a
 specific Sesame Bluetooth Low Energy (BLE) device. It leverages the `bleak`
 library for the underlying BLE operations.
-
-Key responsibilities of `SesameBleDevice` include:
-- Establishing and terminating BLE connections using `BleakClient`.
-- Discovering and caching the necessary GATT characteristics (write and
-  notification) for the Sesame service.
-- Handling outgoing data transmission: It uses `BleParser` to fragment data
-  into appropriate packet sizes for BLE and writes these packets to the
-  device's write characteristic.
-- Managing incoming data: It sets up a notification handler for the device's
-  notification characteristic. Received packets are reassembled by `BleParser`,
-  and the complete message is passed to a user-defined callback.
-- Providing properties to access device information (e.g., `BLEDevice` object,
-  advertisement data, connection status) and to manage the data callback.
 """
 
 from typing import Callable
@@ -181,8 +168,6 @@ class SesameBleDevice:
                 a `BleakError` occurs during the disconnection attempt.
         """
 
-        # Note: BleakClient.disconnect() can raise BleakError if not connected,
-        # but the check below is more explicit for our state.
         if not self._ble_client.is_connected:
             raise ConnectionError(f"Device {self._ble_device.address} is not connected")
         try:

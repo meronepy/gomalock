@@ -1,28 +1,8 @@
 """Bluetooth Low Energy (BLE) data structures and parsing for Sesame devices.
 
 This module defines classes for handling various aspects of BLE communication
-specific to Sesame smart locks. It includes:
-
-- `SesameAdvertisementData`: Parses and stores data from BLE advertisement packets
-  broadcast by Sesame devices, extracting information like product model,
-  device ID, and registration status.
-- `ReceivedNotificationData`: Represents the basic structure of data received
-  via BLE notifications, separating the operation code from the payload.
-- `ReceivedResponseData`: Parses the payload of a notification when it's a
-  response to a command, extracting item code, result code, and response-specific
-  payload.
-- `ReceivedPublishData`: Parses the payload of a notification when it's an
-  unsolicited publish message from the device (e.g., status updates, initial
-  session token), extracting item code and publish-specific payload.
-- `SesameCommand`: Encapsulates a command to be sent to a Sesame device,
-  combining an item code with a command-specific payload.
-- `BleParser`: Manages the fragmentation of outgoing BLE packets and the
-  reassembly of incoming packets, according to the Sesame protocol's custom
-  packet structure which includes a 1-byte header for sequence and encryption
-  status.
-
-The module relies on constants defined in `.const` (e.g., UUIDs, ItemCodes,
-PacketTypes) for its parsing and data structuring logic.
+specific to Sesame smart locks. Also, The module relies on constants defined in
+`.const` (e.g., UUIDs, ItemCodes, PacketTypes).
 """
 
 from uuid import UUID
@@ -299,13 +279,12 @@ class SesameCommand:
 class BleParser:
     """Handles fragmentation and reassembly of BLE packets for Sesame devices.
 
-    BLE has a Maximum Transmission Unit (MTU), so data larger than this
-    must be split into multiple packets. This class manages that process,
-    adding a custom 1-byte header to each packet to indicate its role
-    (beginning, end, encrypted end) in a larger message.
+    SesameOS3 splits data into multiple packets to avoid BLE MTU limitations.
+    This class manages that process, adding a custom 1-byte header to each packet
+    to indicate its role (beginning, end, encrypted end) in a larger message.
 
-    The parser uses a fixed Maximum Transmission Unit (`_MTU_SIZE`) of 20 bytes.
-    The actual payload per packet will be `_MTU_SIZE - 1` due to the 1-byte header.
+    The parser uses `_MTU_SIZE`. The actual payload per packet will be
+    `_MTU_SIZE - 1` due to the 1-byte header.
     """
 
     _MTU_SIZE = 20

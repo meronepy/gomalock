@@ -27,7 +27,7 @@ async def main():
     sesame5 = await scan_sesame("XX:XX:XX:XX:XX:XX")
     await sesame5.connect()
     sesame5.enable_mechstatus_callback(on_mechstatus_changed)
-    await sesame5.wait_for_login("1234567890abcdef1234567890abcdef")
+    await sesame5.login("1234567890abcdef1234567890abcdef")
 
     while True:
         user_input = await asyncio.to_thread(
@@ -57,7 +57,7 @@ if __name__ == "__main__":
 1. `gomalock.scanner.scan_sesame`で周囲のSesame 5スキャン。返り値としてSesame 5インスタンスを取得。
 2. `Sesame5.connect`で接続。
 3. `Sesame5.enable_mechstatus_callback`で状態変化の通知用コールバックを登録。この手順は任意であり、いつでも可能です。
-4. `Sesame5.sesame5.wait_for_login`でログイン。
+4. `Sesame5.sesame5.login`でログイン。
 5. `Sesame5.lock`で施錠。
 6. `Sesame5.disconnect`で切断。
 
@@ -96,7 +96,10 @@ if __name__ == "__main__":
 
 ##### `async def disconnect(self) -> None:`
 
-- Sesame 5デバイスとBLEを切断するメソッド。
+- Sesame 5デバイスとBLEを切断し、次の接続に備えて内部データをリセットするメソッド。
+- `Sesame5.mech_status`はクリアされ、`None`になります。
+- 送信したコマンドの応答待ちはキャンセルされます。
+- `enable_mechstatus_callback`で登録されたコルーチン関数が実行中の場合もキャンセルされます。
 - 例外
   - ConnectionError:
     - 既に切断済みの場合
@@ -104,7 +107,7 @@ if __name__ == "__main__":
 
 ---
 
-##### `async def wait_for_login(self, secret_key: str) -> None:`
+##### `async def login(self, secret_key: str) -> None:`
 
 - 与えられたシークレットキーを基に、Sesame 5デバイスへログインします。
 - 引数
@@ -219,7 +222,7 @@ if __name__ == "__main__":
 ##### `mech_status: Sesame5MechStatus | None`
 
 - `Sesame 5`の機械部分の状態
-- ログイン直後など、状態を受信する前は`None`
+- 未接続時やログイン直後など、状態を受信する前は`None`
 
 ---
 
