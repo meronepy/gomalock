@@ -1,4 +1,4 @@
-# gomalock
+# [gomalock](https://github.com/meronepy/gomalock)
 
 ![Python](https://img.shields.io/badge/python-3.10-5da1d8)
 [![License](https://img.shields.io/badge/license-MIT-5da1d8)](LICENSE)
