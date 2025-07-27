@@ -51,7 +51,7 @@ Sesame 4以前はOSが違うため動作しません。対応予定もありま�
 |✅|Linux with BlueZ 5.82 以降|
 |⚠️|macOS 10.13 以降(動作未確認)|
 
-内部で使用している`bleak`ライブラリに準じますが、macOS環境は動作未確認です。
+内部で使用している[bleak](https://github.com/hbldh/bleak)ライブラリに準じますが、macOS環境は動作未確認です。
 
 Linux環境では前述のバグが原因で、BlueZ 5.82以降が必要です。
 
@@ -61,8 +61,8 @@ Python 3.10以降が必要です。`Union`型の`|`記法と、`match`文を使�
 
 ## 使用ライブラリ
 
-- bleak 1.0.1
-- pycryptodome 3.23.0
+- bleak
+- pycryptodome
 
 ## 使用方法
 
