@@ -66,4 +66,4 @@ Python 3.10以降が必要です。`Union`型の`|`記法と、`match`文を使�
 
 ## 使用方法
 
-`docs/usage.md`をご覧ください。
+[docs/usage.md](docs/usage.md)をご覧ください。
