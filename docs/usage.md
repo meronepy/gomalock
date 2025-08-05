@@ -2,48 +2,43 @@
 
 ## サンプル
 
-以下のスクリプトは、簡単な使用方法の例です。
+非同期コンテキストマネージャーを使用した開錠例です。
 
 ```python
 import asyncio
-from gomalock.scanner import scan_sesame
+
+from gomalock.sesame5 import Sesame5
+
+MAC_ADDRESS = "XX:XX:XX:XX:XX:XX"
+SECRET_KEY = "1234567890abcdef1234567890abcdef"
 
 
 async def main():
+    async with Sesame5(MAC_ADDRESS, SECRET_KEY) as sesame5:
+        await sesame5.unlock("gomalock")
 
-    def on_mechstatus_changed(status):
-        mech_status = {
-            "position": status.position,
-            "target": status.target,
-            "is_in_lock_range": status.is_in_lock_range,
-            "is_in_unlock_range": status.is_in_unlock_range,
-            "is_battery_critical": status.is_battery_critical,
-            "is_stop": status.is_stop,
-            "battery_voltage": status.battery_voltage,
-            "battery_percentage": status.battery_percentage,
-        }
-        print(mech_status)
 
-    sesame5 = await scan_sesame("XX:XX:XX:XX:XX:XX")
+if __name__ == "__main__":
+    asyncio.run(main())
+
+```
+
+非同期コンテキストマネージャーを使用しない場合の例です。
+
+```Python
+import asyncio
+
+from gomalock.sesame5 import Sesame5
+
+MAC_ADDRESS = "XX:XX:XX:XX:XX:XX"
+SECRET_KEY = "1234567890abcdef1234567890abcdef"
+
+
+async def main():
+    sesame5 = Sesame5(MAC_ADDRESS, SECRET_KEY)
     await sesame5.connect()
-    sesame5.enable_mechstatus_callback(on_mechstatus_changed)
-    await sesame5.login("1234567890abcdef1234567890abcdef")
-
-    while True:
-        user_input = await asyncio.to_thread(
-            input, "Enter command (s: lock, u: unlock, t: toggle, q: quit):\n"
-        )
-        match user_input.lower():
-            case "s":
-                await sesame5.lock("gomalock")
-            case "u":
-                await sesame5.unlock("gomalock")
-            case "t":
-                await sesame5.toggle("gomalock")
-            case "q":
-                break
-            case _:
-                pass
+    await sesame5.login()
+    await sesame5.unlock("gomalock")
     await sesame5.disconnect()
 
 
@@ -54,274 +49,149 @@ if __name__ == "__main__":
 
 ## 使用手順
 
-1. `gomalock.scanner.scan_sesame`で周囲のSesame 5スキャン。返り値としてSesame 5インスタンスを取得。
-2. `Sesame5.connect`で接続。
-3. `Sesame5.enable_mechstatus_callback`で状態変化の通知用コールバックを登録。この手順は任意であり、いつでも可能です。
-4. `Sesame5.sesame5.login`でログイン。
-5. `Sesame5.lock`で施錠。
-6. `Sesame5.disconnect`で切断。
+1. `secret_key`をmochipon様作成の[QR Code Reader for SESAME](https://sesame-qr-reader.vercel.app/)を使用して、マネージャー権限以上のQRコードから抽出。
+2. `Sesame5`非同期コンテキストマネージャーで接続。自動でログインや切断を行います。
 
-## クラス リファレンス
+---
 
-### `async def scan_sesame(identifier: str | UUID, timeout: float = 5) -> Sesame5:`関数
+## Sesame5クラス
 
-- MACアドレスまたはデバイスidを基に、周囲のBLEデバイスをスキャンして合致するSesame 5デバイスがあれば`Sesame 5`インスタンスを返します。
+### 操作
+
+#### `class gomalock.sesame5.Sesame5(mac_address: str, secret_key: str)`
+
+- Sesame5との接続、ログイン、操作などを行うクラスです。
+
 - 引数
-  - identifier (str | UUID): 目的のSesame 5デバイスのMACアドレスまたはデバイスid
-  - timeout (float): スキャンのタイムアウトまでの時間(秒)、デフォルト値は5秒
-- 返り値
-  - Sesame5: 発見した`Sesame 5`のインスタンス
-- 例外
-  - TimeoutError: `timeout`以内に目的のSesame 5が見つからなかった場合
+  - mac_address: 接続するSesame5のMACアドレス
+  - secret_key: 接続するSesame5のシークレットキー
 
----
+#### `async Sesame5.connect() -> None`
 
-### `Sesame5`クラス
+- Sesame5とBLEで接続します
 
-- Sesame 5デバイスを定義し、接続や施錠、状態変化の通知などを行うクラス。
+#### `async Sesame5.disconnect() -> None`
 
-#### `Sesame5`メソッド
+- Sesame5とのBLE接続を切断します
 
----
+#### `async Sesame5.login() -> None`
 
-##### `async def connect(self) -> None:`
+- Sesame5にログインして、施錠や開錠などの操作を可能にします
 
-- Sesame 5デバイスとBLEで接続するメソッド。
-- 例外
-  - ConnectionError: 既に接続済みの場合
-  - TimeoutError: 接続がタイムアウトした場合
-  - RuntimeError: GATTのCharacteristicsが見つからなかった場合
+#### `Sesame5.set_mech_status_callback(callback: Callable[[Sesame5MechStatus], None] | None = None)`
 
----
+- 器械状態(施錠、開錠など)の変化時にリアルタイムで受け取るためのコールバックを設定します
+- 引数なしで呼び出すと既存のコールバックを解除します
 
-##### `async def disconnect(self) -> None:`
-
-- Sesame 5デバイスとBLEを切断し、次の接続に備えて内部データをリセットするメソッド。
-- `Sesame5.mech_status`はクリアされ、`None`になります。
-- 送信したコマンドの応答待ちはキャンセルされます。
-- `enable_mechstatus_callback`で登録されたコルーチン関数が実行中の場合もキャンセルされます。
-- 例外
-  - ConnectionError:
-    - 既に切断済みの場合
-    - 切断処理に失敗した場合
-
----
-
-##### `async def login(self, secret_key: str) -> None:`
-
-- 与えられたシークレットキーを基に、Sesame 5デバイスへログインします。
 - 引数
-  - secret_key (str): Sesame 5のシークレットキー、32文字の16進数である必要があります
-- 例外
-  - RuntimeError:
-    - 未接続の場合
-    - 既にログイン済みの場合
-    - ログインコマンドがタイムアウトした場合
-  - ValueError: `secret_key`が32文字の16進数でない場合
-  - TimeoutError: Sesame 5デバイスからログインに必要なデータが受け取れなかった場合
+  - callback: 器械状態の変化時に呼び出されるコールバック関数
 
----
+#### `async Sesame5.lock(history_name: str) -> None`
 
-##### `def enable_mechstatus_callback(self, callback: (Callable[[Sesame5MechStatus], None] | Callable[[Sesame5MechStatus], Awaitable[None]])) -> None:`
+- Sesame5を施錠します
+- ログイン後でないと実行できません
 
-- デバイスの状態が変化したときに、リアルタイムで状態を受け取るコールバックを設定します。
-- `Sesame5MechStatus`のインスタンスをコールバックします。
-- 通常の関数と、コルーチン関数のどちらも使用可能です。
-- いつでもこのメソッドは実行可能です。
 - 引数
-  - callback (Callable[[Sesame5MechStatus], None] | Callable[[Sesame5MechStatus], Awaitable[None]]): 状態を受け取るコールバック用関数
+  - history_name: 操作履歴に表示される名前
 
----
+#### `async Sesame5.unlock(history_name: str) -> None`
 
-##### `async def lock(self, history_name: str) -> None:`
+- Sesame5を開錠します
+- ログイン後でないと実行できません
 
-- Sesame 5デバイスを施錠します。
-- `history_name`がSesame公式アプリの履歴に記録されます。
-- `history_name`が30バイト以上の場合、30バイト分までを使用し、31バイト以降は切り捨てられます。
-- この操作はログイン後でないとできません。
 - 引数
-  - history_name (str): 公式アプリの履歴に記録する名前
-- 例外
-  - RuntimeError:
-    - ログインしていない場合
-    - Sesame 5デバイスから、成功以外のレスポンスを受け取った場合
-  - TimeoutError: Sesame 5から既定の秒数以内にレスポンスが届かなかった場合
+  - history_name: 操作履歴に表示される名前
 
----
+#### `async Sesame5.toggle(history_name: str) -> None`
 
-##### `async def unlock(self, history_name: str) -> None:`
+- Sesame5が開錠中は施錠、施錠中は開錠します
+- ログイン後でないと実行できません
 
-- Sesame 5デバイスを開錠します。
-- `history_name`がSesame公式アプリの履歴に記録されます。
-- `history_name`が30バイト以上の場合、30バイト分までを使用し、31バイト以降は切り捨てられます。
-- この操作はログイン後でないとできません。
 - 引数
-  - history_name (str): 公式アプリの履歴に記録する名前
-- 例外
-  - RuntimeError:
-    - ログインしていない場合
-    - Sesame 5デバイスから、成功以外のレスポンスを受け取った場合
-  - TimeoutError: Sesame 5から既定の秒数以内にレスポンスが届かなかった場合
+  - history_name: 操作履歴に表示される名前
 
 ---
 
-##### `async def toggle(self, history_name: str) -> None:`
+### デバイス情報と設定
 
-- `Sesame 5`インスタンスの状態(`_state.mech_status.is_in_lock_range`)に応じて、施錠中の場合は開錠、開錠中の場合は施錠します。
-- `history_name`がSesame公式アプリの履歴に記録されます。
-- `history_name`が30バイト以上の場合、30バイト分までを使用し、31バイト以降は切り捨てられます。
-- この操作はログイン後でないとできません。
-- ログイン直後など、`Sesame 5`インスタンスに施錠状態が記録されていない状態でこのメソッドを実行すると、例外が発生します。
-- 引数
-  - history_name (str): 公式アプリの履歴に記録する名前
-- 例外
-  - RuntimeError:
-    - ログインしていない場合
-    - Sesame 5デバイスから、成功以外のレスポンスを受け取った場合
-    - `_state.mech_status.is_in_lock_range`が不明な場合
-  - TimeoutError: Sesame 5から既定の秒数以内にレスポンスが届かなかった場合
+#### `property Sesame5.mac_address: str`
 
-#### プロパティ
+- Sesame5のMACアドレス
 
----
+#### `property Sesame5.is_connected: bool`
 
-##### `mac_address: str`
+- Sesame5と接続中か否か
 
-- Sesame 5デバイスのMACアドレス
+#### `property Sesame5.login_status: const.LoginStatus`
 
----
+- Sesame5のログインステータス
 
-##### `local_name: str | None`
+#### `property Sesame5.sesame_advertisement_data: ble.SesameAdvertisementData | None`
 
-- Sesame 5デバイスのBLEデバイス名
-- 取得できない場合は`None`
+- Sesame5がアドバタイズしている情報
+- 接続前は`None`です
+
+#### `Sesame5.device_status: const.DeviceStatus`
+
+- Sesame5の接続試行中やログイン試行中などの状態
+
+#### `Sesame5.mech_status: Sesame5MechStatus | None`
+
+- キャッシュされた最新のSesame5の器械状態
+- 接続前は`None`です
 
 ---
 
-##### `sesame_advertising_data: SesameAdvertisementData`
+## Sesame5MechStatusクラス
 
-- Sesame 5デバイスがBLEでadvertiseしているSesame固有の情報
+### 器械状態
 
----
+#### `Sesame5MechStatus.position: int`
 
-##### `is_connected: bool`
+最新の角度センサーの値
 
-- Sesame 5デバイスとBLEで接続中か否か
+#### `Sesame5MechStatus.target: int`
 
----
+モーターが動かそうとしているサムターンの位置
 
-##### `device_status: DeviceStatus`
+#### `property Sesame5MechStatus.is_in_lock_range: bool`
 
-- 現在の`Sesame 5`の状態
-- 要素
-  - `login_status: LoginStatus`
-    - ログイン済みか否かの状態
+- 施錠位置にあるか否か
 
----
+#### `property Sesame5MechStatus.is_in_unlock_range: bool`
 
-##### `mech_status: Sesame5MechStatus | None`
+- 開錠位置にあるか否か
 
-- `Sesame 5`の機械部分の状態
-- 未接続時やログイン直後など、状態を受信する前は`None`
+#### `property Sesame5MechStatus.is_battery_critical: bool`
 
----
+- 電池電圧が5V以下か否か
 
-### `Sesame5MechStatus`クラス
+#### `property Sesame5MechStatus.is_stop: bool`
 
-- Sesame 5デバイスの機械部分の状態を表すクラス。
-- Sesame 5デバイスからBLEで受信した状態を基にインスタンスを作成します。
+- サムターンの角度が変化していないか否か
 
-#### `Sesame5MechStatus`プロパティ
+#### `property Sesame5MechStatus.battery_voltage: float`
 
----
+- 電池電圧
 
-##### `position: int`
+#### `property Sesame5MechStatus.battery_percentage: int`
 
-- Sesame 5デバイスのサムターンの位置
+- 電池残量のパーセンテージ
 
 ---
 
-##### `target: int`
+## SesameAdvertisementDataクラス
 
-- Sesame 5デバイスのモーターが動作する目標位置
+### Sesameの情報
 
----
+#### `SesameAdvertisementData.product_model: const.ProductModels`
 
-##### `is_in_lock_range: bool`
+- Sesameのモデル情報
 
-- Sesame 5デバイスのサムターンが施錠位置にあるか否か
+#### `SesameAdvertisementData.product_model: bool`
 
----
+- Sesameが登録済みか否か
 
-##### `is_in_unlock_range: bool`
+#### `SesameAdvertisementData.device_uuid: UUID`
 
-- Sesame 5デバイスのサムターンが開錠位置にあるか否か
-
----
-
-##### `is_battery_critical: bool`
-
-- Sesame 5デバイスの電池残量が残りわずかか否か
-
----
-
-##### `is_stop`
-
-- Sesame 5デバイスのモーターが停止中か否か
-
----
-
-##### `battery_voltage: float`
-
-- Sesame 5デバイスの電池電圧
-
----
-
-##### `battery_percentage: int`
-
-- Sesame 5の電池残量
-- 公式アプリと同様に`battery_voltage`を基に、電池電圧と電池残量のテーブルから線形補完をして算出
-
----
-
-### `SesameAdvertisementData`クラス
-
-- Sesame 5デバイスのBLE Advertisementに含まれる情報を表すクラス
-
-#### `SesameAdvertisementData`プロパティ
-
----
-
-##### `is_registered: bool`
-
-- Sesame 5デバイスが公式アプリで設定済みか否か
-
----
-
-##### `name: str | None`
-
-- Sesame 5デバイスのBLEデバイス名
-- 取得できない場合は`None`
-
----
-
-##### `product_model: ProductModels`
-
-- Sesame 5デバイスのモデル
-- `ProductModels: Enum`
-  - `SESAME5 = 5`
-  - `SESAME5_PRO = 7`
-  - `SESAME5_USA = 16`
-
----
-
-##### `rssi: int`
-
-- Sesame 5デバイスのAdvertisementを受信したRSSI
-
----
-
-##### `device_id: UUID`
-
-- Sesame 5固有のデバイスid
-- Sesame公式アプリの`UUID`に相当
+- SesameのUUID

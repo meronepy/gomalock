@@ -1,6 +1,6 @@
 # [gomalock](https://github.com/meronepy/gomalock)
 
-![Python](https://img.shields.io/badge/python-3.10-5da1d8)
+![Python](https://img.shields.io/badge/python-3.11-5da1d8)
 [![License](https://img.shields.io/badge/license-MIT-5da1d8)](LICENSE)
 ![Platform](https://img.shields.io/badge/platform-Linux%20%2F%20Windows%20%2F%20macOS-ffb8d2)
 
@@ -57,7 +57,7 @@ Linux環境では前述のバグが原因で、BlueZ 5.82以降が必要です�
 
 ### Python
 
-Python 3.10以降が必要です。`Union`型の`|`記法と、`match`文を使用しているためです。
+Python 3.11以降が必要です。
 
 ## 使用ライブラリ
 
@@ -66,4 +66,4 @@ Python 3.10以降が必要です。`Union`型の`|`記法と、`match`文を使�
 
 ## 使用方法
 
-[docs/usage.md](docs/usage.md)をご覧ください。
+[docs/usage.md](docs/usage.md)および[example](example)をご覧ください。

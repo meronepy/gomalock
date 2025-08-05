@@ -1,12 +1,13 @@
 """Constants and enumerations for Sesame BLE communication.
 
 This module defines various constants and enumerations used throughout the
-`gomalock` library for interacting with Sesame smart lock devices via BLE.
+`gomalock` library for interacting with Sesame devices.
 """
 
-from enum import auto, Enum, IntEnum
+from enum import Enum, IntFlag, auto
 
-
+COMPANY_ID = 0x055A
+"""The company ID for CANDYHOUSE, Inc."""
 UUID_SERVICE = "0000fd81-0000-1000-8000-00805f9b34fb"
 """The UUID for the primary Sesame BLE service."""
 UUID_WRITE = "16860002-a5ae-9856-b6d3-dbb4c676993e"
@@ -14,66 +15,104 @@ UUID_WRITE = "16860002-a5ae-9856-b6d3-dbb4c676993e"
 UUID_NOTIFICATION = "16860003-a5ae-9856-b6d3-dbb4c676993e"
 """The UUID for the GATT characteristic used to receive notifications."""
 
+HISTORY_TAG_MAX_LEN = 20
+"""Max history tag length."""
+MTU_SIZE = 20
+"""The MTU for BLE communication."""
+SCAN_TIMEOUT = 10
+"""Timeout for BLE scanning to get advertisement data."""
+SESSION_TOKEN_TIMEOUT = 5
+"""Timeout for waiting for a session token."""
+RESPONSE_TIMEOUT = 2
+"""Timeout for waiting for a response from the device."""
+
+VOLTAGE_LEVELS = (
+    5.85,
+    5.82,
+    5.79,
+    5.76,
+    5.73,
+    5.70,
+    5.65,
+    5.60,
+    5.55,
+    5.50,
+    5.40,
+    5.20,
+    5.10,
+    5.0,
+    4.8,
+    4.6,
+)
+"""Voltage levels for battery percentage calculation."""
+BATTERY_PERCENTAGES = (
+    100.0,
+    95.0,
+    90.0,
+    85.0,
+    80.0,
+    70.0,
+    60.0,
+    50.0,
+    40.0,
+    32.0,
+    21.0,
+    13.0,
+    10.0,
+    7.0,
+    3.0,
+    0.0,
+)
+"""Battery percentage corresponding to the voltage levels."""
+
 
 class ProductModels(Enum):
-    """Enumeration of known Sesame product models.
-
-    The values correspond to the model IDs received in the advertisement data.
-    """
+    """The model IDs received in the advertisement data."""
 
     SESAME5 = 5
     SESAME5_PRO = 7
     SESAME5_USA = 16
 
 
-class PacketTypes(IntEnum):
-    """Enumeration of packet type flags used in the 1-byte header of BLE packets.
-
-    These flags indicate the role of a packet within a larger message sequence
-    and whether the payload is encrypted.
-    """
+class PacketTypes(IntFlag):
+    """Packet type flags used in the 1-byte header of BLE packets."""
 
     BEGINNING = 0b001
     PLAINTEXT_END = 0b010
     ENCRYPTED_END = 0b100
 
 
+class MechStatusBitFlags(IntFlag):
+    """Mechanical status flags for Sesame devices."""
+
+    IS_CLUTCH_FAILED = 0b00000001
+    IS_IN_LOCK_RANGE = 0b00000010
+    IS_IN_UNLOCK_RANGE = 0b00000100
+    IS_CRITICAL = 0b00001000
+    IS_STOP = 0b00010000
+    IS_BATTERY_CRITICAL = 0b00100000
+    IS_CLOCKWISE = 0b01000000
+
+
+class DeviceStatus(Enum):
+    """Device status of Sesame."""
+
+    NO_BLE_SIGNAL = auto()
+    BLE_CONNECTING = auto()
+    BLE_LOGINING = auto()
+    LOCKED = auto()
+    UNLOCKED = auto()
+
+
 class LoginStatus(Enum):
-    """Enumeration representing the login state of the device connection."""
+    """Login status of Sesame."""
 
     UNLOGIN = auto()
     LOGIN = auto()
 
 
-class DeviceStatus(Enum):
-    """Enumeration representing the overall status of the Sesame device and its connection.
-
-    Each status is associated with a `LoginStatus`.
-
-    Attributes:
-        login_status (LoginStatus): The login status associated with this device status.
-    """
-
-    NO_BLE_SIGNAL = (auto(), LoginStatus.UNLOGIN)
-    RECEIVED_ADVERTISEMENT = (auto(), LoginStatus.UNLOGIN)
-    BLE_CONNECTING = (auto(), LoginStatus.UNLOGIN)
-    DISCOVER_SERVICES = (auto(), LoginStatus.UNLOGIN)
-    BLE_LOGINING = (auto(), LoginStatus.UNLOGIN)
-    LOCKED = (auto(), LoginStatus.LOGIN)
-    UNLOCKED = (auto(), LoginStatus.LOGIN)
-
-    def __init__(self, _, login_status: LoginStatus):
-        """Initializes a DeviceStatus member.
-
-        Args:
-            _ : The automatically assigned value for the enum member.
-            login_status (LoginStatus): The login status corresponding to this device status.
-        """
-        self.login_status = login_status
-
-
 class ItemCodes(Enum):
-    """Enumeration of item codes used in Sesame command and notification payloads."""
+    """Item codes used in Sesame command and notification payloads."""
 
     NONE = 0
     REGISTRATION = 1
@@ -220,7 +259,7 @@ class ItemCodes(Enum):
 
 
 class OpCodes(Enum):
-    """Enumeration of operation codes used in the header of received notifications."""
+    """Operation codes used in the header of received notifications."""
 
     CREATE = 0x01
     READ = 0x02
@@ -234,7 +273,7 @@ class OpCodes(Enum):
 
 
 class ResultCodes(Enum):
-    """Enumeration of result codes received in response messages."""
+    """Result codes received in response messages."""
 
     SUCCESS = 0
     INVALID_FORMAT = 1

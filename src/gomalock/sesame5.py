@@ -1,712 +1,275 @@
-"""Interface for Sesame 5 smart lock.
+"""Sesame 5 device BLE control and status module.
 
-This module provides the `Sesame5` class, which encapsulates the logic for
-managing a connection to, authenticating with, and controlling a Sesame 5
-device. It builds upon the lower-level BLE communication handled by
-`SesameBleDevice` and `BleParser`, and uses `BleCipher` for encrypting
-and decrypting messages. The module also defines `Sesame5MechStatus`
-to parse and represent the mechanical state of the lock.
+This module provides a main class of Sesame5 for controlling and abstracts
+the mechanical status of a Sesame 5 device.
 """
 
 import asyncio
-from dataclasses import dataclass
-import inspect
 import logging
-from typing import Awaitable, Callable
+from dataclasses import dataclass
+from typing import Callable, Self
 
-from bleak.backends.device import BLEDevice
-
-from .ble import (
-    ReceivedNotificationData,
-    ReceivedPublishData,
-    ReceivedResponseData,
-    SesameAdvertisementData,
-    SesameCommand,
-)
-from .bledevice import SesameBleDevice
-from .cipher import BleCipher
+from .ble import ReceivedSesamePublish, SesameAdvertisementData, SesameCommand
 from .const import (
+    BATTERY_PERCENTAGES,
+    VOLTAGE_LEVELS,
     DeviceStatus,
     ItemCodes,
     LoginStatus,
-    OpCodes,
-    ResultCodes,
+    MechStatusBitFlags,
 )
+from .exc import SesameError
+from .os3device import OS3Device, create_history_tag
 
 logger = logging.getLogger(__name__)
 
 
-class Sesame5MechStatus:
-    """Represents the mechanical status of a Sesame 5 device.
+def calculate_battery_percentage(battery_voltage: float) -> int:
+    """Calculates battery percentage.
 
-    This class parses the payload received from the device that describes its
-    mechanical state.
+    This is calculated by linearly interpolating the `battery_voltage`
+    against a predefined table of voltage levels and corresponding percentages.
+    """
+    if battery_voltage >= VOLTAGE_LEVELS[0]:
+        return int(BATTERY_PERCENTAGES[0])
+    if battery_voltage <= VOLTAGE_LEVELS[-1]:
+        return int(BATTERY_PERCENTAGES[-1])
+    for i in range(len(VOLTAGE_LEVELS) - 1):
+        upper_voltage = VOLTAGE_LEVELS[i]
+        lower_voltage = VOLTAGE_LEVELS[i + 1]
+        if lower_voltage < battery_voltage <= upper_voltage:
+            voltage_ratio = (battery_voltage - lower_voltage) / (
+                upper_voltage - lower_voltage
+            )
+            upper_percent = BATTERY_PERCENTAGES[i]
+            lower_percent = BATTERY_PERCENTAGES[i + 1]
+            return int((upper_percent - lower_percent) * voltage_ratio + lower_percent)
+    return 0
+
+
+@dataclass(frozen=True)
+class Sesame5MechStatus:
+    """Represents the mechanical status of Sesame5 device.
 
     Attributes:
-        position (int): The current thumb turn position of the Sesame device.
-        target (int): The target thumb turn position the device is trying to reach.
-        is_in_lock_range (bool): True if the device's thumb turn is within the
-            defined lock range.
-        is_in_unlock_range (bool): True if the device's thumb turn is within the
-            defined unlock range.
-        is_battery_critical (bool): True if the device's battery level is critically low.
-        is_stop (bool): True if the device's motor is currently stopped.
-        battery_voltage (float): The current battery voltage of the device in volts.
-        battery_percentage (int): The estimated battery percentage based on the
-            current battery voltage.
+        position: The latest angle the sensor synchronizes to.
+        target: The target thumb turn position the motor is trying to reach.
+        status_flags: Store the boolean values of the mech status.
+        raw_battery: Raw voltage data received from Sesame5 device.
     """
 
-    _VOLTAGE_LEVELS = (
-        5.85,
-        5.82,
-        5.79,
-        5.76,
-        5.73,
-        5.70,
-        5.65,
-        5.60,
-        5.55,
-        5.50,
-        5.40,
-        5.20,
-        5.10,
-        5.0,
-        4.8,
-        4.6,
-    )
-    _BATTERY_PERCENTAGES = (
-        100.0,
-        95.0,
-        90.0,
-        85.0,
-        80.0,
-        70.0,
-        60.0,
-        50.0,
-        40.0,
-        32.0,
-        21.0,
-        13.0,
-        10.0,
-        7.0,
-        3.0,
-        0.0,
-    )
+    position: int
+    target: int
+    status_flags: int
+    raw_battery: int
 
-    def __init__(self, payload: bytes) -> None:
-        """Initializes Sesame5MechStatus from a raw status payload.
+    @classmethod
+    def from_payload(cls, payload: bytes) -> Self:
+        """Parses the payload received from the Sesame5 device.
 
         Args:
-            payload (bytes): The byte payload received from the Sesame device
-                containing mechanical status information.
+            payload: The byte payload received from the Sesame5 device
+                with item code mech_status.
         """
         status_flags = payload[6]
-        self._status_flags = tuple(bool(status_flags & (1 << i)) for i in range(7))
-        self._position = int.from_bytes(payload[4:6], "little", signed=True)
-        self._target = int.from_bytes(payload[2:4], "little", signed=True)
-        self._battery = int.from_bytes(payload[0:2], "little")
-
-    @property
-    def position(self) -> int:
-        """The current thumb turn position of the Sesame device."""
-        return self._position
-
-    @property
-    def target(self) -> int:
-        """The target thumb turn position the Sesame device is trying to reach."""
-        return self._target
+        position = int.from_bytes(payload[4:6], "little", signed=True)
+        target = int.from_bytes(payload[2:4], "little", signed=True)
+        raw_battery = int.from_bytes(payload[0:2], "little")
+        return cls(position, target, status_flags, raw_battery)
 
     @property
     def is_in_lock_range(self) -> bool:
-        """True if the device's thumb turn is currently within the defined lock range."""
-        return self._status_flags[1]
+        """Whether the thumb turn is within the lock range."""
+        return bool(self.status_flags & MechStatusBitFlags.IS_IN_LOCK_RANGE)
 
     @property
     def is_in_unlock_range(self) -> bool:
-        """True if the device's thumb turn is currently within the defined unlock range."""
-        return self._status_flags[2]
+        """Whether the thumb turn is within the unlock range."""
+        return bool(self.status_flags & MechStatusBitFlags.IS_IN_UNLOCK_RANGE)
 
     @property
     def is_battery_critical(self) -> bool:
-        """True if the device's battery level is critically low."""
-        return self._status_flags[5]
+        """Whether the Sesame5 battery voltage is below 5V"""
+        return bool(self.status_flags & MechStatusBitFlags.IS_BATTERY_CRITICAL)
 
     @property
     def is_stop(self) -> bool:
-        """True if the device's motor is currently stopped."""
-        return self._status_flags[4]
+        """Whether the thumb turn angle does not change"""
+        return bool(self.status_flags & MechStatusBitFlags.IS_STOP)
 
     @property
     def battery_voltage(self) -> float:
-        """The current battery voltage of the device in volts."""
-        return self._battery * 2 / 1000
+        """The current battery voltage of the Sesame5."""
+        return self.raw_battery * 2 / 1000
 
     @property
     def battery_percentage(self) -> int:
-        """The estimated battery percentage.
-
-        This is calculated by linearly interpolating the `battery_voltage`
-        against a predefined table of voltage levels and corresponding percentages.
-        """
-        voltage = self.battery_voltage
-        if voltage >= Sesame5MechStatus._VOLTAGE_LEVELS[0]:
-            return int(Sesame5MechStatus._BATTERY_PERCENTAGES[0])
-        if voltage <= Sesame5MechStatus._VOLTAGE_LEVELS[-1]:
-            return int(Sesame5MechStatus._BATTERY_PERCENTAGES[-1])
-        for i in range(len(Sesame5MechStatus._VOLTAGE_LEVELS) - 1):
-            upper_voltage = Sesame5MechStatus._VOLTAGE_LEVELS[i]
-            lower_voltage = Sesame5MechStatus._VOLTAGE_LEVELS[i + 1]
-            if lower_voltage < voltage <= upper_voltage:
-                voltage_ratio = (voltage - lower_voltage) / (
-                    upper_voltage - lower_voltage
-                )
-                upper_percent = Sesame5MechStatus._BATTERY_PERCENTAGES[i]
-                lower_percent = Sesame5MechStatus._BATTERY_PERCENTAGES[i + 1]
-                return int(
-                    (upper_percent - lower_percent) * voltage_ratio + lower_percent
-                )
-        return 0
-
-
-@dataclass
-class _Sesame5State:
-    """Internal state representation for a Sesame5 device.
-
-    Attributes:
-        device_status (DeviceStatus): The current overall status of the device
-            and its connection (e.g., connecting, logged in, locked).
-            Defaults to `DeviceStatus.RECEIVED_ADVERTISEMENT`.
-        mech_status (Sesame5MechStatus | None): The latest known mechanical
-            status of the device (e.g., position, battery). Defaults to `None`.
-    """
-
-    device_status: DeviceStatus = DeviceStatus.RECEIVED_ADVERTISEMENT
-    mech_status: Sesame5MechStatus | None = None
+        """The estimated battery percentage based on `battery_voltage`."""
+        return calculate_battery_percentage(self.battery_voltage)
 
 
 class Sesame5:
-    """Manages communication and interaction with a Sesame 5 smart lock.
+    """Main interface for controlling and monitoring a Sesame 5 device.
 
-    This class handles BLE communication, data encryption/decryption,
-    command sending, and status updates.
-
-    Attributes:
-        mac_address (str): Property for the MAC address of the BLE device.
-        local_name (str | None): Property for the local name of the BLE device.
-        sesame_advertising_data (SesameAdvertisementData): Property for the
-            parsed advertisement data.
-        is_connected (bool): Property indicating if the BLE client is connected.
-        device_status (DeviceStatus): Property for the current operational status.
-        mech_status (Sesame5MechStatus | None): Property for the latest known
-            mechanical status.
+    Handles BLE connection, login, lock/unlock/toggle commands, and status callbacks.
     """
 
-    _RESPONSE_TIMEOUT = 2
-    """Timeout in seconds for waiting for a command response."""
-    _SESSION_TOKEN_TIMEOUT = 5
-    """Timeout in seconds for waiting for the initial session token."""
-    _MAX_HISTORY_TAG_LENGTH = 30
-    """Maximum length in bytes for the UTF-8 encoded history tag name."""
-
     def __init__(
-        self, ble_device: BLEDevice, sesame_advertising_data: SesameAdvertisementData
+        self,
+        mac_address: str,
+        secret_key: str,
     ) -> None:
-        """Initializes the Sesame5 device instance.
+        """Initializes the Sesame5 device interface.
 
         Args:
-            ble_device (BLEDevice): The `bleak` BLEDevice object representing
-                the physical Sesame device.
-            sesame_advertising_data (SesameAdvertisementData): The parsed
-                advertisement data associated with this device.
+            mac_address: The MAC address of the Sesame 5 device.
+            secret_key: The secret key for login.
         """
-        self._loop = asyncio.get_running_loop()
-        self._sesame_ble = SesameBleDevice(
-            ble_device, sesame_advertising_data, self._on_received
-        )
-        self._state = _Sesame5State()
-        self._mechstatus_callback_tasks: set[asyncio.Task[None]] = set()
-        self._response_futures: dict[
-            ItemCodes, asyncio.Future[ReceivedResponseData]
-        ] = {}
-        self._session_token_future: asyncio.Future[bytes] = self._loop.create_future()
-        self._cipher: BleCipher | None = None
-        self._mechstatus_callback: Callable[[Sesame5MechStatus], None] | None = None
+        self._os3_device = OS3Device(mac_address, self._on_published)
+        self._secret_key = secret_key
+        self._mech_status_callback: Callable[[Sesame5MechStatus], None] | None = None
+        self.device_status = DeviceStatus.NO_BLE_SIGNAL
+        self.mech_status: Sesame5MechStatus | None = None
+    async def __aenter__(self) -> Self:
+        await self.connect()
+        await self.login()
+        return self
 
-    def _on_received(self, payload: bytes, is_encrypted: bool) -> None:
-        """Callback for handling raw data received from `SesameBleDevice`.
+    async def __aexit__(self, exc_type, exc_value, traceback) -> None:
+        await self.disconnect()
 
-        This method is invoked by `SesameBleDevice` when a complete message
-        is received. It decrypts the payload. Then, it parses the data to
-        determine if it's response or publish, and calls handler.
+    def _on_published(self, publish_data: ReceivedSesamePublish) -> None:
+        """Handles published data from the device.
 
         Args:
-            payload (bytes): The raw message payload.
-            is_encrypted (bool): True if the payload was marked as encrypted.
-
-        Raises:
-            RuntimeError: If `is_encrypted` is True and `_cipher` is not initialized.
+            publish_data: Data published by the device.
         """
-        logger.debug("Received data. is_encrypted: %s", is_encrypted)
-        if is_encrypted:
-            if self._cipher is None:
-                raise RuntimeError(
-                    "Received encrypted packet before encryption was enabled"
-                )
-            payload = self._cipher.decrypt(payload)
-            logger.debug("Received data decryption successful.")
-        received_data = ReceivedNotificationData(payload)
-        match received_data.op_code:
-            case OpCodes.RESPONSE:
-                self._handle_response_data(ReceivedResponseData(received_data.payload))
-            case OpCodes.PUBLISH:
-                self._handle_publish_data(ReceivedPublishData(received_data.payload))
-            case _:
-                logger.debug(
-                    "Unsupported operation. op code: %s",
-                    received_data.op_code,
-                )
-
-    def _handle_response_data(self, response_data: ReceivedResponseData) -> None:
-        """Handles response data received from the device.
-
-        This method sets a result into the waiting future depending on the `item_code`.
-
-        Args:
-            response_data (ReceivedResponseData): The parsed response data.
-        """
-        logger.debug(
-            "Handling response. item code: %s, result code: %s",
-            response_data.item_code,
-            response_data.result_code,
-        )
-        try:
-            future = self._response_futures.pop(response_data.item_code)
-        except KeyError:
-            logger.warning(
-                "Received response without request. item code: %s, result code: %s",
-                response_data.item_code,
-                response_data.result_code,
-            )
-            return
-        if future.done():
-            logger.warning(
-                "Received response but future is already done. "
-                "item code: %s, result code: %s",
-                response_data.item_code,
-                response_data.result_code,
-            )
-            return
-        future.set_result(response_data)
-        logger.debug(
-            "Set response to future. item code: %s, result code: %s",
-            response_data.item_code,
-            response_data.result_code,
-        )
-
-    def _handle_publish_data(self, publish_data: ReceivedPublishData) -> None:
-        """Handles published data received from the device.
-
-        This method parses the `item_code` and calls the appropriate handler.
-
-        Args:
-            publish_data (ReceivedPublishData): The parsed published data.
-        """
-        logger.debug("Handling publish data. item code: %s", publish_data.item_code)
         match publish_data.item_code:
-            case ItemCodes.INITIAL:
-                if self._session_token_future.done():
-                    logger.warning(
-                        "Received INITIAL publish, but session token future is already done."
-                    )
-                self._session_token_future.set_result(publish_data.payload)
             case ItemCodes.MECH_STATUS:
-                self._state.mech_status = Sesame5MechStatus(publish_data.payload)
-                self._state.device_status = (
+                self.mech_status = Sesame5MechStatus.from_payload(publish_data.payload)
+                logger.debug("Received mech status update.")
+                self.device_status = (
                     DeviceStatus.LOCKED
-                    if self._state.mech_status.is_in_lock_range
+                    if self.mech_status.is_in_lock_range
                     else DeviceStatus.UNLOCKED
                 )
-                if self._mechstatus_callback:
-                    logger.debug("Calling mechstatus callback.")
-                    self._loop.call_soon_threadsafe(
-                        self._mechstatus_callback, self._state.mech_status
+                if self._mech_status_callback:
+                    asyncio.get_running_loop().call_soon_threadsafe(
+                        self._mech_status_callback, self.mech_status
                     )
             case _:
                 logger.debug(
-                    "Received unsupported publish data. item code: %s",
+                    "Received unsupported publish data (item_code=%s)",
                     publish_data.item_code,
                 )
 
-    async def _send_command(
-        self, command: SesameCommand, should_encrypt: bool
-    ) -> ReceivedResponseData:
-        """Sends a command to the Sesame device and waits for a response.
-
-        If `should_encrypt` is True, the data is encrypted using `_cipher`.
-        The (potentially encrypted) data is then fragmented by `_packet_parser`
-        and sent via `_write_gatt`. After sending, this method waits for a
-        response from the device.
+    async def _set_locked(self, history_name: str, locked: bool) -> None:
+        """Sends a lock or unlock command to the device.
 
         Args:
-            command (SesameCommand): The command to send.
-            should_encrypt (bool): True if the command payload should be
-                encrypted before sending.
-
-        Returns:
-            ReceivedResponseData: The validated response received from the device
-                corresponding to the sent command.
-
-        Raises:
-            TimeoutError: If a response is not received within the timeout period.
-            RuntimeError: If `should_encrypt` is True but `_cipher` is not
-                initialized (i.e., not logged in).
+            history_name: The history tag name.
+            locked: True to lock, False to unlock.
         """
-        logger.debug(
-            "Sending command. item code: %s, should_encrypt: %s",
-            command.item_code,
-            should_encrypt,
+        tag = create_history_tag(history_name)
+        item_code = ItemCodes.LOCK if locked else ItemCodes.UNLOCK
+        logger.info("Sending %s command with history: '%s'", item_code, history_name)
+        await self._os3_device.send_command(
+            SesameCommand(item_code, tag), should_encrypt=True
         )
-        send_data = command.transmission_data
-        if should_encrypt:
-            if self._cipher is None:
-                raise RuntimeError("Cannot encrypt: encryption is not enabled")
-            send_data = self._cipher.encrypt(send_data)
-            logger.debug(
-                "Command data encryption successful. item_code: %s", command.item_code
-            )
-        future = self._loop.create_future()
-        self._response_futures[command.item_code] = future
-        logger.debug("Writing GATT. item_code: %s", command.item_code)
-        await self._sesame_ble.write_gatt(send_data, should_encrypt)
-        logger.debug("GATT write complete, waiting for response.")
-        try:
-            response: ReceivedResponseData = await asyncio.wait_for(
-                future, Sesame5._RESPONSE_TIMEOUT
-            )
-        except asyncio.TimeoutError as e:
-            self._response_futures.pop(command.item_code, None)
-            raise TimeoutError(
-                f"Response for command {command.item_code} not received "
-                f"within {Sesame5._RESPONSE_TIMEOUT} seconds"
-            ) from e
-        logger.debug(
-            "Response received. item code: %s, result code: %s",
-            response.item_code,
-            response.result_code,
-        )
-        return response
 
-    @classmethod
-    def _create_history_tag(cls, history_name: str) -> bytes:
-        """Creates a history tag payload from a string.
+    def set_mech_status_callback(
+        self, callback: Callable[[Sesame5MechStatus], None] | None = None
+    ) -> None:
+        """Sets or clear mech status callback.
 
-        The `history_name` is UTF-8 encoded. If the length of the encoded
-        string is 30 bytes or more, it is truncated to 30 bytes and
-        be added a single byte indicating the length of the truncated string.
+        Sets a callback function. If `None` is passed,
+        the existing callback (if any) will be cleared.
 
         Args:
-            history_name (str): The string to be used as the history tag.
-
-        Returns:
-            bytes: The formatted history tag payload.
+            callback: a callback function that is invoked when the
+                mechanical status changes.
         """
-        payload = history_name.encode("utf-8")
-        if len(payload) >= cls._MAX_HISTORY_TAG_LENGTH:
-            logger.debug(
-                "History tag is too long, truncating to %s bytes",
-                cls._MAX_HISTORY_TAG_LENGTH,
-            )
-            payload = payload[: cls._MAX_HISTORY_TAG_LENGTH]
-        tag = bytes([len(payload)]) + payload
-        return tag
-
-    async def _reset_session_data(self) -> None:
-        """Resets the internal session data and state.
-
-        This method cancels all ongoing tasks and futures related to session
-        to prepare for a new session.
-        """
-        for task in self._mechstatus_callback_tasks:
-            task.cancel()
-        await asyncio.gather(*self._mechstatus_callback_tasks, return_exceptions=True)
-        self._mechstatus_callback_tasks.clear()
-
-        for fut in self._response_futures.values():
-            fut.cancel()
-        await asyncio.gather(*self._response_futures.values(), return_exceptions=True)
-        self._response_futures.clear()
-
-        self._session_token_future.cancel()
-        try:
-            await self._session_token_future
-        except asyncio.CancelledError:
-            pass
-        self._session_token_future = self._loop.create_future()
-
-        self._state = _Sesame5State()
-        self._cipher = None
-
-        logger.debug("Session data was successfully reset.")
+        self._mech_status_callback = callback
 
     async def connect(self) -> None:
-        """Establishes a BLE connection to the Sesame device.
+        """Connects to the Sesame 5 device via BLE."""
+        logger.info("Connecting to Sesame 5 (MAC=%s)", self._os3_device.mac_address)
+        self.device_status = DeviceStatus.BLE_CONNECTING
+        await self._os3_device.connect()
+        logger.info("Connection established.")
 
-        Sets the device status to `BLE_CONNECTING` and then calls the
-        underlying `_sesame_ble.connect()` method.
+    async def login(self) -> int:
+        """Performs login to the device.
 
-        Raises:
-            ConnectionError: If the device is already connected.
-            TimeoutError: If the connection attempt fails or times out (propagated
-                from `SesameBleDevice.connect`).
-            RuntimeError: If GATT characteristics are not found (propagated
-                from `SesameBleDevice.connect`).
+        Returns:
+            The login timestamp.
         """
-
-        logger.debug("Connecting to Sesame5.")
-        if self._sesame_ble.is_connected:
-            raise ConnectionError(
-                f"Device {self._sesame_ble.ble_device.address} is already connected"
-            )
-        self._state.device_status = DeviceStatus.BLE_CONNECTING
-        await self._sesame_ble.connect()
-        logger.debug("Connected to Sesame5.")
+        logger.info("Logging in to Sesame 5.")
+        self.device_status = DeviceStatus.BLE_LOGINING
+        timestamp = await self._os3_device.login(self._secret_key)
+        logger.info("Login successful (timestamp=%d)", timestamp)
+        return timestamp
 
     async def disconnect(self) -> None:
-        """Disconnects from the BLE device.
-
-        Calls the underlying `_sesame_ble.disconnect()` method and performs
-        cleanup of session data.
-
-        Raises:
-            ConnectionError:
-                - If the device is not currently connected.
-                - If an error occurs during disconnection (propagated from
-                  `SesameBleDevice.disconnect`).
-        """
-        logger.debug("Disconnecting from Sesame5.")
-        if not self._sesame_ble.is_connected:
-            raise ConnectionError(
-                f"Device {self._sesame_ble.ble_device.address} is not connected"
-            )
+        """Disconnects from the Sesame 5 device."""
+        logger.info("Disconnecting from Sesame 5.")
         try:
-            await self._sesame_ble.disconnect()
-            logger.debug("Disconnected from Sesame5.")
+            await self._os3_device.disconnect()
         finally:
-            await self._reset_session_data()
-
-    async def login(self, secret_key: str) -> None:
-        """Performs the login sequence with the Sesame device.
-
-        This method orchestrates the login process, which involves:
-        1. Ensuring the device is connected and not already logged in.
-        2. Validating the provided `secret_key`.
-        3. Waiting for the initial session token to be published by the device.
-        4. Generating the application public key using the `secret_key` and
-           session token.
-        5. Initializing the `BleCipher` with the session token and app public key.
-        6. Sending a LOGIN command to the device with the first 4 bytes of the
-           app public key.
-        7. Verifying the login response from the device.
-
-        Args:
-            secret_key (str): The 32-character hexadecimal secret key for the device.
-
-        Raises:
-            RuntimeError: If not connected, already logged in or login command fails.
-            ValueError: If `secret_key` is not a 32-character hex string.
-            TimeoutError: If the session token is not received within `_SESSION_TOKEN_TIMEOUT`.
-        """
-        logger.debug("Performing login to Sesame5.")
-        if not self._sesame_ble.is_connected:
-            raise RuntimeError(
-                f"Cannot log in: device {self._sesame_ble.ble_device.address} is not connected"
-            )
-        if self._state.device_status.login_status != LoginStatus.UNLOGIN:
-            raise RuntimeError("Already logged in")
-        if len(secret_key) != 32:
-            raise ValueError("Secret key must be a 32-character hex string")
-        try:
-            secret_key_bytes = bytes.fromhex(secret_key)
-        except ValueError as e:
-            raise ValueError("Secret key must be a valid hex string") from e
-        self._state.device_status = DeviceStatus.BLE_LOGINING
-        logger.debug("Waiting for initial session token.")
-        try:
-            session_token = await asyncio.wait_for(
-                self._session_token_future, Sesame5._SESSION_TOKEN_TIMEOUT
-            )
-        except asyncio.TimeoutError as e:
-            raise TimeoutError("Session token timeout") from e
-        logger.debug("Session token received. Generating app public key.")
-        app_public_key = BleCipher.generate_app_public_key(
-            secret_key_bytes, session_token
-        )
-        logger.debug("App public key generated. Enabling encryption.")
-        self._cipher = BleCipher(session_token, app_public_key)
-        logger.debug("Encryption enabled. Sending login command.")
-        response = await self._send_command(
-            SesameCommand(ItemCodes.LOGIN, app_public_key[:4]), False
-        )
-        if response.result_code != ResultCodes.SUCCESS:
-            raise RuntimeError(f"Login failed: {response.result_code}")
-        timestamp = int.from_bytes(response.payload, "little")
-        logger.debug("Login successful. timestamp: %s", timestamp)
-        if self._state.device_status.login_status != LoginStatus.UNLOGIN:
-            # Sometimes mech_status is not published after logging in,
-            # so in that case, explicitly change the status to logged in.
-            self._state.device_status = DeviceStatus.UNLOCKED
-
-    def enable_mechstatus_callback(
-        self,
-        callback: (
-            Callable[[Sesame5MechStatus], None]
-            | Callable[[Sesame5MechStatus], Awaitable[None]]
-        ),
-    ) -> None:
-        """Enables callback for mechanical status changes.
-
-        Args:
-            callback (Callable[[Sesame5MechStatus], None]
-            | Callable[[Sesame5MechStatus], Awaitable[None]]): The function
-                to call when mechanical status updates are received. It should
-                accept a single `Sesame5MechStatus` argument. The function
-                Can be regular function or async function.
-        """
-        if inspect.iscoroutinefunction(callback):
-
-            def wrapped_callback(mech_status: Sesame5MechStatus) -> None:
-                task = asyncio.create_task(callback(mech_status))
-                self._mechstatus_callback_tasks.add(task)
-                task.add_done_callback(self._mechstatus_callback_tasks.discard)
-
-        else:
-
-            def wrapped_callback(mech_status: Sesame5MechStatus) -> None:
-                callback(mech_status)
-
-        self._mechstatus_callback = wrapped_callback
-        logger.debug("Mech status callback enabled.")
+            self.device_status = DeviceStatus.NO_BLE_SIGNAL
+            self.mech_status = None
+        logger.info("Disconnected from Sesame 5.")
 
     async def lock(self, history_name: str) -> None:
-        """Sends a command to lock the Sesame device.
-
-        This command is encrypted and includes a history tag derived from
-        `history_name`. It requires the device to be logged in.
+        """Locks the Sesame 5 device.
 
         Args:
-            history_name (str): A descriptive name for this lock operation,
-                to be stored in the device's history. The name is processed by
-                `_create_history_tag`, meaning the UTF-8 encoded string part
-                will be at most 30 bytes, prefixed by its length.
-
-        Raises:
-            RuntimeError:
-                - If the device is not currently logged in.
-                - If the lock command sent to the device returns a non-successful
-                  result code (e.g., `ResultCodes.BUSY`).
-            TimeoutError: If a response to the lock command is not received
-                within the timeout period (inherited from `_send_command`).
+            history_name: The history tag name.
         """
-        if self._state.device_status.login_status != LoginStatus.LOGIN:
-            raise RuntimeError("Must be logged in before performing lock")
-        tag = self._create_history_tag(history_name)
-        response = await self._send_command(SesameCommand(ItemCodes.LOCK, tag), True)
-        if response.result_code != ResultCodes.SUCCESS:
-            raise RuntimeError(f"Lock failed: {response.result_code}")
+        await self._set_locked(history_name, True)
 
     async def unlock(self, history_name: str) -> None:
-        """Sends a command to unlock the Sesame device.
-
-        This command is encrypted and includes a history tag derived from
-        `history_name`. It requires the device to be logged in.
+        """Unlocks the Sesame 5 device.
 
         Args:
-            history_name (str): A descriptive name for this unlock operation,
-                to be stored in the device's history. The name is processed by
-                `_create_history_tag`, meaning the UTF-8 encoded string part
-                will be at most 30 bytes, prefixed by its length.
-
-        Raises:
-            RuntimeError:
-                - If the device is not currently logged in.
-                - If the unlock command sent to the device returns a non-successful
-                  result code (e.g., `ResultCodes.BUSY`).
-            TimeoutError: If a response to the unlock command is not received
-                within the timeout period (inherited from `_send_command`).
+            history_name: The history tag name.
         """
-        if self._state.device_status.login_status != LoginStatus.LOGIN:
-            raise RuntimeError("Must be logged in before performing unlock")
-        tag = self._create_history_tag(history_name)
-        response = await self._send_command(SesameCommand(ItemCodes.UNLOCK, tag), True)
-        if response.result_code != ResultCodes.SUCCESS:
-            raise RuntimeError(f"Unlock failed: {response.result_code}")
+        await self._set_locked(history_name, False)
 
     async def toggle(self, history_name: str) -> None:
-        """Sends a command to toggle the lock state of the Sesame device.
-
-        This method determines whether to send a lock or unlock command based
-        on the current mechanical status (`_state.mech_status.is_in_lock_range`).
-        The chosen command is encrypted and includes a history tag.
-        Requires the device to be logged in and the mechanical status to be known.
+        """Toggles the lock state of the device.
 
         Args:
-            history_name (str): A descriptive name for this toggle operation,
-                to be stored in the device's history. The name is processed by
-                `_create_history_tag`, meaning the UTF-8 encoded string part
-                will be at most 30 bytes, prefixed by its length.
+            history_name: The history tag name.
 
         Raises:
-            RuntimeError:
-                - If the device is not currently logged in.
-                - If the mechanical status (`_state.mech_status`) is unknown,
-                  preventing determination of the current lock state.
-                - If the underlying lock or unlock command sent to the device
-                  returns a non-successful result code.
-            TimeoutError: If a response to the underlying lock or unlock command
-                is not received within the timeout period (inherited from
-                `_send_command` via `lock`/`unlock` calls).
+            SesameError: If device is not in locked or unlocked state.
         """
-        if self._state.device_status.login_status != LoginStatus.LOGIN:
-            raise RuntimeError("Must be logged in before toggling state")
-        if self._state.mech_status is None:
-            raise RuntimeError("Mech status is unknown, cannot toggle")
-        if self._state.mech_status.is_in_lock_range:
+        if self.device_status == DeviceStatus.LOCKED:
             await self.unlock(history_name)
-        else:
+        elif self.device_status == DeviceStatus.UNLOCKED:
             await self.lock(history_name)
+        else:
+            raise SesameError(
+                "Cannot toggle lock state when device is not in locked or unlocked state."
+            )
 
     @property
     def mac_address(self) -> str:
-        """The MAC address of the connected BLE device."""
-        return self._sesame_ble.ble_device.address
-
-    @property
-    def local_name(self) -> str | None:
-        """The local name of the BLE device.
-
-        If the device does not have a local name, this will be None.
-        """
-        return self._sesame_ble.ble_device.name
-
-    @property
-    def sesame_advertising_data(self) -> SesameAdvertisementData:
-        """Parsed advertisement data for this device."""
-        return self._sesame_ble.sesame_advertising_data
+        """The MAC address of the Sesame 5 device."""
+        return self._os3_device.mac_address
 
     @property
     def is_connected(self) -> bool:
-        """True if the BLE client is currently connected, False otherwise."""
-        return self._sesame_ble.is_connected
+        """True if the device is currently connected."""
+        return self._os3_device.is_connected
 
     @property
-    def device_status(self) -> DeviceStatus:
-        """The current operational status of the device connection."""
-        return self._state.device_status
+    def login_status(self) -> LoginStatus:
+        """The current login status of the device."""
+        return self._os3_device.login_status
 
     @property
-    def mech_status(self) -> Sesame5MechStatus | None:
-        """The latest known mechanical status of the device.
-
-        If the mechanical status is not known, this will be None.
-        """
-        return self._state.mech_status
+    def sesame_advertisement_data(self) -> SesameAdvertisementData | None:
+        """The latest advertisement data from the device."""
+        return self._os3_device.sesame_advertisement_data
