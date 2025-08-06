@@ -47,13 +47,6 @@ if __name__ == "__main__":
 
 ```
 
-## 使用手順
-
-1. `secret_key`をmochipon様作成の[QR Code Reader for SESAME](https://sesame-qr-reader.vercel.app/)を使用して、マネージャー権限以上のQRコードから抽出。
-2. `Sesame5`非同期コンテキストマネージャーで接続。自動でログインや切断を行います。
-
----
-
 ## Sesame5クラス
 
 ### 操作

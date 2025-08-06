@@ -5,7 +5,6 @@ from gomalock.sesame5 import Sesame5, Sesame5MechStatus
 
 logging.basicConfig(level=logging.DEBUG)
 logging.getLogger("bleak").setLevel(logging.INFO)
-logger = logging.getLogger(__name__)
 
 MAC_ADDRESS = "XX:XX:XX:XX:XX:XX"
 SECRET_KEY = "1234567890abcdef1234567890abcdef"
@@ -55,8 +54,6 @@ async def main():
                 case "q":
                     print("Quitting...")
                     break
-                case _:
-                    pass
 
 
 if __name__ == "__main__":

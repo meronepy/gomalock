@@ -8,9 +8,40 @@ Sesame 5スマートロックをPythonからBluetooth Low Energy (BLE)経由で�
 
 ## 機能説明
 
-- BLE経由で施錠、開錠、トグル操作。
-- MACアドレス、またはデバイスIDで周囲のSesame 5デバイスをスキャンして接続。
+- Raspberry PiなどからセサミをBluetooth Low Energy (BLE)経由で施錠、開錠、トグル操作。
 - 状態(施錠状態、サムターンの位置、電池残量など)の変化をリアルタイムで受信。
+
+## インストール
+
+```console
+pip install git+https://github.com/meronepy/gomalock.git
+```
+
+## 使用方法
+
+### 開錠例
+
+```python
+import asyncio
+
+from gomalock.sesame5 import Sesame5
+
+MAC_ADDRESS = "XX:XX:XX:XX:XX:XX"
+SECRET_KEY = "1234567890abcdef1234567890abcdef"
+
+
+async def main():
+    async with Sesame5(MAC_ADDRESS, SECRET_KEY) as sesame5:
+        await sesame5.unlock("gomalock")
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
+- `MAC_ADDRESS`は[discover.py](example/discover.py)を使用して周囲のSesame 5をスキャンして取得できます。
+- `SECRET_KEY`はmochipon様作成の[QR Code Reader for SESAME](https://sesame-qr-reader.vercel.app/)を使用して、マネージャー権限以上のQRコードから抽出できます。
+- 詳細な使用方法は[docs/usage.md](docs/usage.md)および[example](example)をご覧ください。
 
 ## 注意事項
 
@@ -58,12 +89,3 @@ Linux環境では前述のバグが原因で、BlueZ 5.82以降が必要です�
 ### Python
 
 Python 3.11以降が必要です。
-
-## 使用ライブラリ
-
-- bleak
-- pycryptodome
-
-## 使用方法
-
-[docs/usage.md](docs/usage.md)および[example](example)をご覧ください。
