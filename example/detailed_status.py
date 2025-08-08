@@ -1,4 +1,5 @@
 import asyncio
+import functools
 import logging
 
 from gomalock.sesame5 import Sesame5, Sesame5MechStatus
@@ -13,10 +14,10 @@ SECRET_KEY = "1234567890abcdef1234567890abcdef"
 def on_mechstatus_changed(sesame5: Sesame5, status: Sesame5MechStatus) -> None:
     assert sesame5.sesame_advertisement_data is not None
     info = {
-        "Model": sesame5.sesame_advertisement_data.product_model.name,
         "Address": sesame5.mac_address,
-        "UUID": sesame5.sesame_advertisement_data.device_uuid,
+        "Model": sesame5.sesame_advertisement_data.product_model.name,
         "Registered": sesame5.sesame_advertisement_data.is_registered,
+        "UUID": sesame5.sesame_advertisement_data.device_uuid,
         "Position": status.position,
         "Target": status.target,
         "Locked": status.is_in_lock_range,
@@ -32,11 +33,9 @@ def on_mechstatus_changed(sesame5: Sesame5, status: Sesame5MechStatus) -> None:
 
 async def main():
     async with Sesame5(MAC_ADDRESS, SECRET_KEY) as sesame5:
-
-        def callback_wrapper(status: Sesame5MechStatus) -> None:
-            on_mechstatus_changed(sesame5, status)
-
-        sesame5.set_mech_status_callback(callback_wrapper)
+        sesame5.set_mech_status_callback(
+            functools.partial(on_mechstatus_changed, sesame5)
+        )
         while True:
             user_input = await asyncio.to_thread(
                 input, "Enter command (s: lock, u: unlock, t: toggle, q: quit):\n"
