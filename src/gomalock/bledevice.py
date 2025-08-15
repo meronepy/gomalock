@@ -103,7 +103,7 @@ class SesameBleDevice:
             The advertisement data from the Sesame device.
 
         Raises:
-            SesameConnectionError: If scanning times out.
+            asyncio.TimeoutError: If the scan times out.
         """
 
         def scan_callback(device: BLEDevice, adv_data: AdvertisementData) -> None:

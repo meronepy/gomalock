@@ -164,7 +164,8 @@ class OS3Device:
             The response from the device.
 
         Raises:
-            SesameNotLoggedInError: If encryption is attempted before login.
+            asyncio.TimeoutError: If the response times out.
+            SesameLoginError: If encryption is attempted before login.
             SesameOperationError: If the operation fails.
         """
         async with self._send_semaphore:
@@ -208,6 +209,7 @@ class OS3Device:
             The login timestamp.
 
         Raises:
+            asyncio.TimeoutError: If the session token retrieval times out.
             SesameLoginError: If already logged in or logging in.
         """
         if self.login_status != LoginStatus.UNLOGIN:
