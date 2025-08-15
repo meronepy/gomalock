@@ -27,7 +27,7 @@ from .const import (
     OpCodes,
     ResultCodes,
 )
-from .exc import SesameError, SesameNotLoggedInError, SesameOperationError
+from .exc import SesameLoginError, SesameOperationError
 
 logger = logging.getLogger(__name__)
 
@@ -87,7 +87,7 @@ class OS3Device:
         )
         if is_encrypted:
             if self._cipher is None:
-                raise SesameNotLoggedInError("Encrypted data received before login.")
+                raise SesameLoginError("Encrypted data received before login.")
             data = self._cipher.decrypt(data)
             logger.debug("Reassembled data decrypted.")
         sesame_message = ReceivedSesameMessage.from_reassembled_data(data)
@@ -176,7 +176,7 @@ class OS3Device:
             send_data = command.transmission_data
             if should_encrypt:
                 if self._cipher is None:
-                    raise SesameNotLoggedInError("Encryption attempted before login.")
+                    raise SesameLoginError("Encryption attempted before login.")
                 send_data = self._cipher.encrypt(send_data)
                 logger.debug("Command encrypted.")
             response_future = asyncio.get_running_loop().create_future()
@@ -208,10 +208,10 @@ class OS3Device:
             The login timestamp.
 
         Raises:
-            SesameError: If already logged in or logging in.
+            SesameLoginError: If already logged in or logging in.
         """
         if self.login_status != LoginStatus.UNLOGIN:
-            raise SesameError("Already logged in or logging in.")
+            raise SesameLoginError("Already logged in or logging in.")
         logger.debug("Logging in to Sesame OS3 device.")
         await self._ble_device.start_notification()
         logger.debug("Waiting for session token from Sesame OS3 device.")

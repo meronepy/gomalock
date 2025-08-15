@@ -15,8 +15,8 @@ class SesameConnectionError(SesameError):
     """Exception raised on invalid connect or disconnect operations."""
 
 
-class SesameNotLoggedInError(SesameError):
-    """Exception raised when an operation requires login but not logged in."""
+class SesameLoginError(SesameError):
+    """Exception raised when the login state differs from that required for the operation."""
 
 
 class SesameOperationError(SesameError):
