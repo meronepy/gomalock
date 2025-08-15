@@ -41,7 +41,7 @@ if __name__ == "__main__":
 
 - `MAC_ADDRESS`は[discover.py](example/discover.py)を使用して周囲のSesame 5をスキャンして取得できます。
 - `SECRET_KEY`はmochipon様作成の[QR Code Reader for SESAME](https://sesame-qr-reader.vercel.app/)を使用して、マネージャー権限以上のQRコードから抽出できます。
-- 詳細な使用方法は[docs/usage.md](docs/usage.md)および[example](example)をご覧ください。
+- 詳細な使用方法は[docs/usage.md](docs/usage.md)および[examples](examples)をご覧ください。
 
 ## 注意事項
 
