@@ -57,7 +57,7 @@ class OS3Device:
         mac_address: str,
         publish_data_callback: Callable[[ReceivedSesamePublish], None],
     ) -> None:
-        """Initializes the OS3device instance.
+        """Initializes the OS3Device instance.
 
         Args:
             mac_address: The MAC address of the BLE device.
