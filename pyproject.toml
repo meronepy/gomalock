@@ -2,20 +2,23 @@
 name = "gomalock"
 version = "0.3.0"
 description = ""
-authors = [
-    {name = "meronepy",email = "203420124+meronepy@users.noreply.github.com"}
-]
-readme = "README.md"
+authors = [{ name = "meronepy", email = "203420124+meronepy@users.noreply.github.com" }]
 requires-python = ">=3.11"
+readme = "README.md"
 dependencies = [
-    "bleak (>=1.0.1,<2.0.0)",
-    "pycryptodome (>=3.23.0,<4.0.0)"
+    "bleak>=1.1.0",
+    "pycryptodome>=3.23.0",
 ]
 
-[tool.poetry]
-packages = [{include = "gomalock", from = "src"}]
+[tool.hatch.build.targets.sdist]
+include = ["src/gomalock"]
 
+[tool.hatch.build.targets.wheel]
+include = ["src/gomalock"]
+
+[tool.hatch.build.targets.wheel.sources]
+"src/gomalock" = "gomalock"
 
 [build-system]
-requires = ["poetry-core>=2.0.0,<3.0.0"]
-build-backend = "poetry.core.masonry.api"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
