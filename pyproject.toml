@@ -1,7 +1,7 @@
 [project]
 name = "gomalock"
 version = "0.3.0"
-description = ""
+description = "A library for controlling Sesame 5 smart locks via BLE."
 authors = [{ name = "meronepy", email = "203420124+meronepy@users.noreply.github.com" }]
 requires-python = ">=3.11"
 readme = "README.md"
