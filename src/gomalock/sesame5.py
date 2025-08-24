@@ -130,6 +130,7 @@ class Sesame5:
         self._mech_status_callback: Callable[[Sesame5MechStatus], None] | None = None
         self.device_status = DeviceStatus.NO_BLE_SIGNAL
         self.mech_status: Sesame5MechStatus | None = None
+
     async def __aenter__(self) -> Self:
         await self.connect()
         await self.login()
