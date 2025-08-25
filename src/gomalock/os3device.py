@@ -66,7 +66,7 @@ class OS3Device:
         self._ble_device = SesameBleDevice(mac_address, self._on_received)
         self._publish_data_callback = publish_data_callback
         self.login_status = LoginStatus.UNLOGIN
-        self._send_semaphore = asyncio.Semaphore(1)
+        self._send_lock = asyncio.Lock()
         self._response_futures: dict[
             ItemCodes, asyncio.Future[ReceivedSesameResponse]
         ] = {}
@@ -168,7 +168,7 @@ class OS3Device:
             SesameLoginError: If encryption is attempted before login.
             SesameOperationError: If the operation fails.
         """
-        async with self._send_semaphore:
+        async with self._send_lock:
             logger.debug(
                 "Sending command (item_code=%s, encrypted=%s)",
                 command.item_code,
