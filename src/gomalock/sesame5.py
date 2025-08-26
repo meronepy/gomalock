@@ -6,6 +6,7 @@ the mechanical status of a Sesame 5 device.
 
 import asyncio
 import logging
+import struct
 from dataclasses import dataclass
 from typing import Callable, Self
 
@@ -58,10 +59,10 @@ class Sesame5MechStatus:
         raw_battery: Raw voltage data received from Sesame5 device.
     """
 
-    position: int
-    target: int
-    status_flags: int
     raw_battery: int
+    target: int
+    position: int
+    status_flags: int
 
     @classmethod
     def from_payload(cls, payload: bytes) -> Self:
@@ -71,11 +72,8 @@ class Sesame5MechStatus:
             payload: The byte payload received from the Sesame5 device
                 with item code mech_status.
         """
-        status_flags = payload[6]
-        position = int.from_bytes(payload[4:6], "little", signed=True)
-        target = int.from_bytes(payload[2:4], "little", signed=True)
-        raw_battery = int.from_bytes(payload[0:2], "little")
-        return cls(position, target, status_flags, raw_battery)
+        raw_battery, target, position, status_flags = struct.unpack("<HhhB", payload)
+        return cls(raw_battery, target, position, status_flags)
 
     @property
     def is_in_lock_range(self) -> bool:

@@ -4,17 +4,12 @@ This module provides classes and functions for handling BLE advertisement data,
 notifications, responses, and command packetization for Sesame devices.
 """
 
+import struct
 from dataclasses import dataclass
 from typing import Self
 from uuid import UUID
 
-from .const import (
-    ItemCodes,
-    OpCodes,
-    ResultCodes,
-    PacketTypes,
-    ProductModels,
-)
+from .const import ItemCodes, OpCodes, PacketTypes, ProductModels, ResultCodes
 
 
 @dataclass(frozen=True)
@@ -38,11 +33,12 @@ class SesameAdvertisementData:
         Args:
             manufacturer_data: CANDYHOUSE, Inc-specific data.
         """
-        product_model = ProductModels(
-            int.from_bytes(manufacturer_data[0:2], byteorder="little")
+        model_value, registered_value, uuid_value = struct.unpack(
+            "<HB16s", manufacturer_data
         )
-        is_registered = bool(manufacturer_data[2])
-        device_uuid = UUID(bytes=manufacturer_data[3:19])
+        product_model = ProductModels(model_value)
+        is_registered = bool(registered_value)
+        device_uuid = UUID(bytes=uuid_value)
         return cls(product_model, is_registered, device_uuid)
 
 
