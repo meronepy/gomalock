@@ -55,14 +55,12 @@ class Sesame5MechStatus:
     Attributes:
         position: The latest angle the sensor synchronizes to.
         target: The target thumb turn position the motor is trying to reach.
-        status_flags: Store the boolean values of the mech status.
-        raw_battery: Raw voltage data received from Sesame5 device.
     """
 
-    raw_battery: int
+    _raw_battery: int
+    _status_flags: int
     target: int
     position: int
-    status_flags: int
 
     @classmethod
     def from_payload(cls, payload: bytes) -> Self:
@@ -73,32 +71,32 @@ class Sesame5MechStatus:
                 with item code mech_status.
         """
         raw_battery, target, position, status_flags = struct.unpack("<HhhB", payload)
-        return cls(raw_battery, target, position, status_flags)
+        return cls(raw_battery, status_flags, target, position)
 
     @property
     def is_in_lock_range(self) -> bool:
         """Whether the thumb turn is within the lock range."""
-        return bool(self.status_flags & MechStatusBitFlags.IS_IN_LOCK_RANGE)
+        return bool(self._status_flags & MechStatusBitFlags.IS_IN_LOCK_RANGE)
 
     @property
     def is_in_unlock_range(self) -> bool:
         """Whether the thumb turn is within the unlock range."""
-        return bool(self.status_flags & MechStatusBitFlags.IS_IN_UNLOCK_RANGE)
+        return bool(self._status_flags & MechStatusBitFlags.IS_IN_UNLOCK_RANGE)
 
     @property
     def is_battery_critical(self) -> bool:
         """Whether the Sesame5 battery voltage is below 5V"""
-        return bool(self.status_flags & MechStatusBitFlags.IS_BATTERY_CRITICAL)
+        return bool(self._status_flags & MechStatusBitFlags.IS_BATTERY_CRITICAL)
 
     @property
     def is_stop(self) -> bool:
         """Whether the thumb turn angle does not change"""
-        return bool(self.status_flags & MechStatusBitFlags.IS_STOP)
+        return bool(self._status_flags & MechStatusBitFlags.IS_STOP)
 
     @property
     def battery_voltage(self) -> float:
         """The current battery voltage of the Sesame5."""
-        return self.raw_battery * 2 / 1000
+        return self._raw_battery * 2 / 1000
 
     @property
     def battery_percentage(self) -> int:
