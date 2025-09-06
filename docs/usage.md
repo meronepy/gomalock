@@ -119,19 +119,23 @@ if __name__ == "__main__":
 
 - Sesame5のログインステータス
 
-#### `property Sesame5.sesame_advertisement_data: ble.SesameAdvertisementData | None`
+#### `property Sesame5.sesame_advertisement_data: ble.SesameAdvertisementData`
 
 - Sesame5がアドバタイズしている情報
-- 接続前は`None`です
+- 接続前に参照すると、`SesameConnectionError`を送出します
 
-#### `Sesame5.device_status: const.DeviceStatus`
+> 0.3.2以降は`None`を返さなくなりました
+
+#### `property Sesame5.device_status: const.DeviceStatus`
 
 - Sesame5の接続試行中やログイン試行中などの状態
 
-#### `Sesame5.mech_status: Sesame5MechStatus | None`
+#### `property Sesame5.mech_status: Sesame5.Sesame5MechStatus`
 
 - キャッシュされた最新のSesame5の器械状態
-- 接続前は`None`です
+- ログイン前に参照しようとすると、`SesameLoginError`を送出します
+
+> 0.3.2以降は`None`を返さなくなりました
 
 ---
 
