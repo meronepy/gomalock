@@ -254,6 +254,10 @@ class OS3Device:
         return self._ble_device.is_connected
 
     @property
-    def sesame_advertisement_data(self) -> SesameAdvertisementData | None:
-        """Advertisement data from the device."""
+    def sesame_advertisement_data(self) -> SesameAdvertisementData:
+        """The latest advertisement data from the Sesame device.
+
+        Raises:
+            SesameConnectionError: If not connected.
+        """
         return self._ble_device.sesame_advertisement_data

@@ -74,7 +74,7 @@ class SesameBleDevice:
         self._bleak_client = BleakClient(mac_address)
         self._received_data_callback = received_data_callback
         self._rx_buffer = b""
-        self.sesame_advertisement_data: SesameAdvertisementData | None = None
+        self._sesame_advertisement_data: SesameAdvertisementData | None = None
 
     def _notification_handler(
         self, characteristic: BleakGATTCharacteristic, data: bytearray
@@ -135,7 +135,7 @@ class SesameBleDevice:
         logger.debug("Connecting to Sesame device.")
         if self._bleak_client.is_connected:
             raise SesameConnectionError("Already connected to Sesame.")
-        self.sesame_advertisement_data = await self._get_sesame_advertisement_data()
+        self._sesame_advertisement_data = await self._get_sesame_advertisement_data()
         await self._bleak_client.connect()
         logger.debug("Connection established.")
 
@@ -196,12 +196,23 @@ class SesameBleDevice:
             else:
                 logger.debug("Disconnect skipped: already disconnected.")
         finally:
-            self.sesame_advertisement_data = None
+            self._sesame_advertisement_data = None
 
     @property
     def mac_address(self) -> str:
         """The MAC address of the Sesame device."""
         return self._bleak_client.address
+
+    @property
+    def sesame_advertisement_data(self) -> SesameAdvertisementData:
+        """The latest advertisement data from the Sesame device.
+
+        Raises:
+            SesameConnectionError: If not connected.
+        """
+        if self._sesame_advertisement_data is None:
+            raise SesameConnectionError("Not connected to Sesame.")
+        return self._sesame_advertisement_data
 
     @property
     def is_connected(self) -> bool:

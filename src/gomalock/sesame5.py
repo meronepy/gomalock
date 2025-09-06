@@ -280,6 +280,10 @@ class Sesame5:
         return self._os3_device.login_status
 
     @property
-    def sesame_advertisement_data(self) -> SesameAdvertisementData | None:
-        """The latest advertisement data from the device."""
+    def sesame_advertisement_data(self) -> SesameAdvertisementData:
+        """The latest advertisement data from the Sesame device.
+
+        Raises:
+            SesameConnectionError: If not connected.
+        """
         return self._os3_device.sesame_advertisement_data
