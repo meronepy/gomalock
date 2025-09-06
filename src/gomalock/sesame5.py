@@ -127,7 +127,7 @@ class Sesame5:
         self._secret_key = secret_key
         self._mech_status_callback: Callable[[Sesame5MechStatus], None] | None = None
         self._mech_status: Sesame5MechStatus | None = None
-        self.device_status = DeviceStatus.NO_BLE_SIGNAL
+        self._device_status = DeviceStatus.NO_BLE_SIGNAL
 
     async def __aenter__(self) -> Self:
         await self.connect()
@@ -147,7 +147,7 @@ class Sesame5:
             case ItemCodes.MECH_STATUS:
                 self._mech_status = Sesame5MechStatus.from_payload(publish_data.payload)
                 logger.debug("Received mech status update.")
-                self.device_status = (
+                self._device_status = (
                     DeviceStatus.LOCKED
                     if self._mech_status.is_in_lock_range
                     else DeviceStatus.UNLOCKED
@@ -193,7 +193,7 @@ class Sesame5:
     async def connect(self) -> None:
         """Connects to the Sesame 5 device via BLE."""
         logger.info("Connecting to Sesame 5 (MAC=%s)", self._os3_device.mac_address)
-        self.device_status = DeviceStatus.BLE_CONNECTING
+        self._device_status = DeviceStatus.BLE_CONNECTING
         await self._os3_device.connect()
         logger.info("Connection established.")
 
@@ -204,7 +204,7 @@ class Sesame5:
             The login timestamp.
         """
         logger.info("Logging in to Sesame 5.")
-        self.device_status = DeviceStatus.BLE_LOGINING
+        self._device_status = DeviceStatus.BLE_LOGINING
         timestamp = await self._os3_device.login(self._secret_key)
         logger.info("Login successful (timestamp=%d)", timestamp)
         return timestamp
@@ -215,7 +215,7 @@ class Sesame5:
         try:
             await self._os3_device.disconnect()
         finally:
-            self.device_status = DeviceStatus.NO_BLE_SIGNAL
+            self._device_status = DeviceStatus.NO_BLE_SIGNAL
             self._mech_status = None
         logger.info("Disconnected from Sesame 5.")
 
@@ -244,9 +244,9 @@ class Sesame5:
         Raises:
             SesameError: If device is not in locked or unlocked state.
         """
-        if self.device_status == DeviceStatus.LOCKED:
+        if self._device_status == DeviceStatus.LOCKED:
             await self.unlock(history_name)
-        elif self.device_status == DeviceStatus.UNLOCKED:
+        elif self._device_status == DeviceStatus.UNLOCKED:
             await self.lock(history_name)
         else:
             raise SesameError(
@@ -278,6 +278,11 @@ class Sesame5:
     def login_status(self) -> LoginStatus:
         """The current login status of the device."""
         return self._os3_device.login_status
+
+    @property
+    def device_status(self) -> DeviceStatus:
+        """The current device status."""
+        return self._device_status
 
     @property
     def sesame_advertisement_data(self) -> SesameAdvertisementData:

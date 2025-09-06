@@ -12,12 +12,13 @@ SECRET_KEY = "1234567890abcdef1234567890abcdef"
 
 
 def on_mechstatus_changed(sesame5: Sesame5, status: Sesame5MechStatus) -> None:
-    assert sesame5.sesame_advertisement_data is not None
     info = {
         "Address": sesame5.mac_address,
         "Model": sesame5.sesame_advertisement_data.product_model.name,
         "Registered": sesame5.sesame_advertisement_data.is_registered,
         "UUID": sesame5.sesame_advertisement_data.device_uuid,
+        "Login status": sesame5.login_status.name,
+        "Device status": sesame5.device_status.name,
         "Position": status.position,
         "Target": status.target,
         "Locked": status.is_in_lock_range,

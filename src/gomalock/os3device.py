@@ -65,7 +65,7 @@ class OS3Device:
         """
         self._ble_device = SesameBleDevice(mac_address, self._on_received)
         self._publish_data_callback = publish_data_callback
-        self.login_status = LoginStatus.UNLOGIN
+        self._login_status = LoginStatus.UNLOGIN
         self._send_lock = asyncio.Lock()
         self._response_futures: dict[
             ItemCodes, asyncio.Future[ReceivedSesameResponse]
@@ -148,7 +148,7 @@ class OS3Device:
             pass
         self._session_token_future = asyncio.get_running_loop().create_future()
         self._cipher = None
-        self.login_status = LoginStatus.UNLOGIN
+        self._login_status = LoginStatus.UNLOGIN
         logger.debug("Cleanup complete.")
 
     async def send_command(
@@ -212,7 +212,7 @@ class OS3Device:
             asyncio.TimeoutError: If the session token retrieval times out.
             SesameLoginError: If already logged in or logging in.
         """
-        if self.login_status != LoginStatus.UNLOGIN:
+        if self._login_status != LoginStatus.UNLOGIN:
             raise SesameLoginError("Already logged in or logging in.")
         logger.debug("Logging in to Sesame OS3 device.")
         await self._ble_device.start_notification()
@@ -229,7 +229,7 @@ class OS3Device:
         response = await self.send_command(
             SesameCommand(ItemCodes.LOGIN, app_public_key[:4]), False
         )
-        self.login_status = LoginStatus.LOGIN
+        self._login_status = LoginStatus.LOGIN
         timestamp = int.from_bytes(response.payload, "little")
         logger.debug("Login successful (timestamp=%d)", timestamp)
         return timestamp
@@ -252,6 +252,11 @@ class OS3Device:
     def is_connected(self) -> bool:
         """Whether the BLE device is currently connected."""
         return self._ble_device.is_connected
+
+    @property
+    def login_status(self) -> LoginStatus:
+        """The current login status of the device."""
+        return self._login_status
 
     @property
     def sesame_advertisement_data(self) -> SesameAdvertisementData:
