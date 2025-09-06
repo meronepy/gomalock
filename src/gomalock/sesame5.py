@@ -19,7 +19,7 @@ from .const import (
     LoginStatus,
     MechStatusBitFlags,
 )
-from .exc import SesameError
+from .exc import SesameError, SesameLoginError
 from .os3device import OS3Device, create_history_tag
 
 logger = logging.getLogger(__name__)
@@ -126,8 +126,8 @@ class Sesame5:
         self._os3_device = OS3Device(mac_address, self._on_published)
         self._secret_key = secret_key
         self._mech_status_callback: Callable[[Sesame5MechStatus], None] | None = None
+        self._mech_status: Sesame5MechStatus | None = None
         self.device_status = DeviceStatus.NO_BLE_SIGNAL
-        self.mech_status: Sesame5MechStatus | None = None
 
     async def __aenter__(self) -> Self:
         await self.connect()
@@ -145,16 +145,16 @@ class Sesame5:
         """
         match publish_data.item_code:
             case ItemCodes.MECH_STATUS:
-                self.mech_status = Sesame5MechStatus.from_payload(publish_data.payload)
+                self._mech_status = Sesame5MechStatus.from_payload(publish_data.payload)
                 logger.debug("Received mech status update.")
                 self.device_status = (
                     DeviceStatus.LOCKED
-                    if self.mech_status.is_in_lock_range
+                    if self._mech_status.is_in_lock_range
                     else DeviceStatus.UNLOCKED
                 )
                 if self._mech_status_callback:
                     asyncio.get_running_loop().call_soon_threadsafe(
-                        self._mech_status_callback, self.mech_status
+                        self._mech_status_callback, self._mech_status
                     )
             case _:
                 logger.debug(
@@ -216,7 +216,7 @@ class Sesame5:
             await self._os3_device.disconnect()
         finally:
             self.device_status = DeviceStatus.NO_BLE_SIGNAL
-            self.mech_status = None
+            self._mech_status = None
         logger.info("Disconnected from Sesame 5.")
 
     async def lock(self, history_name: str) -> None:
@@ -257,6 +257,17 @@ class Sesame5:
     def mac_address(self) -> str:
         """The MAC address of the Sesame 5 device."""
         return self._os3_device.mac_address
+
+    @property
+    def mech_status(self) -> Sesame5MechStatus:
+        """The latest mechanical status of the device.
+
+        Raises:
+            SesameLoginError: If not logged in.
+        """
+        if self._mech_status is None:
+            raise SesameLoginError("Login required to access mech status.")
+        return self._mech_status
 
     @property
     def is_connected(self) -> bool:
