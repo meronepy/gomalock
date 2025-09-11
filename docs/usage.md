@@ -185,7 +185,7 @@ if __name__ == "__main__":
 
 - Sesameのモデル情報
 
-#### `SesameAdvertisementData.product_model: bool`
+#### `SesameAdvertisementData.is_registered: bool`
 
 - Sesameが登録済みか否か
 
