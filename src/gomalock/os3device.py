@@ -17,7 +17,7 @@ from .ble import (
     SesameCommand,
 )
 from .bledevice import SesameBleDevice
-from .cipher import OS3Cipher, generate_app_public_key
+from .cipher import OS3Cipher, generate_session_key
 from .const import (
     HISTORY_TAG_MAX_LEN,
     RESPONSE_TIMEOUT,
@@ -221,13 +221,13 @@ class OS3Device:
             self._session_token_future, SESSION_TOKEN_TIMEOUT
         )
         logger.debug("Session token received.")
-        app_public_key = generate_app_public_key(
+        session_key = generate_session_key(
             bytes.fromhex(secret_key), session_token
         )
-        self._cipher = OS3Cipher(session_token, app_public_key)
+        self._cipher = OS3Cipher(session_token, session_key)
         logger.debug("Cipher initialized.")
         response = await self.send_command(
-            SesameCommand(ItemCodes.LOGIN, app_public_key[:4]), False
+            SesameCommand(ItemCodes.LOGIN, session_key[:4]), False
         )
         self._login_status = LoginStatus.LOGIN
         timestamp = int.from_bytes(response.payload, "little")

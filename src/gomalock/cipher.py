@@ -8,15 +8,15 @@ from Crypto.Cipher import AES
 from Crypto.Hash import CMAC
 
 
-def generate_app_public_key(secret_key: bytes, session_token: bytes) -> bytes:
-    """Generates the application public key using CMAC-AES.
+def generate_session_key(secret_key: bytes, session_token: bytes) -> bytes:
+    """Generates the session key using CMAC-AES.
 
     Args:
         secret_key: The 16-byte secret key of the Sesame device.
         session_token: The 4-byte session token received from the device.
 
     Returns:
-        The generated 16-byte application public key.
+        The generated 16-byte session key.
     """
     cobj = CMAC.new(secret_key, ciphermod=AES)
     cobj.update(session_token)
@@ -32,16 +32,16 @@ class OS3Cipher:
 
     _MAX_COUNTER = 2**64 - 1
 
-    def __init__(self, session_token: bytes, app_public_key: bytes) -> None:
+    def __init__(self, session_token: bytes, session_key: bytes) -> None:
         """Initializes the BleCipher with session and application keys.
 
         Args:
             session_token: The session token (nonce part) for this session.
-            app_public_key: The application public key, which serves as the
-                AES symmetric key.
+            session_key: The session key, which is the session token
+                signed with CMAC using the secret key
         """
         self._session_token = session_token
-        self._app_public_key = app_public_key
+        self._session_key = session_key
         self._encrypt_counter = 0
         self._decrypt_counter = 0
 
@@ -64,7 +64,7 @@ class OS3Cipher:
         if self._encrypt_counter >= OS3Cipher._MAX_COUNTER:
             raise OverflowError("Encryption counter overflow")
         nonce = self._generate_nonce(self._encrypt_counter)
-        cipher = AES.new(self._app_public_key, AES.MODE_CCM, nonce=nonce, mac_len=4)
+        cipher = AES.new(self._session_key, AES.MODE_CCM, nonce=nonce, mac_len=4)
         cipher.update(b"\x00")
         ciphertext, tag = cipher.encrypt_and_digest(plaintext)
         self._encrypt_counter += 1
@@ -88,7 +88,7 @@ class OS3Cipher:
         if self._decrypt_counter >= OS3Cipher._MAX_COUNTER:
             raise OverflowError("Decryption counter overflow")
         nonce = self._generate_nonce(self._decrypt_counter)
-        cipher = AES.new(self._app_public_key, AES.MODE_CCM, nonce=nonce, mac_len=4)
+        cipher = AES.new(self._session_key, AES.MODE_CCM, nonce=nonce, mac_len=4)
         cipher.update(b"\x00")
         plaintext = cipher.decrypt_and_verify(ciphertext[:-4], ciphertext[-4:])
         self._decrypt_counter += 1
