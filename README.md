@@ -46,11 +46,8 @@ if __name__ == "__main__":
 ## 注意事項
 
 - Linuxで動作させる場合、 **BlueZ 5.82以降を強く推奨します。** Raspberry Pi OS Bookwormにインストール済みのBlueZ 5.66では、バグによってSesame 5のGATT Serviceが取得できず正常に動作しません。BlueZ 5.68で修正済みですが、Raspberry Pi OS TrixieにアップグレードしてBlueZ 5.82を使用するのが最も簡単で確実です。
-
 - `gomalock`ライブラリは、セットアップ済みのSesame 5デバイスのみ操作可能です。公式アプリでセットアップの上ご使用ください。
-
 - 履歴機能は公式アプリやクラウドとの連携が困難であるため実装しておりません。
-
 - 非公式のライブラリです。動作保証はありません。自己責任でご使用ください。
 
 ## テスト環境
@@ -68,8 +65,7 @@ if __name__ == "__main__":
 |⚠️|Sesame 5 USA|
 |❌|Sesame 4以前|
 
-Sesame 5 ProとSesame 5 USAは恐らく動作しますが、動作未確認です。
-
+Sesame 5 ProとSesame 5 USAは恐らく動作しますが、動作未確認です。  
 Sesame 4以前はOSが違うため動作しません。対応予定もありません。
 
 ## 対応環境
@@ -82,8 +78,7 @@ Sesame 4以前はOSが違うため動作しません。対応予定もありま�
 |✅|Linux with BlueZ 5.82 以降|
 |⚠️|macOS 10.13 以降(動作未確認)|
 
-内部で使用している[bleak](https://github.com/hbldh/bleak)ライブラリに準じますが、macOS環境は動作未確認です。
-
+内部で使用している[bleak](https://github.com/hbldh/bleak)ライブラリに準じますが、macOS環境は動作未確認です。  
 Linux環境では前述のバグが原因で、BlueZ 5.82以降が必要です。
 
 ### Python
