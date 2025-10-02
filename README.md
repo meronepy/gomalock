@@ -43,6 +43,10 @@ if __name__ == "__main__":
 - `SECRET_KEY`はmochipon様作成の[QR Code Reader for SESAME](https://sesame-qr-reader.vercel.app/)を使用して、マネージャー権限以上のQRコードから抽出できます。
 - 詳細な使用方法は[docs/usage.md](docs/usage.md)および[examples](examples)をご覧ください。
 
+### MQTTとブリッジするサンプルコード
+
+[![Readme Card](https://github-readme-stats.vercel.app/api/pin/?username=meronepy&repo=ssm2mqtt)](https://github.com/meronepy/ssm2mqtt)
+
 ## 注意事項
 
 - Linuxで動作させる場合、 **BlueZ 5.82以降を強く推奨します。** Raspberry Pi OS Bookwormにインストール済みのBlueZ 5.66では、バグによってSesame 5のGATT Serviceが取得できず正常に動作しません。BlueZ 5.68で修正済みですが、Raspberry Pi OS TrixieにアップグレードしてBlueZ 5.82を使用するのが最も簡単で確実です。
