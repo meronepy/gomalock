@@ -149,18 +149,13 @@ class SesameTouch:
         await self._os3_device.connect()
         logger.info("Connection established.")
 
-    async def login(self) -> int:
-        """Performs login to the device.
-
-        Returns:
-            The login timestamp.
-        """
+    async def login(self) -> None:
+        """Performs login to the device."""
         logger.info("Logging in to Sesame Touch.")
         self._device_status = DeviceStatus.BLE_LOGINING
-        timestamp = await self._os3_device.login(self._secret_key)
-        logger.info("Login successful (timestamp=%d)", timestamp)
+        await self._os3_device.login(self._secret_key)
         self._device_status = DeviceStatus.LOCKED
-        return timestamp
+        logger.info("Login successful.")
 
     async def disconnect(self) -> None:
         """Disconnects from the Sesame Touch device."""

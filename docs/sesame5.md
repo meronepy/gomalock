@@ -25,9 +25,10 @@
 
 - Sesame5とのBLE接続を切断します
 
-#### `async Sesame5.login() -> None`
+#### `async Sesame5.login() -> int`
 
 - Sesame5にログインして、施錠や開錠などの操作を可能にします
+- ログイン時のタイムスタンプを返します
 
 #### `Sesame5.set_mech_status_callback(callback: Callable[[Sesame5MechStatus], None] | None = None)`
 
