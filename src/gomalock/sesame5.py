@@ -11,41 +11,11 @@ from dataclasses import dataclass
 from typing import Callable, Self
 
 from .ble import ReceivedSesamePublish, SesameAdvertisementData, SesameCommand
-from .const import (
-    BATTERY_PERCENTAGES,
-    VOLTAGE_LEVELS,
-    DeviceStatus,
-    ItemCodes,
-    LoginStatus,
-    MechStatusBitFlags,
-)
+from .const import DeviceStatus, ItemCodes, LoginStatus, MechStatusBitFlags
 from .exc import SesameError, SesameLoginError
-from .os3device import OS3Device, create_history_tag
+from .os3device import OS3Device, calculate_battery_percentage, create_history_tag
 
 logger = logging.getLogger(__name__)
-
-
-def calculate_battery_percentage(battery_voltage: float) -> int:
-    """Calculates battery percentage.
-
-    This is calculated by linearly interpolating the `battery_voltage`
-    against a predefined table of voltage levels and corresponding percentages.
-    """
-    if battery_voltage >= VOLTAGE_LEVELS[0]:
-        return int(BATTERY_PERCENTAGES[0])
-    if battery_voltage <= VOLTAGE_LEVELS[-1]:
-        return int(BATTERY_PERCENTAGES[-1])
-    for i in range(len(VOLTAGE_LEVELS) - 1):
-        upper_voltage = VOLTAGE_LEVELS[i]
-        lower_voltage = VOLTAGE_LEVELS[i + 1]
-        if lower_voltage < battery_voltage <= upper_voltage:
-            voltage_ratio = (battery_voltage - lower_voltage) / (
-                upper_voltage - lower_voltage
-            )
-            upper_percent = BATTERY_PERCENTAGES[i]
-            lower_percent = BATTERY_PERCENTAGES[i + 1]
-            return int((upper_percent - lower_percent) * voltage_ratio + lower_percent)
-    return 0
 
 
 @dataclass(frozen=True)

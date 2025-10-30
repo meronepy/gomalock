@@ -71,6 +71,8 @@ class ProductModels(Enum):
 
     SESAME5 = 5
     SESAME5_PRO = 7
+    SESAME_TOUCH_PRO = 9
+    SESAME_TOUCH = 10
     SESAME5_USA = 16
 
 

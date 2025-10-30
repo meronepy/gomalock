@@ -19,9 +19,11 @@ from .ble import (
 from .bledevice import SesameBleDevice
 from .cipher import OS3Cipher, generate_session_key
 from .const import (
+    BATTERY_PERCENTAGES,
     HISTORY_TAG_MAX_LEN,
     RESPONSE_TIMEOUT,
     SESSION_TOKEN_TIMEOUT,
+    VOLTAGE_LEVELS,
     ItemCodes,
     LoginStatus,
     OpCodes,
@@ -30,6 +32,29 @@ from .const import (
 from .exc import SesameLoginError, SesameOperationError
 
 logger = logging.getLogger(__name__)
+
+
+def calculate_battery_percentage(battery_voltage: float) -> int:
+    """Calculates battery percentage.
+
+    This is calculated by linearly interpolating the `battery_voltage`
+    against a predefined table of voltage levels and corresponding percentages.
+    """
+    if battery_voltage >= VOLTAGE_LEVELS[0]:
+        return int(BATTERY_PERCENTAGES[0])
+    if battery_voltage <= VOLTAGE_LEVELS[-1]:
+        return int(BATTERY_PERCENTAGES[-1])
+    for i in range(len(VOLTAGE_LEVELS) - 1):
+        upper_voltage = VOLTAGE_LEVELS[i]
+        lower_voltage = VOLTAGE_LEVELS[i + 1]
+        if lower_voltage < battery_voltage <= upper_voltage:
+            voltage_ratio = (battery_voltage - lower_voltage) / (
+                upper_voltage - lower_voltage
+            )
+            upper_percent = BATTERY_PERCENTAGES[i]
+            lower_percent = BATTERY_PERCENTAGES[i + 1]
+            return int((upper_percent - lower_percent) * voltage_ratio + lower_percent)
+    return 0
 
 
 def create_history_tag(history_name: str) -> bytes:
@@ -221,9 +246,7 @@ class OS3Device:
             self._session_token_future, SESSION_TOKEN_TIMEOUT
         )
         logger.debug("Session token received.")
-        session_key = generate_session_key(
-            bytes.fromhex(secret_key), session_token
-        )
+        session_key = generate_session_key(bytes.fromhex(secret_key), session_token)
         self._cipher = OS3Cipher(session_token, session_key)
         logger.debug("Cipher initialized.")
         response = await self.send_command(

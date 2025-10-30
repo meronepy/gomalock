@@ -6,6 +6,7 @@ and displays BLE information as well as Sesame-specific information.
 
 import asyncio
 from uuid import UUID
+
 from bleak import BleakScanner
 
 UUID_SERVICE = "0000fd81-0000-1000-8000-00805f9b34fb"
@@ -30,6 +31,10 @@ async def main():
                 product_model = "Sesame 5"
             case 7:
                 product_model = "Sesame 5 Pro"
+            case 9:
+                product_model = "Sesame Touch Pro"
+            case 10:
+                product_model = "Sesame Touch"
             case 16:
                 product_model = "Sesame 5 USA"
             case _:

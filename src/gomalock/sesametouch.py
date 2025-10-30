@@ -1,0 +1,213 @@
+"""Sesame Touch device BLE control and status module.
+
+This module provides a main class of Sesame Touch for controlling and abstracts
+the mechanical status of a Sesame Touch device.
+"""
+
+import asyncio
+import logging
+import struct
+from dataclasses import dataclass
+from typing import Callable, Self
+
+from .ble import ReceivedSesamePublish, SesameAdvertisementData
+from .const import DeviceStatus, ItemCodes, LoginStatus, MechStatusBitFlags
+from .exc import SesameLoginError
+from .os3device import OS3Device, calculate_battery_percentage
+
+logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class SesameTouchMechStatus:
+    """Represents the mechanical status of Sesame Touch device.
+
+    Attributes:
+        cards_number: Number of cards registered with Sesame Touch.
+        fingerprints_number: Number of fingerprints registered with Sesame Touch.
+        passwords_number: Number of passwords registered with Sesame Touch.
+    """
+
+    _raw_battery: int
+    _status_flags: int
+    cards_number: int
+    fingerprints_number: int
+    passwords_number: int
+
+    @classmethod
+    def from_payload(cls, payload: bytes) -> Self:
+        """Parses the payload received from the Sesame Touch device.
+
+        Args:
+            payload: The byte payload received from the Sesame Touch device
+                with item code mech_status.
+        """
+        (
+            raw_battery,
+            cards_number,
+            fingerprints_number,
+            password_number,
+            status_flags,
+        ) = struct.unpack("<HhhhB", payload)
+        return cls(
+            raw_battery,
+            status_flags,
+            cards_number,
+            fingerprints_number,
+            password_number,
+        )
+
+    @property
+    def is_battery_critical(self) -> bool:
+        """Whether the Sesame Touch battery voltage is below 5V"""
+        return bool(self._status_flags & MechStatusBitFlags.IS_BATTERY_CRITICAL)
+
+    @property
+    def battery_voltage(self) -> float:
+        """The current battery voltage of the Sesame Touch."""
+        return self._raw_battery * 2 / 1000
+
+    @property
+    def battery_percentage(self) -> int:
+        """The estimated battery percentage based on `battery_voltage`."""
+        return calculate_battery_percentage(self.battery_voltage)
+
+
+class SesameTouch:
+    """Main interface for monitoring a Sesame Touch device.
+
+    Handles BLE connection and status callbacks.
+    """
+
+    def __init__(
+        self,
+        mac_address: str,
+        secret_key: str,
+    ) -> None:
+        """Initializes the Sesame Touch device interface.
+
+        Args:
+            mac_address: The MAC address of the Sesame Touch device.
+            secret_key: The secret key for login.
+        """
+        self._os3_device = OS3Device(mac_address, self._on_published)
+        self._secret_key = secret_key
+        self._mech_status_callback: Callable[[SesameTouchMechStatus], None] | None = (
+            None
+        )
+        self._mech_status: SesameTouchMechStatus | None = None
+        self._device_status = DeviceStatus.NO_BLE_SIGNAL
+
+    async def __aenter__(self) -> Self:
+        await self.connect()
+        await self.login()
+        return self
+
+    async def __aexit__(self, exc_type, exc_value, traceback) -> None:
+        await self.disconnect()
+
+    def _on_published(self, publish_data: ReceivedSesamePublish) -> None:
+        """Handles published data from the device.
+
+        Args:
+            publish_data: Data published by the device.
+        """
+        match publish_data.item_code:
+            case ItemCodes.MECH_STATUS:
+                self._mech_status = SesameTouchMechStatus.from_payload(
+                    publish_data.payload
+                )
+                logger.debug("Received mech status update.")
+                if self._mech_status_callback:
+                    asyncio.get_running_loop().call_soon_threadsafe(
+                        self._mech_status_callback, self._mech_status
+                    )
+            case _:
+                logger.debug(
+                    "Received unsupported publish data (item_code=%s)",
+                    publish_data.item_code,
+                )
+
+    def set_mech_status_callback(
+        self, callback: Callable[[SesameTouchMechStatus], None] | None = None
+    ) -> None:
+        """Sets or clear mech status callback.
+
+        Sets a callback function. If `None` is passed,
+        the existing callback (if any) will be cleared.
+
+        Args:
+            callback: a callback function that is invoked when the
+                mechanical status changes.
+        """
+        self._mech_status_callback = callback
+
+    async def connect(self) -> None:
+        """Connects to the Sesame Touch device via BLE."""
+        logger.info("Connecting to Sesame Touch (MAC=%s)", self._os3_device.mac_address)
+        self._device_status = DeviceStatus.BLE_CONNECTING
+        await self._os3_device.connect()
+        logger.info("Connection established.")
+
+    async def login(self) -> int:
+        """Performs login to the device.
+
+        Returns:
+            The login timestamp.
+        """
+        logger.info("Logging in to Sesame Touch.")
+        self._device_status = DeviceStatus.BLE_LOGINING
+        timestamp = await self._os3_device.login(self._secret_key)
+        logger.info("Login successful (timestamp=%d)", timestamp)
+        self._device_status = DeviceStatus.LOCKED
+        return timestamp
+
+    async def disconnect(self) -> None:
+        """Disconnects from the Sesame Touch device."""
+        logger.info("Disconnecting from Sesame Touch.")
+        try:
+            await self._os3_device.disconnect()
+        finally:
+            self._device_status = DeviceStatus.NO_BLE_SIGNAL
+            self._mech_status = None
+        logger.info("Disconnected from Sesame Touch.")
+
+    @property
+    def mac_address(self) -> str:
+        """The MAC address of the Sesame Touch device."""
+        return self._os3_device.mac_address
+
+    @property
+    def mech_status(self) -> SesameTouchMechStatus:
+        """The latest mechanical status of the device.
+
+        Raises:
+            SesameLoginError: If not logged in.
+        """
+        if self._mech_status is None:
+            raise SesameLoginError("Login required to access mech status.")
+        return self._mech_status
+
+    @property
+    def is_connected(self) -> bool:
+        """True if the device is currently connected."""
+        return self._os3_device.is_connected
+
+    @property
+    def login_status(self) -> LoginStatus:
+        """The current login status of the device."""
+        return self._os3_device.login_status
+
+    @property
+    def device_status(self) -> DeviceStatus:
+        """The current device status."""
+        return self._device_status
+
+    @property
+    def sesame_advertisement_data(self) -> SesameAdvertisementData:
+        """The latest advertisement data from the Sesame device.
+
+        Raises:
+            SesameConnectionError: If not connected.
+        """
+        return self._os3_device.sesame_advertisement_data
