@@ -49,6 +49,7 @@ async def main():
         }
         for key, value in info.items():
             print(f"{key:11}: {value}")
+        print("")
 
 
 if __name__ == "__main__":
