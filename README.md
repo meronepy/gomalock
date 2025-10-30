@@ -8,8 +8,8 @@ Sesame 5スマートロックをPythonからBluetooth Low Energy (BLE)経由で�
 
 ## 機能説明
 
-- Raspberry PiなどからセサミをBluetooth Low Energy (BLE)経由で施錠、開錠、トグル操作。
-- 状態(施錠状態、サムターンの位置、電池残量など)の変化をリアルタイムで受信。
+- Sesame 5をBluetooth経由で施錠、開錠などの操作と、施錠状態、電池残量などの変化をリアルタイムで受信
+- Sesame Touchの電池電圧、残量の変化をリアルタイムで受信
 
 ## インストール
 
@@ -41,7 +41,7 @@ if __name__ == "__main__":
 
 - `MAC_ADDRESS`は[discover.py](examples/discover.py)を使用して周囲のSesame 5をスキャンして取得できます。
 - `SECRET_KEY`はmochipon様作成の[QR Code Reader for SESAME](https://sesame-qr-reader.vercel.app/)を使用して、マネージャー権限以上のQRコードから抽出できます。
-- 詳細な使用方法は[docs/usage.md](docs/usage.md)および[examples](examples)をご覧ください。
+- 詳細な使用方法は[examples](examples)および[docs](docs)をご覧ください。
 
 ### MQTTとブリッジするサンプルコード
 
@@ -71,6 +71,16 @@ if __name__ == "__main__":
 
 Sesame 5 ProとSesame 5 USAは恐らく動作しますが、動作未確認です。  
 Sesame 4以前はOSが違うため動作しません。対応予定もありません。
+
+|対応状況|機種|
+|:-:|:-:|
+|✅|Sesame Touch|
+|⚠️|Sesame Touch Pro|
+|❌|Sesame Face|
+|❌|Sesame Face Pro|
+
+Sesame Touch Proは恐らく動作しますが、動作未確認です。  
+Sesame Faceシリーズは簡単な改修で対応できるはずなので、手に入れたら将来的に対応する予定です。
 
 ## 対応環境
 

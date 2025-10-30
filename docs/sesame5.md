@@ -1,51 +1,9 @@
-# gomalock 使用方法
+# Sesame5 クラスリファレンス
 
-## サンプル
+## できること
 
-非同期コンテキストマネージャーを使用した開錠例です。
-
-```python
-import asyncio
-
-from gomalock.sesame5 import Sesame5
-
-MAC_ADDRESS = "XX:XX:XX:XX:XX:XX"
-SECRET_KEY = "1234567890abcdef1234567890abcdef"
-
-
-async def main():
-    async with Sesame5(MAC_ADDRESS, SECRET_KEY) as sesame5:
-        await sesame5.unlock("gomalock")
-
-
-if __name__ == "__main__":
-    asyncio.run(main())
-
-```
-
-非同期コンテキストマネージャーを使用しない場合の開錠例です。
-
-```Python
-import asyncio
-
-from gomalock.sesame5 import Sesame5
-
-MAC_ADDRESS = "XX:XX:XX:XX:XX:XX"
-SECRET_KEY = "1234567890abcdef1234567890abcdef"
-
-
-async def main():
-    sesame5 = Sesame5(MAC_ADDRESS, SECRET_KEY)
-    await sesame5.connect()
-    await sesame5.login()
-    await sesame5.unlock("gomalock")
-    await sesame5.disconnect()
-
-
-if __name__ == "__main__":
-    asyncio.run(main())
-
-```
+- Sesame 5の施錠、開錠、トグル操作
+- Sesame 5の状態のリアルタイム取得
 
 ## Sesame5クラス
 
