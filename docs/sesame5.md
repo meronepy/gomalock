@@ -20,6 +20,7 @@
 #### `async Sesame5.connect() -> None`
 
 - Sesame5とBLEで接続します
+- `Sesame5.sesame_advertisement_data`が利用可能になります
 
 #### `async Sesame5.disconnect() -> None`
 
@@ -29,17 +30,17 @@
 
 - Sesame5にログインして、施錠や開錠などの操作を可能にします
 - ログイン時のタイムスタンプを返します
+- `Sesame5.mech_status`が利用可能になります
 
-#### `Sesame5.set_mech_status_callback(callback: Callable[[Sesame5MechStatus], None] | None = None)`
+#### `Sesame5.set_mech_status_callback(callback: Callable[[Sesame5MechStatus], None] | None = None, call_immediately: bool = True)`
 
 - 器械状態(施錠、開錠など)の変化時にリアルタイムで受け取るためのコールバックを設定します
 - 引数なしで呼び出すと既存のコールバックを解除します
-- ログイン直後に実行しても、ログイン時、最初にセサミが送信する器械状態はコールバックされません
-- ログイン時にセサミが送信する初回の器械状態をコールバックするには、ログイン前にこのメソッドでコールバックを登録する必要があります
-- コンテキストマネージャを使用している場合は、ログイン後、一度だけ手動でコールバック関数を呼び出すことで初回の器械状態を処理できます。[touch_battery_monitor.py](/examples/touch_battery_monitor.py)をご参照ください
+- `call_immediately=False`の場合はログイン直後に実行しても、ログイン時にセサミが送信する初回の状態はコールバックされません
 
 - 引数
   - callback: 器械状態の変化時に呼び出されるコールバック関数
+  - call_immediately: コールバック関数がセットされ、最新の器械状態がキャッシュされている場合、すぐにコールバックするかどうか
 
 #### `async Sesame5.lock(history_name: str) -> None`
 

@@ -145,7 +145,9 @@ class Sesame5:
         )
 
     def set_mech_status_callback(
-        self, callback: Callable[[Sesame5MechStatus], None] | None = None
+        self,
+        callback: Callable[[Sesame5MechStatus], None] | None = None,
+        call_immediately: bool = True,
     ) -> None:
         """Sets or clear mech status callback.
 
@@ -155,8 +157,19 @@ class Sesame5:
         Args:
             callback: a callback function that is invoked when the
                 mechanical status changes.
+            call_immediately: If True and there is an existing mech status,
+                the callback will be invoked immediately with the latest status.
         """
         self._mech_status_callback = callback
+
+        if (
+            call_immediately
+            and self._mech_status_callback is not None
+            and self._mech_status is not None
+        ):
+            asyncio.get_running_loop().call_soon_threadsafe(
+                self._mech_status_callback, self._mech_status
+            )
 
     async def connect(self) -> None:
         """Connects to the Sesame 5 device via BLE."""

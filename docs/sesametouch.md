@@ -20,6 +20,7 @@
 #### `async SesameTouch.connect() -> None`
 
 - Sesame5とBLEで接続します
+- `SesameTouch.sesame_advertisement_data`が利用可能になります
 
 #### `async SesameTouch.disconnect() -> None`
 
@@ -28,17 +29,17 @@
 #### `async SesameTouch.login() -> None`
 
 - Sesame5にログインして、ステータス監視を可能にします
+- `SesameTouch.mech_status`が利用可能になります
 
-#### `SesameTouch.set_mech_status_callback(callback: Callable[[Sesame5MechStatus], None] | None = None)`
+#### `SesameTouch.set_mech_status_callback(callback: Callable[[Sesame5MechStatus], None] | None = None, call_immediately: bool = True)`
 
 - 器械状態(電池電圧や残量など)の変化時にリアルタイムで受け取るためのコールバックを設定します
 - 引数なしで呼び出すと既存のコールバックを解除します
-- ログイン直後に実行しても、ログイン時、最初にセサミが送信する器械状態はコールバックされません
-- ログイン時にセサミが送信する初回の器械状態をコールバックするには、ログイン前にこのメソッドでコールバックを登録する必要があります
-- コンテキストマネージャを使用している場合は、ログイン後、一度だけ手動でコールバック関数を呼び出すことで初回の器械状態を処理できます。[touch_battery_monitor.py](/examples/touch_battery_monitor.py)をご参照ください
+- `call_immediately=False`の場合はログイン直後に実行しても、ログイン時にセサミが送信する初回の状態はコールバックされません
 
 - 引数
   - callback: 器械状態の変化時に呼び出されるコールバック関数
+  - call_immediately: コールバック関数がセットされ、最新の器械状態がキャッシュされている場合、すぐにコールバックするかどうか
 
 ---
 
