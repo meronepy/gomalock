@@ -31,11 +31,6 @@ def on_mechstatus_changed(
 
 async def main():
     async with SesameTouch(MAC_ADDRESS, SECRET_KEY) as sesametouch:
-        # The initial mech status is published from Sesame Touch
-        # before the callback is registered, so the callback
-        # is called manually once to display the initial mech status.
-
-        on_mechstatus_changed(sesametouch, sesametouch.mech_status)
         sesametouch.set_mech_status_callback(
             functools.partial(on_mechstatus_changed, sesametouch)
         )
