@@ -6,65 +6,6 @@ This module defines various constants and enumerations used throughout the
 
 from enum import Enum, IntFlag, auto
 
-COMPANY_ID = 0x055A
-"""The company ID for CANDYHOUSE, Inc."""
-UUID_SERVICE = "0000fd81-0000-1000-8000-00805f9b34fb"
-"""The UUID for the primary Sesame BLE service."""
-UUID_WRITE = "16860002-a5ae-9856-b6d3-dbb4c676993e"
-"""The UUID for the GATT characteristic used to write commands."""
-UUID_NOTIFICATION = "16860003-a5ae-9856-b6d3-dbb4c676993e"
-"""The UUID for the GATT characteristic used to receive notifications."""
-
-HISTORY_TAG_MAX_LEN = 20
-"""Max history tag length."""
-MTU_SIZE = 20
-"""The MTU for BLE communication."""
-SCAN_TIMEOUT = 10
-"""Timeout for BLE scanning to get advertisement data."""
-SESSION_TOKEN_TIMEOUT = 5
-"""Timeout for waiting for a session token."""
-RESPONSE_TIMEOUT = 2
-"""Timeout for waiting for a response from the device."""
-
-VOLTAGE_LEVELS = (
-    5.85,
-    5.82,
-    5.79,
-    5.76,
-    5.73,
-    5.70,
-    5.65,
-    5.60,
-    5.55,
-    5.50,
-    5.40,
-    5.20,
-    5.10,
-    5.0,
-    4.8,
-    4.6,
-)
-"""Voltage levels for battery percentage calculation."""
-BATTERY_PERCENTAGES = (
-    100.0,
-    95.0,
-    90.0,
-    85.0,
-    80.0,
-    70.0,
-    60.0,
-    50.0,
-    40.0,
-    32.0,
-    21.0,
-    13.0,
-    10.0,
-    7.0,
-    3.0,
-    0.0,
-)
-"""Battery percentage corresponding to the voltage levels."""
-
 
 class ProductModels(Enum):
     """The model IDs received in the advertisement data."""
@@ -286,3 +227,68 @@ class ResultCodes(Enum):
     UNKNOWN = 6
     BUSY = 7
     INVALID_PARAM = 8
+
+
+COMPANY_ID = 0x055A
+"""The company ID for CANDYHOUSE, Inc."""
+UUID_SERVICE = "0000fd81-0000-1000-8000-00805f9b34fb"
+"""The UUID for the primary Sesame BLE service."""
+UUID_WRITE = "16860002-a5ae-9856-b6d3-dbb4c676993e"
+"""The UUID for the GATT characteristic used to write commands."""
+UUID_NOTIFICATION = "16860003-a5ae-9856-b6d3-dbb4c676993e"
+"""The UUID for the GATT characteristic used to receive notifications."""
+
+HISTORY_TAG_MAX_LEN = 20
+"""Max history tag length."""
+MTU_SIZE = 20
+"""The MTU for BLE communication."""
+SCAN_TIMEOUT = 10
+"""Timeout for BLE scanning to get advertisement data."""
+SESSION_TOKEN_TIMEOUT = 5
+"""Timeout for waiting for a session token."""
+RESPONSE_TIMEOUT = 2
+"""Timeout for waiting for a response from the device."""
+
+VOLTAGE_LEVELS = (
+    5.85,
+    5.82,
+    5.79,
+    5.76,
+    5.73,
+    5.70,
+    5.65,
+    5.60,
+    5.55,
+    5.50,
+    5.40,
+    5.20,
+    5.10,
+    5.0,
+    4.8,
+    4.6,
+)
+"""Voltage levels for battery percentage calculation."""
+BATTERY_PERCENTAGES = (
+    100.0,
+    95.0,
+    90.0,
+    85.0,
+    80.0,
+    70.0,
+    60.0,
+    50.0,
+    40.0,
+    32.0,
+    21.0,
+    13.0,
+    10.0,
+    7.0,
+    3.0,
+    0.0,
+)
+"""Battery percentage corresponding to the voltage levels."""
+
+SESAME5_LOGIN_PENDING_ITEMS = frozenset({ItemCodes.MECH_STATUS})
+"""Item codes to wait for during Sesame5 login."""
+SESAME_TOUCH_LOGIN_PENDING_ITEMS = frozenset({ItemCodes.MECH_STATUS})
+"""Item codes to wait for during SesameTouch login."""

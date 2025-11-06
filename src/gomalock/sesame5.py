@@ -11,7 +11,13 @@ from dataclasses import dataclass
 from typing import Callable, Self
 
 from .ble import ReceivedSesamePublish, SesameAdvertisementData, SesameCommand
-from .const import DeviceStatus, ItemCodes, LoginStatus, MechStatusBitFlags
+from .const import (
+    SESAME5_LOGIN_PENDING_ITEMS,
+    DeviceStatus,
+    ItemCodes,
+    LoginStatus,
+    MechStatusBitFlags,
+)
 from .exc import SesameError, SesameLoginError
 from .os3device import OS3Device, calculate_battery_percentage, create_history_tag
 
@@ -94,6 +100,8 @@ class Sesame5:
         self._os3_device = OS3Device(mac_address, self._on_published)
         self._secret_key = secret_key
         self._mech_status_callback: Callable[[Sesame5MechStatus], None] | None = None
+        self._remaining_login_pending_items = set(SESAME5_LOGIN_PENDING_ITEMS)
+        self._complete_login = asyncio.Event()
         self._mech_status: Sesame5MechStatus | None = None
         self._device_status = DeviceStatus.NO_BLE_SIGNAL
 
@@ -129,6 +137,16 @@ class Sesame5:
                     "Received unsupported publish data (item_code=%s)",
                     publish_data.item_code,
                 )
+
+        if publish_data.item_code in self._remaining_login_pending_items:
+            self._remaining_login_pending_items.discard(publish_data.item_code)
+            logger.debug(
+                "Login pending item received (item_code=%s, remaining=%s)",
+                publish_data.item_code,
+                self._remaining_login_pending_items,
+            )
+            if not self._remaining_login_pending_items:
+                self._complete_login.set()
 
     async def _set_locked(self, history_name: str, locked: bool) -> None:
         """Sends a lock or unlock command to the device.
@@ -187,6 +205,7 @@ class Sesame5:
         logger.info("Logging in to Sesame 5.")
         self._device_status = DeviceStatus.BLE_LOGINING
         timestamp = await self._os3_device.login(self._secret_key)
+        await self._complete_login.wait()
         logger.info("Login successful (timestamp=%d)", timestamp)
         return timestamp
 
@@ -196,6 +215,8 @@ class Sesame5:
         try:
             await self._os3_device.disconnect()
         finally:
+            self._remaining_login_pending_items = set(SESAME5_LOGIN_PENDING_ITEMS)
+            self._complete_login = asyncio.Event()
             self._device_status = DeviceStatus.NO_BLE_SIGNAL
             self._mech_status = None
         logger.info("Disconnected from Sesame 5.")

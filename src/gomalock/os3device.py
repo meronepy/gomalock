@@ -252,12 +252,6 @@ class OS3Device:
         response = await self.send_command(
             SesameCommand(ItemCodes.LOGIN, session_key[:4]), False
         )
-
-        # Since the time required to receive the initial mech status
-        # after logging in varies, a sleep process has been added
-        # to ensure that the status is received.
-
-        await asyncio.sleep(0.5)
         self._login_status = LoginStatus.LOGIN
         timestamp = int.from_bytes(response.payload, "little")
         logger.debug("Login successful (timestamp=%d)", timestamp)
