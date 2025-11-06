@@ -19,7 +19,7 @@ Sesame 5スマートロックをPythonからBluetooth Low Energy (BLE)経由で�
 pip install git+https://github.com/meronepy/gomalock.git
 ```
 
-特定のバージョンをインストール(v0.0.0の部分を任意のバージョンに書き換えてください)
+特定のバージョンをインストール(`v0.0.0`の部分を任意のバージョンに書き換えてください)
 
 ```console
 pip install git+https://github.com/meronepy/gomalock.git@v0.0.0
