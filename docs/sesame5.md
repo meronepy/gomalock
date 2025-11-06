@@ -34,7 +34,7 @@
 
 #### `Sesame5.set_mech_status_callback(callback: Callable[[Sesame5MechStatus], None] | None = None, call_immediately: bool = True)`
 
-- 器械状態(施錠、開錠など)の変化時にリアルタイムで受け取るためのコールバックを設定します
+- 器械状態(施錠、開錠など)の変化時にリアルタイムで受け取るためのコールバックを設定し、コールバックを1回呼びだします
 - 引数なしで呼び出すと既存のコールバックを解除します
 - `call_immediately=False`の場合はログイン直後に実行しても、ログイン時にセサミが送信する初回の状態はコールバックされません
 
@@ -87,8 +87,6 @@
 - Sesame5がアドバタイズしている情報
 - 接続前に参照すると、`SesameConnectionError`を送出します
 
-> 0.3.2以降は`None`を返さなくなりました
-
 #### `property Sesame5.device_status: const.DeviceStatus`
 
 - Sesame5の接続試行中やログイン試行中などの状態
@@ -97,8 +95,6 @@
 
 - キャッシュされた最新のSesame5の器械状態
 - ログイン前に参照しようとすると、`SesameLoginError`を送出します
-
-> 0.3.2以降は`None`を返さなくなりました
 
 ---
 

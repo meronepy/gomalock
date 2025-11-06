@@ -33,7 +33,7 @@
 
 #### `SesameTouch.set_mech_status_callback(callback: Callable[[Sesame5MechStatus], None] | None = None, call_immediately: bool = True)`
 
-- 器械状態(電池電圧や残量など)の変化時にリアルタイムで受け取るためのコールバックを設定します
+- 器械状態(電池電圧や残量など)の変化時にリアルタイムで受け取るためのコールバックを設定し、コールバックを1回呼びだします
 - 引数なしで呼び出すと既存のコールバックを解除します
 - `call_immediately=False`の場合はログイン直後に実行しても、ログイン時にセサミが送信する初回の状態はコールバックされません
 
