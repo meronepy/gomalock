@@ -102,7 +102,7 @@ class SesameTouch:
             None
         )
         self._remaining_login_pending_items = set(SESAME_TOUCH_LOGIN_PENDING_ITEMS)
-        self._complete_login = asyncio.Event()
+        self._login_completed = asyncio.Event()
         self._mech_status: SesameTouchMechStatus | None = None
         self._device_status = DeviceStatus.NO_BLE_SIGNAL
 
@@ -144,7 +144,7 @@ class SesameTouch:
                 self._remaining_login_pending_items,
             )
             if not self._remaining_login_pending_items:
-                self._complete_login.set()
+                self._login_completed.set()
 
     def set_mech_status_callback(
         self,
@@ -185,7 +185,7 @@ class SesameTouch:
         logger.info("Logging in to Sesame Touch.")
         self._device_status = DeviceStatus.BLE_LOGINING
         await self._os3_device.login(self._secret_key)
-        await self._complete_login.wait()
+        await self._login_completed.wait()
         self._device_status = DeviceStatus.LOCKED
         logger.info("Login successful.")
 
@@ -196,7 +196,7 @@ class SesameTouch:
             await self._os3_device.disconnect()
         finally:
             self._remaining_login_pending_items = set(SESAME_TOUCH_LOGIN_PENDING_ITEMS)
-            self._complete_login = asyncio.Event()
+            self._login_completed = asyncio.Event()
             self._device_status = DeviceStatus.NO_BLE_SIGNAL
             self._mech_status = None
         logger.info("Disconnected from Sesame Touch.")

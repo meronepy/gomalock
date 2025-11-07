@@ -101,7 +101,7 @@ class Sesame5:
         self._secret_key = secret_key
         self._mech_status_callback: Callable[[Sesame5MechStatus], None] | None = None
         self._remaining_login_pending_items = set(SESAME5_LOGIN_PENDING_ITEMS)
-        self._complete_login = asyncio.Event()
+        self._login_completed = asyncio.Event()
         self._mech_status: Sesame5MechStatus | None = None
         self._device_status = DeviceStatus.NO_BLE_SIGNAL
 
@@ -146,7 +146,7 @@ class Sesame5:
                 self._remaining_login_pending_items,
             )
             if not self._remaining_login_pending_items:
-                self._complete_login.set()
+                self._login_completed.set()
 
     async def _set_locked(self, history_name: str, locked: bool) -> None:
         """Sends a lock or unlock command to the device.
@@ -205,7 +205,7 @@ class Sesame5:
         logger.info("Logging in to Sesame 5.")
         self._device_status = DeviceStatus.BLE_LOGINING
         timestamp = await self._os3_device.login(self._secret_key)
-        await self._complete_login.wait()
+        await self._login_completed.wait()
         logger.info("Login successful (timestamp=%d)", timestamp)
         return timestamp
 
@@ -216,7 +216,7 @@ class Sesame5:
             await self._os3_device.disconnect()
         finally:
             self._remaining_login_pending_items = set(SESAME5_LOGIN_PENDING_ITEMS)
-            self._complete_login = asyncio.Event()
+            self._login_completed = asyncio.Event()
             self._device_status = DeviceStatus.NO_BLE_SIGNAL
             self._mech_status = None
         logger.info("Disconnected from Sesame 5.")
