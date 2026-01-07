@@ -67,17 +67,18 @@ if __name__ == "__main__":
 - Windows 11 24H2, Python 3.13.3
 - Raspberry Pi Zero 2W, Raspberry Pi OS Trixie (64bit), Python 3.13.3
 - Sesame 5, 3.0-5-18a8e4
+- Sesame 5 Pro, 3.0-7-848a2d
 
 ## 対応機種
 
 |対応状況|機種|
 |:-:|:-:|
 |✅|Sesame 5|
-|⚠️|Sesame 5 Pro|
+|✅|Sesame 5 Pro|
 |⚠️|Sesame 5 USA|
 |❌|Sesame 4以前|
 
-Sesame 5 ProとSesame 5 USAは恐らく動作しますが、動作未確認です。  
+Sesame 5 USAは恐らく動作しますが、動作未確認です。  
 Sesame 4以前はOSが違うため動作しません。対応予定もありません。
 
 |対応状況|機種|
