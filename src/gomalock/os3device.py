@@ -9,7 +9,7 @@ import asyncio
 import logging
 from typing import Callable
 
-from .ble import (
+from .protocol import (
     ReceivedSesameMessage,
     ReceivedSesamePublish,
     ReceivedSesameResponse,

@@ -10,7 +10,7 @@ import struct
 from dataclasses import dataclass
 from typing import Callable, Self
 
-from .ble import ReceivedSesamePublish, SesameAdvertisementData, SesameCommand
+from .protocol import ReceivedSesamePublish, SesameAdvertisementData, SesameCommand
 from .const import (
     SESAME5_LOGIN_PENDING_ITEMS,
     DeviceStatus,

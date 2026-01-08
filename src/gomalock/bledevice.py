@@ -14,7 +14,7 @@ from bleak.backends.characteristic import BleakGATTCharacteristic
 from bleak.backends.device import BLEDevice
 from bleak.backends.scanner import AdvertisementData
 
-from .ble import ReceivedSesamePacket, SesameAdvertisementData
+from .protocol import ReceivedSesamePacket, SesameAdvertisementData
 from .const import (
     COMPANY_ID,
     MTU_SIZE,
