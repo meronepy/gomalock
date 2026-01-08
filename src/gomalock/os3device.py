@@ -9,13 +9,6 @@ import asyncio
 import logging
 from typing import Callable
 
-from .protocol import (
-    ReceivedSesameMessage,
-    ReceivedSesamePublish,
-    ReceivedSesameResponse,
-    SesameAdvertisementData,
-    SesameCommand,
-)
 from .bledevice import SesameBleDevice
 from .cipher import OS3Cipher, generate_session_key
 from .const import (
@@ -30,6 +23,13 @@ from .const import (
     ResultCodes,
 )
 from .exc import SesameLoginError, SesameOperationError
+from .protocol import (
+    ReceivedSesameMessage,
+    ReceivedSesamePublish,
+    ReceivedSesameResponse,
+    SesameAdvertisementData,
+    SesameCommand,
+)
 
 logger = logging.getLogger(__name__)
 

@@ -10,7 +10,6 @@ import struct
 from dataclasses import dataclass
 from typing import Callable, Self
 
-from .protocol import ReceivedSesamePublish, SesameAdvertisementData
 from .const import (
     SESAME_TOUCH_LOGIN_PENDING_ITEMS,
     DeviceStatus,
@@ -20,6 +19,7 @@ from .const import (
 )
 from .exc import SesameLoginError
 from .os3device import OS3Device, calculate_battery_percentage
+from .protocol import ReceivedSesamePublish, SesameAdvertisementData
 
 logger = logging.getLogger(__name__)
 

@@ -14,7 +14,6 @@ from bleak.backends.characteristic import BleakGATTCharacteristic
 from bleak.backends.device import BLEDevice
 from bleak.backends.scanner import AdvertisementData
 
-from .protocol import ReceivedSesamePacket, SesameAdvertisementData
 from .const import (
     COMPANY_ID,
     MTU_SIZE,
@@ -25,6 +24,7 @@ from .const import (
     PacketTypes,
 )
 from .exc import SesameConnectionError
+from .protocol import ReceivedSesamePacket, SesameAdvertisementData
 
 logger = logging.getLogger(__name__)
 
