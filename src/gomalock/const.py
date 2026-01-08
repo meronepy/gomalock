@@ -243,7 +243,7 @@ HISTORY_TAG_MAX_LEN = 20
 MTU_SIZE = 20
 """The MTU for BLE communication."""
 SCAN_TIMEOUT = 10
-"""Timeout for BLE scanning to get advertisement data."""
+"""Timeout for BLE scanning."""
 SESSION_TOKEN_TIMEOUT = 5
 """Timeout for waiting for a session token."""
 RESPONSE_TIMEOUT = 2

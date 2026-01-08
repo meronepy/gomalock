@@ -12,7 +12,7 @@ from bleak import BleakScanner
 from bleak.backends.device import BLEDevice
 from bleak.backends.scanner import AdvertisementData
 
-from .const import COMPANY_ID, UUID_SERVICE, ProductModels
+from .const import COMPANY_ID, SCAN_TIMEOUT, UUID_SERVICE, ProductModels
 from .protocol import SesameAdvertisementData
 
 
@@ -128,7 +128,7 @@ class SesameScanner:
     async def find_device_by_filter(
         cls,
         filter_func: Callable[[str, SesameAdvertisementData], bool],
-        timeout: float = 10.0,
+        timeout: float = SCAN_TIMEOUT,
     ) -> tuple[str, SesameAdvertisementData] | None:
         """Find a Sesame device by a filter function.
 
@@ -160,7 +160,7 @@ class SesameScanner:
 
     @classmethod
     async def find_device_by_address(
-        cls, address: str, timeout: float = 10.0
+        cls, address: str, timeout: float = SCAN_TIMEOUT
     ) -> tuple[str, SesameAdvertisementData] | None:
         """Find a Sesame device by its BLE address.
 
@@ -175,7 +175,7 @@ class SesameScanner:
 
     @classmethod
     async def find_device_by_uuid(
-        cls, uuid: UUID, timeout: float = 10.0
+        cls, uuid: UUID, timeout: float = SCAN_TIMEOUT
     ) -> tuple[str, SesameAdvertisementData] | None:
         """Find a Sesame device by its UUID.
 
@@ -189,7 +189,7 @@ class SesameScanner:
 
     @classmethod
     async def discover(
-        cls, timeout: float = 10.0
+        cls, timeout: float = SCAN_TIMEOUT
     ) -> dict[str, SesameAdvertisementData]:
         """Discover Sesame devices within a timeout period.
 
