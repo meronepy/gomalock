@@ -53,10 +53,19 @@ class SesameScanner:
         manufacturer_data = adv_data.manufacturer_data[COMPANY_ID]
         model_id = int.from_bytes(manufacturer_data[0:2], byteorder="little")
         if not model_id in [model.value for model in ProductModels]:
+            logger.debug(
+                "Unsupported Sesame device detected (address=%s, model_id=%d)",
+                device.address,
+                model_id,
+            )
             return
+        logger.debug(
+            "Sesame device detected (address=%s, model_id=%d)", device.address, model_id
+        )
         sesame_adv_data = SesameAdvertisementData.from_manufacturer_data(
             manufacturer_data
         )
+        self.detected_devices[device.address] = sesame_adv_data
         if self._detection_callbacks:
             for callback in self._detection_callbacks.values():
                 asyncio.get_running_loop().call_soon_threadsafe(
