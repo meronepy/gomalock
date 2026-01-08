@@ -5,26 +5,16 @@ Sesame devices using the Bleak library. It handles device scanning, connection,
 service discovery, notification handling, and data transmission.
 """
 
-import asyncio
 import logging
 from typing import Callable
 
-from bleak import BleakClient, BleakScanner
+from bleak import BleakClient
 from bleak.backends.characteristic import BleakGATTCharacteristic
-from bleak.backends.device import BLEDevice
-from bleak.backends.scanner import AdvertisementData
 
-from .const import (
-    COMPANY_ID,
-    MTU_SIZE,
-    SCAN_TIMEOUT,
-    UUID_NOTIFICATION,
-    UUID_SERVICE,
-    UUID_WRITE,
-    PacketTypes,
-)
+from .const import MTU_SIZE, SCAN_TIMEOUT, UUID_NOTIFICATION, UUID_WRITE, PacketTypes
 from .exc import SesameConnectionError
 from .protocol import ReceivedSesamePacket, SesameAdvertisementData
+from .scanner import SesameScanner
 
 logger = logging.getLogger(__name__)
 
@@ -103,28 +93,19 @@ class SesameBleDevice:
             The advertisement data from the Sesame device.
 
         Raises:
-            asyncio.TimeoutError: If the scan times out.
+            SesameConnectionError: If the scan times out.
         """
 
-        def scan_callback(device: BLEDevice, adv_data: AdvertisementData) -> None:
-            if sesame_advertisement_data_future.done():
-                return
-            if device.address.lower() != self._bleak_client.address.lower():
-                return
-            logger.debug("Target Sesame device found during scan.")
-            sesame_advertisement_data = SesameAdvertisementData.from_manufacturer_data(
-                adv_data.manufacturer_data[COMPANY_ID]
-            )
-            sesame_advertisement_data_future.set_result(sesame_advertisement_data)
-
         logger.debug("Starting BLE scan to retrieve Sesame advertisement data.")
-        sesame_advertisement_data_future = asyncio.get_running_loop().create_future()
-        async with BleakScanner(scan_callback, [UUID_SERVICE]):
-            result = await asyncio.wait_for(
-                sesame_advertisement_data_future, SCAN_TIMEOUT
+        found_device = await SesameScanner.find_device_by_address(
+            self.mac_address, timeout=SCAN_TIMEOUT
+        )
+        if found_device is None:
+            raise SesameConnectionError(
+                f"Failed to find Sesame (address={self.mac_address})"
             )
-            logger.debug("Sesame advertisement data successfully retrieved.")
-            return result
+        logger.debug("Sesame advertisement data successfully retrieved.")
+        return found_device[1]
 
     async def connect(self) -> None:
         """Connect to the Sesame BLE device.
@@ -167,7 +148,7 @@ class SesameBleDevice:
         payload_max_len = MTU_SIZE - 1  # 1 byte for header
         total_len = len(send_data)
         logger.debug(
-            "Sending data to Sesame device (length=%d, encrypted=%s).",
+            "Sending data to Sesame device (length=%d, encrypted=%s)",
             total_len,
             is_encrypted,
         )
@@ -178,7 +159,7 @@ class SesameBleDevice:
             header = generate_header(is_beginning, is_end, is_encrypted)
             packet = header + chunk
             logger.debug(
-                "Writing packet to GATT (offset=%d, length=%d, beginning=%s, end=%s).",
+                "Writing packet to GATT (offset=%d, length=%d, beginning=%s, end=%s)",
                 offset,
                 len(packet),
                 is_beginning,

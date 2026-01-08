@@ -5,6 +5,7 @@ and parse their advertisement data.
 """
 
 import asyncio
+import logging
 from typing import AsyncGenerator, Callable, Self
 from uuid import UUID
 
@@ -14,6 +15,8 @@ from bleak.backends.scanner import AdvertisementData
 
 from .const import COMPANY_ID, SCAN_TIMEOUT, UUID_SERVICE, ProductModels
 from .protocol import SesameAdvertisementData
+
+logger = logging.getLogger(__name__)
 
 
 class SesameScanner:
@@ -74,12 +77,14 @@ class SesameScanner:
 
         Starts BLE scanning and clears previously detected devices.
         """
+        logger.debug("Starting Sesame BLE scanner.")
         self.detected_devices.clear()
         await self._scanner.start()
 
     async def stop(self) -> None:
         """Stop scanning for Sesame devices."""
         await self._scanner.stop()
+        logger.debug("Sesame BLE scanner stopped.")
 
     def register_detection_callback(
         self, callback: Callable[[str, SesameAdvertisementData], None]
@@ -142,6 +147,9 @@ class SesameScanner:
             A tuple of device address and parsed Sesame advertisement data
             if a matching device is found within the timeout period,
             otherwise None.
+
+        Raises:
+            asyncio.TimeoutError: If the timeout period is exceeded.
         """
 
         async def find_task():
@@ -151,9 +159,13 @@ class SesameScanner:
                     sesame_adv_data,
                 ) in scanner.detected_devices_generator:
                     if filter_func(address, sesame_adv_data):
+                        logger.debug(
+                            "Matching Sesame device found (address=%s)", address
+                        )
                         return address, sesame_adv_data
 
         try:
+            logger.debug("Starting device search with filter (timeout=%s)", timeout)
             return await asyncio.wait_for(find_task(), timeout)
         except asyncio.TimeoutError:
             return None
@@ -199,6 +211,10 @@ class SesameScanner:
         Returns:
             A dictionary mapping device addresses to their parsed advertisement data.
         """
+        logger.debug("Starting discovery (timeout=%s)", timeout)
         async with cls() as scanner:
             await asyncio.sleep(timeout)
+        logger.debug(
+            "Discovery completed (found devices=%d)", len(scanner.detected_devices)
+        )
         return scanner.detected_devices
