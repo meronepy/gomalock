@@ -4,12 +4,13 @@
 [![License](https://img.shields.io/badge/license-MIT-5da1d8)](LICENSE)
 ![Platform](https://img.shields.io/badge/platform-Linux%20%2F%20Windows%20%2F%20macOS-ffb8d2)
 
-Sesame 5スマートロックをPythonからBluetooth Low Energy (BLE)経由で操作するためのライブラリ。
+Sesame スマートロックをPythonからBluetooth Low Energy (BLE)経由で操作するためのライブラリ。
 
 ## 機能説明
 
-- Sesame 5をBluetooth経由で施錠、開錠などの操作と、施錠状態、電池残量などの変化をリアルタイムで受信
+- Sesame 5 (Pro)をBluetooth経由で施錠、開錠などの操作と、施錠状態、電池残量などの変化をリアルタイムで受信
 - Sesame Touchの電池電圧、残量の変化をリアルタイムで受信
+- 周囲のSesameデバイスをスキャンし、情報を取得
 
 ## インストール
 
@@ -47,13 +48,13 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-- `MAC_ADDRESS`は[discover.py](examples/discover.py)を使用して周囲のSesame 5をスキャンして取得できます。
+- `MAC_ADDRESS`は[discover.py](examples/discover.py)を使用して周囲のSesameをスキャンして取得できます。
 - `SECRET_KEY`はmochipon様作成の[QR Code Reader for SESAME](https://sesame-qr-reader.vercel.app/)を使用して、マネージャー権限以上のQRコードから抽出できます。
 - 詳細な使用方法は[examples](examples)および[docs](docs)をご覧ください。
 
 ### MQTTとブリッジするサンプルコード
 
-[![Readme Card](https://github-readme-stats.vercel.app/api/pin/?username=meronepy&repo=ssm2mqtt)](https://github.com/meronepy/ssm2mqtt)
+<https://github.com/meronepy/ssm2mqtt>
 
 ## 注意事項
 
