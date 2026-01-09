@@ -31,7 +31,7 @@ def on_mechstatus_changed(
 
 async def main():
     async with SesameTouch(MAC_ADDRESS, SECRET_KEY) as sesametouch:
-        sesametouch.set_mech_status_callback(
+        sesametouch.register_mech_status_callback(
             functools.partial(on_mechstatus_changed, sesametouch)
         )
         while True:
