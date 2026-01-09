@@ -169,15 +169,15 @@ class SesameBleDevice:
 
     async def disconnect(self) -> None:
         """Disconnect from Sesame device if connected and always clean up resources."""
-        try:
-            if self._bleak_client.is_connected:
+        if self._bleak_client.is_connected:
+            try:
                 logger.debug("Disconnecting from Sesame device.")
                 await self._bleak_client.disconnect()
                 logger.debug("Disconnected from Sesame device.")
-            else:
-                logger.debug("Disconnect skipped: already disconnected.")
-        finally:
-            self._sesame_advertisement_data = None
+            finally:
+                self._sesame_advertisement_data = None
+        else:
+            logger.debug("Disconnect skipped: already disconnected.")
 
     @property
     def mac_address(self) -> str:

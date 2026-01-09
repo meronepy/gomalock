@@ -189,14 +189,17 @@ class SesameTouch:
     async def disconnect(self) -> None:
         """Disconnects from the Sesame Touch device."""
         logger.info("Disconnecting from Sesame Touch.")
-        try:
-            await self._os3_device.disconnect()
-        finally:
-            self._remaining_login_pending_items = set(SESAME_TOUCH_LOGIN_PENDING_ITEMS)
-            self._login_completed = asyncio.Event()
-            self._device_status = DeviceStatus.NO_BLE_SIGNAL
-            self._mech_status = None
-        logger.info("Disconnected from Sesame Touch.")
+        if self.is_connected:
+            try:
+                await self._os3_device.disconnect()
+            finally:
+                self._remaining_login_pending_items = set(SESAME_TOUCH_LOGIN_PENDING_ITEMS)
+                self._login_completed = asyncio.Event()
+                self._device_status = DeviceStatus.NO_BLE_SIGNAL
+                self._mech_status = None
+            logger.info("Disconnected from Sesame Touch.")
+        else:
+            logger.info("Disconnect skipped: already disconnected.")
 
     @property
     def mac_address(self) -> str:

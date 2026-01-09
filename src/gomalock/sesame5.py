@@ -211,14 +211,17 @@ class Sesame5:
     async def disconnect(self) -> None:
         """Disconnects from the Sesame 5 device."""
         logger.info("Disconnecting from Sesame 5.")
-        try:
-            await self._os3_device.disconnect()
-        finally:
-            self._remaining_login_pending_items = set(SESAME5_LOGIN_PENDING_ITEMS)
-            self._login_completed = asyncio.Event()
-            self._device_status = DeviceStatus.NO_BLE_SIGNAL
-            self._mech_status = None
-        logger.info("Disconnected from Sesame 5.")
+        if self.is_connected:
+            try:
+                await self._os3_device.disconnect()
+            finally:
+                self._remaining_login_pending_items = set(SESAME5_LOGIN_PENDING_ITEMS)
+                self._login_completed = asyncio.Event()
+                self._device_status = DeviceStatus.NO_BLE_SIGNAL
+                self._mech_status = None
+                logger.info("Disconnected from Sesame 5.")
+        else:
+            logger.debug("Disconnect skipped: already disconnected.")
 
     async def lock(self, history_name: str) -> None:
         """Locks the Sesame 5 device.

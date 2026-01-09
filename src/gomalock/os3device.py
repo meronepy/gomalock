@@ -260,11 +260,14 @@ class OS3Device:
     async def disconnect(self) -> None:
         """Disconnects from the device and cleans up resources."""
         logger.debug("Disconnecting from Sesame OS3 device.")
-        try:
-            await self._ble_device.disconnect()
-        finally:
-            await self._cleanup()
-        logger.debug("Disconnected and cleaned up.")
+        if self.is_connected:
+            try:
+                await self._ble_device.disconnect()
+            finally:
+                await self._cleanup()
+                logger.debug("Disconnected and cleaned up.")
+        else:
+            logger.debug("Disconnect skipped: already disconnected.")
 
     @property
     def mac_address(self) -> str:
