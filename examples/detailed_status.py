@@ -34,7 +34,7 @@ def on_mechstatus_changed(sesame5: Sesame5, status: Sesame5MechStatus) -> None:
 
 async def main():
     async with Sesame5(MAC_ADDRESS, SECRET_KEY) as sesame5:
-        sesame5.set_mech_status_callback(
+        sesame5.register_mech_status_callback(
             functools.partial(on_mechstatus_changed, sesame5)
         )
         while True:

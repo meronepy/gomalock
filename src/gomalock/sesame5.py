@@ -90,6 +90,7 @@ class Sesame5:
         self,
         mac_address: str,
         secret_key: str,
+        mech_status_callback: Callable[[Sesame5MechStatus], None] | None = None,
     ) -> None:
         """Initializes the Sesame5 device interface.
 
@@ -99,11 +100,17 @@ class Sesame5:
         """
         self._os3_device = OS3Device(mac_address, self._on_published)
         self._secret_key = secret_key
-        self._mech_status_callback: Callable[[Sesame5MechStatus], None] | None = None
         self._remaining_login_pending_items = set(SESAME5_LOGIN_PENDING_ITEMS)
         self._login_completed = asyncio.Event()
         self._mech_status: Sesame5MechStatus | None = None
         self._device_status = DeviceStatus.NO_BLE_SIGNAL
+        self._mech_status_callbacks: dict[
+            object, Callable[[Sesame5MechStatus], None]
+        ] = {}
+        if mech_status_callback is not None:
+            self.register_mech_status_callback(
+                mech_status_callback, call_immediately=False
+            )
 
     async def __aenter__(self) -> Self:
         await self.connect()
@@ -128,10 +135,8 @@ class Sesame5:
                     if self._mech_status.is_in_lock_range
                     else DeviceStatus.UNLOCKED
                 )
-                if self._mech_status_callback:
-                    asyncio.get_running_loop().call_soon_threadsafe(
-                        self._mech_status_callback, self._mech_status
-                    )
+                for callback in self._mech_status_callbacks.values():
+                    callback(self._mech_status)
             case _:
                 logger.debug(
                     "Received unsupported publish data (item_code=%s)",
@@ -162,32 +167,30 @@ class Sesame5:
             SesameCommand(item_code, tag), should_encrypt=True
         )
 
-    def set_mech_status_callback(
+    def register_mech_status_callback(
         self,
-        callback: Callable[[Sesame5MechStatus], None] | None = None,
+        callback: Callable[[Sesame5MechStatus], None],
         call_immediately: bool = True,
-    ) -> None:
-        """Sets or clear mech status callback.
-
-        Sets a callback function. If `None` is passed,
-        the existing callback (if any) will be cleared.
+    ) -> Callable[[], None]:
+        """Register a callback for mechanical status updates.
 
         Args:
-            callback: a callback function that is invoked when the
-                mechanical status changes.
+            callback: A callable that is called when the mechanical status is updated.
             call_immediately: If True and there is an existing mech status,
                 the callback will be invoked immediately with the latest status.
-        """
-        self._mech_status_callback = callback
 
-        if (
-            call_immediately
-            and self._mech_status_callback is not None
-            and self._mech_status is not None
-        ):
-            asyncio.get_running_loop().call_soon_threadsafe(
-                self._mech_status_callback, self._mech_status
-            )
+        Returns:
+            A callable that can be used to unregister the callback.
+        """
+        token = object()
+        self._mech_status_callbacks[token] = callback
+
+        def unregister() -> None:
+            self._mech_status_callbacks.pop(token, None)
+
+        if call_immediately and self._mech_status is not None:
+            callback(self._mech_status)
+        return unregister
 
     async def connect(self) -> None:
         """Connects to the Sesame 5 device via BLE."""
