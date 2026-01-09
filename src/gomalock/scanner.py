@@ -44,7 +44,7 @@ class SesameScanner:
             detection_callback=self._bleak_detection_callback,
             service_uuids=[UUID_SERVICE],
         )
-        if callback:
+        if callback is not None:
             self.register_detection_callback(callback)
 
     def _bleak_detection_callback(
@@ -52,7 +52,7 @@ class SesameScanner:
     ) -> None:
         manufacturer_data = adv_data.manufacturer_data[COMPANY_ID]
         model_id = int.from_bytes(manufacturer_data[0:2], byteorder="little")
-        if not model_id in [model.value for model in ProductModels]:
+        if not model_id in ProductModels:
             logger.debug(
                 "Unsupported Sesame device detected (address=%s, model_id=%d)",
                 device.address,
@@ -66,13 +66,8 @@ class SesameScanner:
             manufacturer_data
         )
         self.detected_devices[device.address] = sesame_adv_data
-        if self._detection_callbacks:
-            for callback in self._detection_callbacks.values():
-                asyncio.get_running_loop().call_soon_threadsafe(
-                    callback,
-                    device.address,
-                    sesame_adv_data,
-                )
+        for callback in self._detection_callbacks.values():
+            callback(device.address, sesame_adv_data)
 
     async def __aenter__(self) -> Self:
         await self.start()
@@ -115,7 +110,6 @@ class SesameScanner:
 
         return unregister
 
-    @property
     async def detected_devices_generator(
         self,
     ) -> AsyncGenerator[tuple[str, SesameAdvertisementData], None]:
@@ -166,7 +160,7 @@ class SesameScanner:
                 async for (
                     address,
                     sesame_adv_data,
-                ) in scanner.detected_devices_generator:
+                ) in scanner.detected_devices_generator():
                     if filter_func(address, sesame_adv_data):
                         logger.debug(
                             "Matching Sesame device found (address=%s)", address
