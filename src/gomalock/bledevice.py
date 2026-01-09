@@ -107,15 +107,21 @@ class SesameBleDevice:
         logger.debug("Sesame advertisement data successfully retrieved.")
         return found_device[1]
 
+    def _cleanup(self) -> None:
+        """Cleans up resources."""
+        self._rx_buffer = b""
+        self._sesame_advertisement_data = None
+
     async def connect(self) -> None:
         """Connect to the Sesame BLE device.
 
         Raises:
             SesameConnectionError: If already connected.
         """
-        logger.debug("Connecting to Sesame device.")
         if self._bleak_client.is_connected:
             raise SesameConnectionError("Already connected to Sesame.")
+        logger.debug("Connecting to Sesame device.")
+        self._cleanup()
         self._sesame_advertisement_data = await self._get_sesame_advertisement_data()
         await self._bleak_client.connect()
         logger.debug("Connection established.")
@@ -170,12 +176,12 @@ class SesameBleDevice:
     async def disconnect(self) -> None:
         """Disconnect from Sesame device if connected and always clean up resources."""
         if self._bleak_client.is_connected:
+            logger.debug("Disconnecting from Sesame device.")
             try:
-                logger.debug("Disconnecting from Sesame device.")
                 await self._bleak_client.disconnect()
                 logger.debug("Disconnected from Sesame device.")
             finally:
-                self._sesame_advertisement_data = None
+                self._cleanup()
         else:
             logger.debug("Disconnect skipped: already disconnected.")
 

@@ -22,7 +22,7 @@ from .const import (
     OpCodes,
     ResultCodes,
 )
-from .exc import SesameLoginError, SesameOperationError
+from .exc import SesameConnectionError, SesameLoginError, SesameOperationError
 from .protocol import (
     ReceivedSesameMessage,
     ReceivedSesamePublish,
@@ -95,9 +95,7 @@ class OS3Device:
         self._response_futures: dict[
             ItemCodes, asyncio.Future[ReceivedSesameResponse]
         ] = {}
-        self._session_token_future: asyncio.Future[bytes] = (
-            asyncio.get_running_loop().create_future()
-        )
+        self._session_token_future: asyncio.Future[bytes] | None = None
         self._cipher: OS3Cipher | None = None
 
     def _on_received(self, data: bytes, is_encrypted: bool) -> None:
@@ -155,26 +153,21 @@ class OS3Device:
         """
         logger.debug("Handling publish (item_code=%s)", publish_data.item_code)
         if publish_data.item_code == ItemCodes.INITIAL:
+            assert self._session_token_future is not None
             self._session_token_future.set_result(publish_data.payload)
         else:
             self._publish_data_callback(publish_data)
 
-    async def _cleanup(self) -> None:
-        """Cleans up resources and resets the device state."""
-        logger.debug("Cleaning up session state and cancelling pending futures.")
+    def _cleanup(self) -> None:
+        """Cleans up resources."""
         for future in self._response_futures.values():
             future.cancel()
-        await asyncio.gather(*self._response_futures.values(), return_exceptions=True)
+        if self._session_token_future is not None:
+            self._session_token_future.cancel()
         self._response_futures.clear()
-        self._session_token_future.cancel()
-        try:
-            await self._session_token_future
-        except asyncio.CancelledError:
-            pass
-        self._session_token_future = asyncio.get_running_loop().create_future()
+        self._session_token_future = None
         self._cipher = None
         self._login_status = LoginStatus.UNLOGIN
-        logger.debug("Cleanup complete.")
 
     async def send_command(
         self, command: SesameCommand, should_encrypt: bool
@@ -201,8 +194,7 @@ class OS3Device:
             )
             send_data = command.transmission_data
             if should_encrypt:
-                if self._cipher is None:
-                    raise SesameLoginError("Encryption attempted before login.")
+                assert self._cipher is not None
                 send_data = self._cipher.encrypt(send_data)
                 logger.debug("Command encrypted.")
             response_future = asyncio.get_running_loop().create_future()
@@ -220,7 +212,11 @@ class OS3Device:
 
     async def connect(self) -> None:
         """Establishes a BLE connection to the device."""
+        if self.is_connected:
+            raise SesameConnectionError("Already connected to Sesame OS3 device.")
         logger.debug("Connecting to Sesame OS3 device.")
+        self._cleanup()
+        self._session_token_future = asyncio.get_running_loop().create_future()
         await self._ble_device.connect()
         logger.debug("Connection established.")
 
@@ -242,6 +238,7 @@ class OS3Device:
         logger.debug("Logging in to Sesame OS3 device.")
         await self._ble_device.start_notification()
         logger.debug("Waiting for session token from Sesame OS3 device.")
+        assert self._session_token_future is not None
         session_token = await asyncio.wait_for(
             self._session_token_future, SESSION_TOKEN_TIMEOUT
         )
@@ -259,13 +256,13 @@ class OS3Device:
 
     async def disconnect(self) -> None:
         """Disconnects from the device and cleans up resources."""
-        logger.debug("Disconnecting from Sesame OS3 device.")
         if self.is_connected:
+            logger.debug("Disconnecting from Sesame OS3 device.")
             try:
                 await self._ble_device.disconnect()
+                logger.debug("Disconnected from Sesame OS3 device.")
             finally:
-                await self._cleanup()
-                logger.debug("Disconnected and cleaned up.")
+                self._cleanup()
         else:
             logger.debug("Disconnect skipped: already disconnected.")
 

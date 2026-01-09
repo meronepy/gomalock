@@ -19,7 +19,7 @@ from .const import (
     LoginStatus,
     MechStatusBitFlags,
 )
-from .exc import SesameLoginError
+from .exc import SesameConnectionError, SesameLoginError
 from .os3device import OS3Device, calculate_battery_percentage
 from .protocol import ReceivedSesamePublish, SesameAdvertisementData
 
@@ -151,6 +151,13 @@ class SesameTouch:
             if not self._remaining_login_pending_items:
                 self._login_completed.set()
 
+    def _cleanup(self) -> None:
+        """Cleans up resources."""
+        self._remaining_login_pending_items = set(SESAME_TOUCH_LOGIN_PENDING_ITEMS)
+        self._login_completed = asyncio.Event()
+        self._device_status = DeviceStatus.NO_BLE_SIGNAL
+        self._mech_status = None
+
     def register_mech_status_callback(
         self, callback: Callable[[SesameTouch, SesameTouchMechStatus], None]
     ) -> Callable[[], None]:
@@ -172,7 +179,10 @@ class SesameTouch:
 
     async def connect(self) -> None:
         """Connects to the Sesame Touch device via BLE."""
+        if self.is_connected:
+            raise SesameConnectionError("Already connected to Sesame Touch device.")
         logger.info("Connecting to Sesame Touch (MAC=%s)", self._os3_device.mac_address)
+        self._cleanup()
         self._device_status = DeviceStatus.BLE_CONNECTING
         await self._os3_device.connect()
         logger.info("Connection established.")
@@ -188,16 +198,13 @@ class SesameTouch:
 
     async def disconnect(self) -> None:
         """Disconnects from the Sesame Touch device."""
-        logger.info("Disconnecting from Sesame Touch.")
         if self.is_connected:
+            logger.info("Disconnecting from Sesame Touch.")
             try:
                 await self._os3_device.disconnect()
+                logger.info("Disconnected from Sesame Touch.")
             finally:
-                self._remaining_login_pending_items = set(SESAME_TOUCH_LOGIN_PENDING_ITEMS)
-                self._login_completed = asyncio.Event()
-                self._device_status = DeviceStatus.NO_BLE_SIGNAL
-                self._mech_status = None
-            logger.info("Disconnected from Sesame Touch.")
+                self._cleanup()
         else:
             logger.info("Disconnect skipped: already disconnected.")
 
