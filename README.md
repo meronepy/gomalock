@@ -10,7 +10,7 @@ Sesame スマートロックをPythonからBluetooth Low Energy (BLE)経由で�
 
 - Sesame 5 (Pro)をBluetooth経由で施錠、開錠などの操作と、施錠状態、電池残量などの変化をリアルタイムで受信
 - Sesame Touchの電池電圧、残量の変化をリアルタイムで受信
-- 周囲のSesameデバイスをスキャンし、情報を取得
+- 周囲のSesameデバイスをスキャンして情報を取得
 
 ## インストール
 
