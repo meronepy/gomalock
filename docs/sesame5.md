@@ -9,13 +9,16 @@
 
 ### 操作
 
-#### `class gomalock.sesame5.Sesame5(mac_address: str, secret_key: str)`
+#### `class gomalock.sesame5.Sesame5(mac_address: str, secret_key: str, mech_status_callback: Callable[[Sesame5, Sesame5MechStatus], None] | None = None)`
 
 - Sesame5との接続、ログイン、操作などを行うクラスです。
 
 - 引数
   - mac_address: 接続するSesame5のMACアドレス
   - secret_key: 接続するSesame5のシークレットキー
+  - mech_status_callback: 器械状態の変化時に呼び出されるコールバック関数
+
+> `v1.0.0`以降では`Sesame5`インスタンスと`Sesame5MechStatus`インスタンスの両方をコールバックします
 
 #### `async Sesame5.connect() -> None`
 
@@ -32,15 +35,18 @@
 - ログイン時のタイムスタンプを返します
 - `Sesame5.mech_status`が利用可能になります
 
-#### `Sesame5.set_mech_status_callback(callback: Callable[[Sesame5MechStatus], None] | None = None, call_immediately: bool = True)`
+#### `Sesame5.register_mech_status_callback(callback: Callable[[Sesame5, Sesame5MechStatus], None]) -> Callable[[], None]`
 
-- 器械状態(施錠、開錠など)の変化時にリアルタイムで受け取るためのコールバックを設定し、コールバックを1回呼びだします
-- 引数なしで呼び出すと既存のコールバックを解除します
-- `call_immediately=False`の場合はログイン直後に実行しても、ログイン時にセサミが送信する初回の状態はコールバックされません
+- 器械状態(施錠、開錠など)の変化時にリアルタイムで受け取るためのコールバックを設定します
+- 返り値として、登録したコールバックを解除する関数を返します
+- 複数のコールバックを登録可能です
 
 - 引数
   - callback: 器械状態の変化時に呼び出されるコールバック関数
-  - call_immediately: コールバック関数がセットされ、最新の器械状態がキャッシュされている場合、すぐにコールバックするかどうか
+
+> `v1.0.0`以降では`Sesame5`インスタンスと`Sesame5MechStatus`インスタンスの両方をコールバックします
+> `v0.4.0`以前の`set_mech_status_callback()`からリネームされ、`call_immediately`引数は削除されました
+> ログイン時に受信する初回の器械状態を取得したい場合は、`Sesame5`クラスをインスタンス化する時の引数で登録してください
 
 #### `async Sesame5.lock(history_name: str) -> None`
 
@@ -133,21 +139,3 @@
 #### `property Sesame5MechStatus.battery_percentage: int`
 
 - 電池残量のパーセンテージ
-
----
-
-## SesameAdvertisementDataクラス
-
-### Sesameの情報
-
-#### `SesameAdvertisementData.product_model: const.ProductModels`
-
-- Sesameのモデル情報
-
-#### `SesameAdvertisementData.is_registered: bool`
-
-- Sesameが登録済みか否か
-
-#### `SesameAdvertisementData.device_uuid: UUID`
-
-- SesameのUUID
