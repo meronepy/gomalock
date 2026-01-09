@@ -107,9 +107,7 @@ class SesameTouch:
             object, Callable[[SesameTouchMechStatus], None]
         ] = {}
         if mech_status_callback is not None:
-            self.register_mech_status_callback(
-                mech_status_callback, call_immediately=False
-            )
+            self.register_mech_status_callback(mech_status_callback)
 
     async def __aenter__(self) -> Self:
         await self.connect()
@@ -150,16 +148,12 @@ class SesameTouch:
                 self._login_completed.set()
 
     def register_mech_status_callback(
-        self,
-        callback: Callable[[SesameTouchMechStatus], None],
-        call_immediately: bool = True,
+        self, callback: Callable[[SesameTouchMechStatus], None]
     ) -> Callable[[], None]:
         """Register a callback for mechanical status updates.
 
         Args:
             callback: A callable that is called when the mechanical status is updated.
-            call_immediately: If True and there is an existing mech status,
-                the callback will be invoked immediately with the latest status.
 
         Returns:
             A callable that can be used to unregister the callback.
@@ -170,8 +164,6 @@ class SesameTouch:
         def unregister() -> None:
             self._mech_status_callbacks.pop(token, None)
 
-        if call_immediately and self._mech_status is not None:
-            callback(self._mech_status)
         return unregister
 
     async def connect(self) -> None:
