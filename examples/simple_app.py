@@ -6,7 +6,7 @@ MAC_ADDRESS = "XX:XX:XX:XX:XX:XX"
 SECRET_KEY = "1234567890abcdef1234567890abcdef"
 
 
-def on_mech_status_changed(mech_status):
+def on_mech_status_changed(_, mech_status):
     if mech_status.is_in_lock_range:
         print("LOCKED")
     else:

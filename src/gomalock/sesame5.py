@@ -4,6 +4,8 @@ This module provides a main class of Sesame5 for controlling and abstracts
 the mechanical status of a Sesame 5 device.
 """
 
+from __future__ import annotations
+
 import asyncio
 import logging
 import struct
@@ -90,7 +92,9 @@ class Sesame5:
         self,
         mac_address: str,
         secret_key: str,
-        mech_status_callback: Callable[[Sesame5MechStatus], None] | None = None,
+        mech_status_callback: (
+            Callable[[Sesame5, Sesame5MechStatus], None] | None
+        ) = None,
     ) -> None:
         """Initializes the Sesame5 device interface.
 
@@ -105,7 +109,7 @@ class Sesame5:
         self._mech_status: Sesame5MechStatus | None = None
         self._device_status = DeviceStatus.NO_BLE_SIGNAL
         self._mech_status_callbacks: dict[
-            object, Callable[[Sesame5MechStatus], None]
+            object, Callable[[Sesame5, Sesame5MechStatus], None]
         ] = {}
         if mech_status_callback is not None:
             self.register_mech_status_callback(mech_status_callback)
@@ -134,7 +138,7 @@ class Sesame5:
                     else DeviceStatus.UNLOCKED
                 )
                 for callback in self._mech_status_callbacks.values():
-                    callback(self._mech_status)
+                    callback(self, self._mech_status)
             case _:
                 logger.debug(
                     "Received unsupported publish data (item_code=%s)",
@@ -166,7 +170,7 @@ class Sesame5:
         )
 
     def register_mech_status_callback(
-        self, callback: Callable[[Sesame5MechStatus], None]
+        self, callback: Callable[[Sesame5, Sesame5MechStatus], None]
     ) -> Callable[[], None]:
         """Register a callback for mechanical status updates.
 

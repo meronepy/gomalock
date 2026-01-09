@@ -1,5 +1,4 @@
 import asyncio
-import functools
 import logging
 
 from gomalock.sesame5 import Sesame5, Sesame5MechStatus
@@ -33,10 +32,7 @@ def on_mechstatus_changed(sesame5: Sesame5, status: Sesame5MechStatus) -> None:
 
 
 async def main():
-    async with Sesame5(MAC_ADDRESS, SECRET_KEY) as sesame5:
-        sesame5.register_mech_status_callback(
-            functools.partial(on_mechstatus_changed, sesame5)
-        )
+    async with Sesame5(MAC_ADDRESS, SECRET_KEY, on_mechstatus_changed) as sesame5:
         while True:
             user_input = await asyncio.to_thread(
                 input, "Enter command (s: lock, u: unlock, t: toggle, q: quit):\n"

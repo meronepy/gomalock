@@ -1,11 +1,6 @@
 import asyncio
-import functools
-import logging
 
 from gomalock.sesametouch import SesameTouch, SesameTouchMechStatus
-
-logging.basicConfig(level=logging.DEBUG)
-logging.getLogger("bleak").setLevel(logging.INFO)
 
 MAC_ADDRESS = "XX:XX:XX:XX:XX:XX"
 SECRET_KEY = "1234567890abcdef1234567890abcdef"
@@ -30,10 +25,7 @@ def on_mechstatus_changed(
 
 
 async def main():
-    async with SesameTouch(MAC_ADDRESS, SECRET_KEY) as sesametouch:
-        sesametouch.register_mech_status_callback(
-            functools.partial(on_mechstatus_changed, sesametouch)
-        )
+    async with SesameTouch(MAC_ADDRESS, SECRET_KEY, on_mechstatus_changed):
         while True:
             await asyncio.sleep(1)
 

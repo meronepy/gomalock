@@ -4,6 +4,8 @@ This module provides a main class of Sesame Touch for controlling and abstracts
 the mechanical status of a Sesame Touch device.
 """
 
+from __future__ import annotations
+
 import asyncio
 import logging
 import struct
@@ -89,7 +91,9 @@ class SesameTouch:
         self,
         mac_address: str,
         secret_key: str,
-        mech_status_callback: Callable[[SesameTouchMechStatus], None] | None = None,
+        mech_status_callback: (
+            Callable[[SesameTouch, SesameTouchMechStatus], None] | None
+        ) = None,
     ) -> None:
         """Initializes the Sesame Touch device interface.
 
@@ -104,7 +108,7 @@ class SesameTouch:
         self._mech_status: SesameTouchMechStatus | None = None
         self._device_status = DeviceStatus.NO_BLE_SIGNAL
         self._mech_status_callbacks: dict[
-            object, Callable[[SesameTouchMechStatus], None]
+            object, Callable[[SesameTouch, SesameTouchMechStatus], None]
         ] = {}
         if mech_status_callback is not None:
             self.register_mech_status_callback(mech_status_callback)
@@ -130,7 +134,7 @@ class SesameTouch:
                 )
                 logger.debug("Received mech status update.")
                 for callback in self._mech_status_callbacks.values():
-                    callback(self._mech_status)
+                    callback(self, self._mech_status)
             case _:
                 logger.debug(
                     "Received unsupported publish data (item_code=%s)",
@@ -148,7 +152,7 @@ class SesameTouch:
                 self._login_completed.set()
 
     def register_mech_status_callback(
-        self, callback: Callable[[SesameTouchMechStatus], None]
+        self, callback: Callable[[SesameTouch, SesameTouchMechStatus], None]
     ) -> Callable[[], None]:
         """Register a callback for mechanical status updates.
 
