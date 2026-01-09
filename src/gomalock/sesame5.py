@@ -101,6 +101,7 @@ class Sesame5:
         Args:
             mac_address: The MAC address of the Sesame 5 device.
             secret_key: The secret key for login.
+            mech_status_callback: A callable that is called when the mechanical status is updated.
         """
         self._os3_device = OS3Device(mac_address, self._on_published)
         self._secret_key = secret_key
