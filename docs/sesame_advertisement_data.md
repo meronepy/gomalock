@@ -4,7 +4,11 @@
 
 Sesameデバイスが周囲の機器にアドバタイズしており、ログイン不要で取得できる情報です。
 
-## `@dataclass(frozen=True) class gomalock.protocol.SesameAdvertisementData`
+---
+
+## `dataclass(frozen=True) class gomalock.protocol.SesameAdvertisementData`
+
+---
 
 ### デバイス情報
 

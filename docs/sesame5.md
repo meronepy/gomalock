@@ -5,13 +5,11 @@
 - Sesame 5の施錠、開錠、トグル操作
 - Sesame 5の状態のリアルタイム取得
 
-## Sesame5クラス
+---
 
-### 操作
+## `class gomalock.sesame5.Sesame5(mac_address: str, secret_key: str, mech_status_callback: Callable[[Sesame5, Sesame5MechStatus], None] | None = None)`
 
-#### `class gomalock.sesame5.Sesame5(mac_address: str, secret_key: str, mech_status_callback: Callable[[Sesame5, Sesame5MechStatus], None] | None = None)`
-
-- Sesame5との接続、ログイン、操作などを行うクラスです。
+- Sesame5との接続、ログイン、操作などを行うクラスです
 
 - 引数
   - mac_address: 接続するSesame5のMACアドレス
@@ -19,6 +17,10 @@
   - mech_status_callback: 器械状態の変化時に呼び出されるコールバック関数
 
 > `v1.0.0`以降では`Sesame5`インスタンスと`Sesame5MechStatus`インスタンスの両方をコールバックします
+
+---
+
+### 操作
 
 #### `async Sesame5.connect() -> None`
 

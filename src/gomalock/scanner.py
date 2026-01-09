@@ -39,7 +39,7 @@ class SesameScanner:
         self._detection_callbacks: dict[
             object, Callable[[str, SesameAdvertisementData], None]
         ] = {}
-        self.detected_devices: dict[str, SesameAdvertisementData] = {}
+        self._seen_devices: dict[str, SesameAdvertisementData] = {}
         self._scanner = BleakScanner(
             detection_callback=self._bleak_detection_callback,
             service_uuids=[UUID_SERVICE],
@@ -65,7 +65,7 @@ class SesameScanner:
         sesame_adv_data = SesameAdvertisementData.from_manufacturer_data(
             manufacturer_data
         )
-        self.detected_devices[device.address] = sesame_adv_data
+        self._seen_devices[device.address] = sesame_adv_data
         for callback in self._detection_callbacks.values():
             callback(device.address, sesame_adv_data)
 
@@ -82,7 +82,7 @@ class SesameScanner:
         Starts BLE scanning and clears previously detected devices.
         """
         logger.debug("Starting Sesame BLE scanner.")
-        self.detected_devices.clear()
+        self._seen_devices.clear()
         await self._scanner.start()
 
     async def stop(self) -> None:
@@ -131,6 +131,15 @@ class SesameScanner:
                 yield await detected_devices_queue.get()
         finally:
             unregister_detection_callback()
+
+    @property
+    def detected_devices(self) -> dict[str, SesameAdvertisementData]:
+        """Detected Sesame devices dict.
+
+        Returns:
+            A dictionary mapping device addresses to their parsed advertisement data.
+        """
+        return dict(self._seen_devices)
 
     @classmethod
     async def find_device_by_filter(

@@ -5,13 +5,11 @@
 - Sesame Touchの電池残量、電圧のリアルタイム取得
 - 登録済みの指紋、カード、パスワードの数の取得
 
-## SesameTouchクラス
+---
 
-### 操作
+## `class gomalock.sesametouch.SesameTouch((mac_address: str, secret_key: str, mech_status_callback: Callable[[SesameTouch, SesameTouchMechStatus], None] | None = None)`
 
-#### `class gomalock.sesametouch.SesameTouch((mac_address: str, secret_key: str, mech_status_callback: Callable[[SesameTouch, SesameTouchMechStatus], None] | None = None)`
-
-- Sesame Touchとの接続、ログイン、操作などを行うクラスです。
+- Sesame Touchとの接続、ログイン、操作などを行うクラスです
 
 - 引数
   - mac_address: 接続するSesame TouchのMACアドレス
@@ -19,6 +17,8 @@
   - mech_status_callback: 器械状態の変化時に呼び出されるコールバック関数
 
 > `v1.0.0`以降では`SesameTouch`インスタンスと`SesameTouchMechStatus`インスタンスの両方をコールバックします
+
+### 操作
 
 #### `async SesameTouch.connect() -> None`
 
