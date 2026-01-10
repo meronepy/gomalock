@@ -6,6 +6,30 @@ encryption and decryption for secure communication with SesameOS3 devices.
 
 from Crypto.Cipher import AES
 from Crypto.Hash import CMAC
+from Crypto.Protocol.DH import key_agreement
+from Crypto.PublicKey import ECC
+
+
+def generate_app_keys() -> tuple[bytes, ECC.EccKey]:
+    app_private_key = ECC.generate(curve="NIST P-256")
+    app_uncompressed_public_key = app_private_key.public_key().export_key(format="raw")
+    # remove the uncompressed flag to match the Sesame protocol
+    app_protocol_public_key = app_uncompressed_public_key[1:]
+    return app_protocol_public_key, app_private_key
+
+
+def generate_device_secret_key(
+    device_protocol_public_key: bytes, app_private_key: ECC.EccKey
+) -> bytes:
+    # add the uncompressed flag
+    device_uncompressed_public_key = b"\x04" + device_protocol_public_key
+    device_public_key = ECC.import_key(
+        device_uncompressed_public_key, curve_name="NIST P-256"
+    )
+    shared_secret = key_agreement(
+        static_priv=app_private_key, static_pub=device_public_key, kdf=lambda x: x
+    )
+    return shared_secret[:16]
 
 
 def generate_session_key(secret_key: bytes, session_token: bytes) -> bytes:

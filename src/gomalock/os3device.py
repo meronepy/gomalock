@@ -7,10 +7,16 @@ command transmission, and notification processing.
 
 import asyncio
 import logging
+import time
 from typing import Callable
 
 from .bledevice import SesameBleDevice
-from .cipher import OS3Cipher, generate_session_key
+from .cipher import (
+    OS3Cipher,
+    generate_app_keys,
+    generate_device_secret_key,
+    generate_session_key,
+)
 from .const import (
     BATTERY_PERCENTAGES,
     HISTORY_TAG_MAX_LEN,
@@ -108,8 +114,7 @@ class OS3Device:
             "Reassembled data received (encrypted=%s, len=%d)", is_encrypted, len(data)
         )
         if is_encrypted:
-            if self._cipher is None:
-                raise SesameLoginError("Encrypted data received before login.")
+            assert self._cipher is not None
             data = self._cipher.decrypt(data)
             logger.debug("Reassembled data decrypted.")
         sesame_message = ReceivedSesameMessage.from_reassembled_data(data)
@@ -193,7 +198,8 @@ class OS3Device:
             )
             send_data = command.transmission_data
             if should_encrypt:
-                assert self._cipher is not None
+                if self._cipher is None:
+                    raise SesameLoginError("Encryption attempted before login.")
                 send_data = self._cipher.encrypt(send_data)
                 logger.debug("Command encrypted.")
             response_future = asyncio.get_running_loop().create_future()
@@ -218,6 +224,38 @@ class OS3Device:
         self._session_token_future = asyncio.get_running_loop().create_future()
         await self._ble_device.connect()
         logger.debug("Connection established.")
+
+    async def login_with_register(self) -> tuple[int, str]:
+        if self._is_logged_in:
+            raise SesameLoginError("Already logged in or logging in.")
+        logger.debug("Logging in to Sesame OS3 device.")
+        await self._ble_device.start_notification()
+        logger.debug("Waiting for session token from Sesame OS3 device.")
+        assert self._session_token_future is not None
+        session_token = await asyncio.wait_for(
+            self._session_token_future, SESSION_TOKEN_TIMEOUT
+        )
+        logger.debug("Session token received.")
+        app_protocol_public_key, app_private_key = generate_app_keys()
+        timestamp = int(time.time()).to_bytes(4, "little")
+        response = await self.send_command(
+            SesameCommand(ItemCodes.REGISTRATION, app_protocol_public_key + timestamp),
+            False,
+        )
+        device_protocol_public_key = response.payload[13:77]
+        secret_key = generate_device_secret_key(
+            device_protocol_public_key, app_private_key
+        )
+        session_key = generate_session_key(secret_key, session_token)
+        self._cipher = OS3Cipher(session_token, session_key)
+        logger.debug("Cipher initialized.")
+        response = await self.send_command(
+            SesameCommand(ItemCodes.LOGIN, session_key[:4]), False
+        )
+        self._is_logged_in = True
+        timestamp = int.from_bytes(response.payload, "little")
+        logger.debug("Login successful (timestamp=%d)", timestamp)
+        return timestamp, secret_key.hex()
 
     async def login(self, secret_key: str) -> int:
         """Authenticates with the device using the provided secret key.
