@@ -114,7 +114,11 @@ class OS3Device:
             "Reassembled data received (encrypted=%s, len=%d)", is_encrypted, len(data)
         )
         if is_encrypted:
-            assert self._cipher is not None
+            # after sending REGISTRATION command, for some reason sometimes receive
+            # encrypted packets before login.
+            if self._cipher is None:
+                logger.debug("Encrypted data received before login.")
+                return
             data = self._cipher.decrypt(data)
             logger.debug("Reassembled data decrypted.")
         sesame_message = ReceivedSesameMessage.from_reassembled_data(data)
