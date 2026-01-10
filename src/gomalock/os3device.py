@@ -18,7 +18,6 @@ from .const import (
     SESSION_TOKEN_TIMEOUT,
     VOLTAGE_LEVELS,
     ItemCodes,
-    LoginStatus,
     OpCodes,
     ResultCodes,
 )
@@ -90,7 +89,7 @@ class OS3Device:
         """
         self._ble_device = SesameBleDevice(mac_address, self._on_received)
         self._publish_data_callback = publish_data_callback
-        self._login_status = LoginStatus.UNLOGIN
+        self._is_logged_in = False
         self._send_lock = asyncio.Lock()
         self._response_futures: dict[
             ItemCodes, asyncio.Future[ReceivedSesameResponse]
@@ -167,7 +166,7 @@ class OS3Device:
         self._response_futures.clear()
         self._session_token_future = None
         self._cipher = None
-        self._login_status = LoginStatus.UNLOGIN
+        self._is_logged_in = False
 
     async def send_command(
         self, command: SesameCommand, should_encrypt: bool
@@ -233,7 +232,7 @@ class OS3Device:
             asyncio.TimeoutError: If the session token retrieval times out.
             SesameLoginError: If already logged in or logging in.
         """
-        if self._login_status != LoginStatus.UNLOGIN:
+        if self._is_logged_in:
             raise SesameLoginError("Already logged in or logging in.")
         logger.debug("Logging in to Sesame OS3 device.")
         await self._ble_device.start_notification()
@@ -249,7 +248,7 @@ class OS3Device:
         response = await self.send_command(
             SesameCommand(ItemCodes.LOGIN, session_key[:4]), False
         )
-        self._login_status = LoginStatus.LOGIN
+        self._is_logged_in = True
         timestamp = int.from_bytes(response.payload, "little")
         logger.debug("Login successful (timestamp=%d)", timestamp)
         return timestamp
@@ -277,9 +276,9 @@ class OS3Device:
         return self._ble_device.is_connected
 
     @property
-    def login_status(self) -> LoginStatus:
+    def is_logged_in(self) -> bool:
         """The current login status of the device."""
-        return self._login_status
+        return self._is_logged_in
 
     @property
     def sesame_advertisement_data(self) -> SesameAdvertisementData:

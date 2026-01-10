@@ -107,7 +107,7 @@ class SesameTouch:
         self._remaining_login_pending_items = set(SESAME_TOUCH_LOGIN_PENDING_ITEMS)
         self._login_completed = asyncio.Event()
         self._mech_status: SesameTouchMechStatus | None = None
-        self._device_status = DeviceStatus.NO_BLE_SIGNAL
+        self._device_status = DeviceStatus.DISCONNECTED
         self._mech_status_callbacks: dict[
             object, Callable[[SesameTouch, SesameTouchMechStatus], None]
         ] = {}
@@ -156,7 +156,7 @@ class SesameTouch:
         """Cleans up resources."""
         self._remaining_login_pending_items = set(SESAME_TOUCH_LOGIN_PENDING_ITEMS)
         self._login_completed = asyncio.Event()
-        self._device_status = DeviceStatus.NO_BLE_SIGNAL
+        self._device_status = DeviceStatus.DISCONNECTED
         self._mech_status = None
 
     def register_mech_status_callback(
@@ -184,14 +184,14 @@ class SesameTouch:
             raise SesameConnectionError("Already connected to Sesame Touch device.")
         logger.info("Connecting to Sesame Touch (MAC=%s)", self._os3_device.mac_address)
         self._cleanup()
-        self._device_status = DeviceStatus.BLE_CONNECTING
+        self._device_status = DeviceStatus.CONNECTING
         await self._os3_device.connect()
         logger.info("Connection established.")
 
     async def login(self) -> None:
         """Performs login to the device."""
         logger.info("Logging in to Sesame Touch.")
-        self._device_status = DeviceStatus.BLE_LOGINING
+        self._device_status = DeviceStatus.LOGGING_IN
         await self._os3_device.login(self._secret_key)
         await self._login_completed.wait()
         self._device_status = DeviceStatus.LOCKED

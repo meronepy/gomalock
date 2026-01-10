@@ -4,7 +4,7 @@ This module defines various constants and enumerations used throughout the
 `gomalock` library for interacting with Sesame devices.
 """
 
-from enum import Enum, IntFlag, auto
+from enum import Enum, Flag, IntFlag, auto
 
 
 class ProductModels(Enum):
@@ -37,21 +37,18 @@ class MechStatusBitFlags(IntFlag):
     IS_CLOCKWISE = 0b01000000
 
 
-class DeviceStatus(Enum):
+class DeviceStatus(Flag):
     """Device status of Sesame."""
 
-    NO_BLE_SIGNAL = auto()
-    BLE_CONNECTING = auto()
-    BLE_LOGINING = auto()
-    LOCKED = auto()
-    UNLOCKED = auto()
+    DISCONNECTED = auto()
+    CONNECTING = auto()
+    CONNECTED = auto()
+    LOGGING_IN = auto()
+    LOGGED_IN = auto()
+    DISCONNECTING = auto()
 
-
-class LoginStatus(Enum):
-    """Login status of Sesame."""
-
-    UNLOGIN = auto()
-    LOGIN = auto()
+    UNAUTHENTICATED = DISCONNECTED | CONNECTING | CONNECTED | LOGGING_IN | DISCONNECTING
+    AUTHENTICATED = LOGGED_IN
 
 
 class ItemCodes(Enum):
