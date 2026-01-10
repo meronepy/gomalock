@@ -43,8 +43,8 @@
 - 引数
   - callback: 器械状態の変化時に呼び出されるコールバック関数
 
-> `v1.0.0`以降では`SesameTouch`インスタンスと`SesameTouchMechStatus`インスタンスの両方をコールバックします
-> `v0.4.0`以前の`set_mech_status_callback()`からリネームされ、`call_immediately`引数は削除されました
+> `v1.0.0`以降では`SesameTouch`インスタンスと`SesameTouchMechStatus`インスタンスの両方をコールバックします  
+> `v0.4.0`以前の`set_mech_status_callback()`からリネームされ、`call_immediately`引数は削除されました  
 > ログイン時に受信する初回の器械状態を取得したい場合は、`SesameTouch`クラスをインスタンス化する時の引数で登録してください
 
 ---
