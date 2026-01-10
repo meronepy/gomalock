@@ -190,7 +190,7 @@ class SesameTouch:
 
     async def login(self) -> None:
         """Performs login to the device."""
-        if self._device_status in DeviceStatus.AUTHENTICATED:
+        if self.is_logged_in:
             raise SesameLoginError("Already logged in to Sesame Touch device.")
         logger.info("Logging in to Sesame Touch.")
         self._device_status = DeviceStatus.LOGGING_IN
@@ -232,6 +232,11 @@ class SesameTouch:
     def is_connected(self) -> bool:
         """True if the device is currently connected."""
         return self._os3_device.is_connected
+
+    @property
+    def is_logged_in(self) -> bool:
+        """True if the device is currently logged in."""
+        return self._device_status in DeviceStatus.AUTHENTICATED
 
     @property
     def device_status(self) -> DeviceStatus:

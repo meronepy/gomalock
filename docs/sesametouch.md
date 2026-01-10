@@ -36,7 +36,7 @@
 
 #### `SesameTouch.register_mech_status_callback(callback: Callable[[SesameTouch, SesameTouchMechStatus], None]) -> Callable[[], None]`
 
-- 器械状態の変化時にリアルタイムで受け取るためのコールバックを設定します
+- [Sesame Touchの器械状態](#sesametouchmechstatusクラス)の変化時にリアルタイムで受け取るためのコールバックを設定します
 - 返り値として、登録したコールバックを解除する関数を返します
 - 複数のコールバックを登録可能です
 
@@ -59,21 +59,30 @@
 
 - Sesame Touchと接続中か否か
 
+#### `property SesameTouch.is_logged_in: bool`
+
+- Sesame Touchにログイン済みか否か
+
+> `v1.0.0`以降`SesameTouch.login_status`は削除され、`SesameTouch.is_logged_in`に変更されました
+
 #### `property SesameTouch.sesame_advertisement_data: ble.SesameAdvertisementData`
 
-- Sesame Touchがアドバタイズしている情報
+- Sesame Touchが[アドバタイズしている情報](sesame_advertisement_data.md)
 - 接続前に参照すると、`SesameConnectionError`を送出します
 
 #### `property SesameTouch.device_status: const.DeviceStatus`
 
 - Sesame Touchの接続試行中やログイン試行中などの状態
-- ログイン状態は`SesameTouch.device_status in DeviceStatus.AUTHENTICATED`で判定できます
-
-> `v1.0.0`以降`SesameTouch.login_status`は削除され、`SesameTouch.device_status`に統合されました
+  - DISCONNECTED
+  - CONNECTING
+  - CONNECTED
+  - LOGGING_IN
+  - LOGGED_IN
+  - DISCONNECTING
 
 #### `property SesameTouch.mech_status: SesameTouch.SesameTouchMechStatus`
 
-- キャッシュされた最新のSesame Touchの器械状態
+- キャッシュされた最新の[Sesame Touchの器械状態](#sesametouchmechstatusクラス)
 - ログイン前に参照しようとすると、`SesameLoginError`を送出します
 
 ---

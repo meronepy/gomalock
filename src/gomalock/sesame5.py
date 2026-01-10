@@ -157,7 +157,7 @@ class Sesame5:
             history_name: The history tag name.
             locked: True to lock, False to unlock.
         """
-        if self._device_status in DeviceStatus.UNAUTHENTICATED:
+        if not self.is_logged_in:
             raise SesameLoginError("Login required to send lock/unlock commands.")
         tag = create_history_tag(history_name)
         item_code = ItemCodes.LOCK if locked else ItemCodes.UNLOCK
@@ -209,7 +209,7 @@ class Sesame5:
         Returns:
             The login timestamp.
         """
-        if self._device_status in DeviceStatus.AUTHENTICATED:
+        if self.is_logged_in:
             raise SesameLoginError("Already logged in to Sesame 5 device.")
         logger.info("Logging in to Sesame 5.")
         self._device_status = DeviceStatus.LOGGING_IN
@@ -238,7 +238,7 @@ class Sesame5:
         Args:
             history_name: The history tag name.
         """
-        if self._device_status in DeviceStatus.UNAUTHENTICATED:
+        if not self.is_logged_in:
             raise SesameLoginError("Login required to send lock commands.")
         await self._set_locked(history_name, True)
 
@@ -248,7 +248,7 @@ class Sesame5:
         Args:
             history_name: The history tag name.
         """
-        if self._device_status in DeviceStatus.UNAUTHENTICATED:
+        if not self.is_logged_in:
             raise SesameLoginError("Login required to send unlock commands.")
         await self._set_locked(history_name, False)
 
@@ -261,7 +261,7 @@ class Sesame5:
         Raises:
             SesameError: If device is not in locked or unlocked state.
         """
-        if self._device_status in DeviceStatus.UNAUTHENTICATED:
+        if not self.is_logged_in:
             raise SesameLoginError("Login required to send toggle commands.")
         assert self._mech_status is not None
         if self._mech_status.is_in_lock_range:
@@ -289,6 +289,11 @@ class Sesame5:
     def is_connected(self) -> bool:
         """True if the device is currently connected."""
         return self._os3_device.is_connected
+
+    @property
+    def is_logged_in(self) -> bool:
+        """True if the device is currently logged in."""
+        return self._device_status in DeviceStatus.AUTHENTICATED
 
     @property
     def device_status(self) -> DeviceStatus:

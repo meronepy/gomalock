@@ -39,15 +39,15 @@
 
 #### `Sesame5.register_mech_status_callback(callback: Callable[[Sesame5, Sesame5MechStatus], None]) -> Callable[[], None]`
 
-- 器械状態(施錠、開錠など)の変化時にリアルタイムで受け取るためのコールバックを設定します
+- [Sesame5の器械状態](#sesame5mechstatusクラス)の変化時にリアルタイムで受け取るためのコールバックを設定します
 - 返り値として、登録したコールバックを解除する関数を返します
 - 複数のコールバックを登録可能です
 
 - 引数
   - callback: 器械状態の変化時に呼び出されるコールバック関数
 
-> `v1.0.0`以降では`Sesame5`インスタンスと`Sesame5MechStatus`インスタンスの両方をコールバックします
-> `v0.4.0`以前の`set_mech_status_callback()`からリネームされ、`call_immediately`引数は削除されました
+> `v1.0.0`以降では`Sesame5`インスタンスと`Sesame5MechStatus`インスタンスの両方をコールバックします  
+> `v0.4.0`以前の`set_mech_status_callback()`からリネームされ、`call_immediately`引数は削除されました  
 > ログイン時に受信する初回の器械状態を取得したい場合は、`Sesame5`クラスをインスタンス化する時の引数で登録してください
 
 #### `async Sesame5.lock(history_name: str) -> None`
@@ -86,21 +86,30 @@
 
 - Sesame5と接続中か否か
 
+#### `property Sesame5.is_logged_in: bool`
+
+- Sesame5にログイン済みか否か
+
+> `v1.0.0`以降`Sesame5.login_status`は削除され、`Sesame5.is_logged_in`に変更されました
+
 #### `property Sesame5.sesame_advertisement_data: ble.SesameAdvertisementData`
 
-- Sesame5がアドバタイズしている情報
+- Sesame5が[アドバタイズしている情報](sesame_advertisement_data.md)
 - 接続前に参照すると、`SesameConnectionError`を送出します
 
 #### `property Sesame5.device_status: const.DeviceStatus`
 
 - Sesame5の接続試行中やログイン試行中などの状態
-- ログイン状態は`Sesame5.device_status in DeviceStatus.AUTHENTICATED`で判定できます
-
-> `v1.0.0`以降`Sesame5.login_status`は削除され、`Sesame5.device_status`に統合されました
+  - DISCONNECTED
+  - CONNECTING
+  - CONNECTED
+  - LOGGING_IN
+  - LOGGED_IN
+  - DISCONNECTING
 
 #### `property Sesame5.mech_status: Sesame5.Sesame5MechStatus`
 
-- キャッシュされた最新のSesame5の器械状態
+- キャッシュされた最新の[Sesame5の器械状態](#sesame5mechstatusクラス)
 - ログイン前に参照しようとすると、`SesameLoginError`を送出します
 
 ---
