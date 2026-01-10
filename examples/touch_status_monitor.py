@@ -1,5 +1,6 @@
 import asyncio
 
+from gomalock.const import DeviceStatus
 from gomalock.sesametouch import SesameTouch, SesameTouchMechStatus
 
 MAC_ADDRESS = "XX:XX:XX:XX:XX:XX"
@@ -14,7 +15,7 @@ def on_mechstatus_changed(
         "Model": sesametouch.sesame_advertisement_data.product_model.name,
         "Registered": sesametouch.sesame_advertisement_data.is_registered,
         "UUID": sesametouch.sesame_advertisement_data.device_uuid,
-        "Login status": sesametouch.login_status.name,
+        "Logged in": sesametouch.device_status in DeviceStatus.AUTHENTICATED,
         "Device status": sesametouch.device_status.name,
         "Cards number": status.cards_number,
         "Fingerprints number": status.fingerprints_number,

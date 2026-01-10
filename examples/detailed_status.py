@@ -1,6 +1,7 @@
 import asyncio
 import logging
 
+from gomalock.const import DeviceStatus
 from gomalock.sesame5 import Sesame5, Sesame5MechStatus
 
 logging.basicConfig(level=logging.DEBUG)
@@ -16,7 +17,7 @@ def on_mechstatus_changed(sesame5: Sesame5, status: Sesame5MechStatus) -> None:
         "Model": sesame5.sesame_advertisement_data.product_model.name,
         "Registered": sesame5.sesame_advertisement_data.is_registered,
         "UUID": sesame5.sesame_advertisement_data.device_uuid,
-        "Login status": sesame5.login_status.name,
+        "Logged in": sesame5.device_status in DeviceStatus.AUTHENTICATED,
         "Device status": sesame5.device_status.name,
         "Position": status.position,
         "Target": status.target,
