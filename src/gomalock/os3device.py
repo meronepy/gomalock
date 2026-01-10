@@ -27,7 +27,12 @@ from .const import (
     OpCodes,
     ResultCodes,
 )
-from .exc import SesameConnectionError, SesameLoginError, SesameOperationError
+from .exc import (
+    SesameConnectionError,
+    SesameError,
+    SesameLoginError,
+    SesameOperationError,
+)
 from .protocol import (
     ReceivedSesameMessage,
     ReceivedSesamePublish,
@@ -229,10 +234,12 @@ class OS3Device:
         await self._ble_device.connect()
         logger.debug("Connection established.")
 
-    async def login_with_register(self) -> tuple[int, str]:
+    async def register_and_login(self) -> tuple[int, str]:
         if self._is_logged_in:
-            raise SesameLoginError("Already logged in or logging in.")
-        logger.debug("Logging in to Sesame OS3 device.")
+            raise SesameLoginError("Already logged in.")
+        if self.sesame_advertisement_data.is_registered:
+            raise SesameError("Already registered.")
+        logger.debug("Registering and Logging in to Sesame OS3 device.")
         await self._ble_device.start_notification()
         logger.debug("Waiting for session token from Sesame OS3 device.")
         assert self._session_token_future is not None
@@ -250,6 +257,7 @@ class OS3Device:
         secret_key = generate_device_secret_key(
             device_protocol_public_key, app_private_key
         )
+        logger.debug("Registration successful.")
         session_key = generate_session_key(secret_key, session_token)
         self._cipher = OS3Cipher(session_token, session_key)
         logger.debug("Cipher initialized.")
@@ -275,7 +283,7 @@ class OS3Device:
             SesameLoginError: If already logged in or logging in.
         """
         if self._is_logged_in:
-            raise SesameLoginError("Already logged in or logging in.")
+            raise SesameLoginError("Already logged in.")
         logger.debug("Logging in to Sesame OS3 device.")
         await self._ble_device.start_notification()
         logger.debug("Waiting for session token from Sesame OS3 device.")
