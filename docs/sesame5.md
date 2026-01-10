@@ -86,10 +86,6 @@
 
 - Sesame5と接続中か否か
 
-#### `property Sesame5.login_status: const.LoginStatus`
-
-- Sesame5のログインステータス
-
 #### `property Sesame5.sesame_advertisement_data: ble.SesameAdvertisementData`
 
 - Sesame5がアドバタイズしている情報
@@ -98,6 +94,9 @@
 #### `property Sesame5.device_status: const.DeviceStatus`
 
 - Sesame5の接続試行中やログイン試行中などの状態
+- ログイン状態は`Sesame5.device_status in DeviceStatus.AUTHENTICATED`で判定できます
+
+> `v1.0.0`以降`Sesame5.login_status`は削除され、`Sesame5.device_status`に統合されました
 
 #### `property Sesame5.mech_status: Sesame5.Sesame5MechStatus`
 

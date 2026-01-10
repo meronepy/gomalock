@@ -59,10 +59,6 @@
 
 - Sesame Touchと接続中か否か
 
-#### `property SesameTouch.login_status: const.LoginStatus`
-
-- Sesame Touchのログインステータス
-
 #### `property SesameTouch.sesame_advertisement_data: ble.SesameAdvertisementData`
 
 - Sesame Touchがアドバタイズしている情報
@@ -71,7 +67,9 @@
 #### `property SesameTouch.device_status: const.DeviceStatus`
 
 - Sesame Touchの接続試行中やログイン試行中などの状態
-- ログイン後は`DeviceStatus.LOCKED`となります
+- ログイン状態は`SesameTouch.device_status in DeviceStatus.AUTHENTICATED`で判定できます
+
+> `v1.0.0`以降`SesameTouch.login_status`は削除され、`SesameTouch.device_status`に統合されました
 
 #### `property SesameTouch.mech_status: SesameTouch.SesameTouchMechStatus`
 

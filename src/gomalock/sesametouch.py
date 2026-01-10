@@ -16,7 +16,6 @@ from .const import (
     SESAME_TOUCH_LOGIN_PENDING_ITEMS,
     DeviceStatus,
     ItemCodes,
-    LoginStatus,
     MechStatusBitFlags,
 )
 from .exc import SesameConnectionError, SesameLoginError
@@ -186,21 +185,25 @@ class SesameTouch:
         self._cleanup()
         self._device_status = DeviceStatus.CONNECTING
         await self._os3_device.connect()
+        self._device_status = DeviceStatus.CONNECTED
         logger.info("Connection established.")
 
     async def login(self) -> None:
         """Performs login to the device."""
+        if self._device_status in DeviceStatus.AUTHENTICATED:
+            raise SesameLoginError("Already logged in to Sesame Touch device.")
         logger.info("Logging in to Sesame Touch.")
         self._device_status = DeviceStatus.LOGGING_IN
         await self._os3_device.login(self._secret_key)
         await self._login_completed.wait()
-        self._device_status = DeviceStatus.LOCKED
+        self._device_status = DeviceStatus.LOGGED_IN
         logger.info("Login successful.")
 
     async def disconnect(self) -> None:
         """Disconnects from the Sesame Touch device."""
         if self.is_connected:
             logger.info("Disconnecting from Sesame Touch.")
+            self._device_status = DeviceStatus.DISCONNECTING
             try:
                 await self._os3_device.disconnect()
                 logger.info("Disconnected from Sesame Touch.")
@@ -229,11 +232,6 @@ class SesameTouch:
     def is_connected(self) -> bool:
         """True if the device is currently connected."""
         return self._os3_device.is_connected
-
-    @property
-    def login_status(self) -> LoginStatus:
-        """The current login status of the device."""
-        return self._os3_device.login_status
 
     @property
     def device_status(self) -> DeviceStatus:
