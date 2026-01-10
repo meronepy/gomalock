@@ -12,7 +12,7 @@ from bleak import BleakClient
 from bleak.backends.characteristic import BleakGATTCharacteristic
 
 from .const import MTU_SIZE, SCAN_TIMEOUT, UUID_NOTIFICATION, UUID_WRITE, PacketTypes
-from .exc import SesameConnectionError
+from .exc import SesameConnectionError, SesameError
 from .protocol import ReceivedSesamePacket, SesameAdvertisementData
 from .scanner import SesameScanner
 
@@ -93,7 +93,7 @@ class SesameBleDevice:
             The advertisement data from the Sesame device.
 
         Raises:
-            SesameConnectionError: If the scan times out.
+            SesameError: If the scan times out.
         """
 
         logger.debug("Starting BLE scan to retrieve Sesame advertisement data.")
@@ -101,9 +101,7 @@ class SesameBleDevice:
             self.mac_address, timeout=SCAN_TIMEOUT
         )
         if found_device is None:
-            raise SesameConnectionError(
-                f"Failed to find Sesame (address={self.mac_address})"
-            )
+            raise SesameError(f"Failed to find Sesame (address={self.mac_address})")
         logger.debug("Sesame advertisement data successfully retrieved.")
         return found_device[1]
 

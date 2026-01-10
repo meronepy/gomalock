@@ -263,8 +263,7 @@ class Sesame5:
         """
         if not self.is_logged_in:
             raise SesameLoginError("Login required to send toggle commands.")
-        assert self._mech_status is not None
-        if self._mech_status.is_in_lock_range:
+        if self.mech_status.is_in_lock_range:
             await self.unlock(history_name)
         else:
             await self.lock(history_name)

@@ -166,7 +166,8 @@ class OS3Device:
         """
         logger.debug("Handling publish (item_code=%s)", publish_data.item_code)
         if publish_data.item_code == ItemCodes.INITIAL:
-            assert self._session_token_future is not None
+            if self._session_token_future is None:
+                raise SesameConnectionError("No connection established.")
             self._session_token_future.set_result(publish_data.payload)
         else:
             self._publish_data_callback(publish_data)
@@ -232,21 +233,27 @@ class OS3Device:
         self._cleanup()
         self._session_token_future = asyncio.get_running_loop().create_future()
         await self._ble_device.connect()
-        logger.debug("Connection established.")
-
-    async def register_and_login(self) -> tuple[int, str]:
-        if self._is_logged_in:
-            raise SesameLoginError("Already logged in.")
-        if self.sesame_advertisement_data.is_registered:
-            raise SesameError("Already registered.")
-        logger.debug("Registering and Logging in to Sesame OS3 device.")
+        logger.debug("BLE connected.")
         await self._ble_device.start_notification()
         logger.debug("Waiting for session token from Sesame OS3 device.")
-        assert self._session_token_future is not None
-        session_token = await asyncio.wait_for(
-            self._session_token_future, SESSION_TOKEN_TIMEOUT
-        )
-        logger.debug("Session token received.")
+        await asyncio.wait_for(self._session_token_future, SESSION_TOKEN_TIMEOUT)
+        logger.debug("Session token received. Connection established.")
+
+    async def register(self) -> str:
+        """Register the Sesame OS3 device and derive a shared secret key.
+
+        This method performs the initial registration handshake with a Sesame OS3
+        device. The device must not be registered already.
+
+        Returns:
+            The derived device secret key as a hexadecimal string.
+
+        Raises:
+            SesameError: If the device is already registered.
+        """
+        if self.sesame_advertisement_data.is_registered:
+            raise SesameError("Already registered.")
+        logger.debug("Registering a new Sesame OS3 device.")
         app_protocol_public_key, app_private_key = generate_app_keys()
         timestamp = int(time.time()).to_bytes(4, "little")
         response = await self.send_command(
@@ -258,16 +265,7 @@ class OS3Device:
             device_protocol_public_key, app_private_key
         )
         logger.debug("Registration successful.")
-        session_key = generate_session_key(secret_key, session_token)
-        self._cipher = OS3Cipher(session_token, session_key)
-        logger.debug("Cipher initialized.")
-        response = await self.send_command(
-            SesameCommand(ItemCodes.LOGIN, session_key[:4]), False
-        )
-        self._is_logged_in = True
-        timestamp = int.from_bytes(response.payload, "little")
-        logger.debug("Login successful (timestamp=%d)", timestamp)
-        return timestamp, secret_key.hex()
+        return secret_key.hex()
 
     async def login(self, secret_key: str) -> int:
         """Authenticates with the device using the provided secret key.
@@ -284,16 +282,13 @@ class OS3Device:
         """
         if self._is_logged_in:
             raise SesameLoginError("Already logged in.")
+        if self._session_token_future is None:
+            raise SesameConnectionError("No connection established.")
         logger.debug("Logging in to Sesame OS3 device.")
-        await self._ble_device.start_notification()
-        logger.debug("Waiting for session token from Sesame OS3 device.")
-        assert self._session_token_future is not None
-        session_token = await asyncio.wait_for(
-            self._session_token_future, SESSION_TOKEN_TIMEOUT
+        session_key = generate_session_key(
+            bytes.fromhex(secret_key), self._session_token_future.result()
         )
-        logger.debug("Session token received.")
-        session_key = generate_session_key(bytes.fromhex(secret_key), session_token)
-        self._cipher = OS3Cipher(session_token, session_key)
+        self._cipher = OS3Cipher(self._session_token_future.result(), session_key)
         logger.debug("Cipher initialized.")
         response = await self.send_command(
             SesameCommand(ItemCodes.LOGIN, session_key[:4]), False
