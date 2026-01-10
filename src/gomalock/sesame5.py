@@ -257,9 +257,6 @@ class Sesame5:
 
         Args:
             history_name: The history tag name.
-
-        Raises:
-            SesameError: If device is not in locked or unlocked state.
         """
         if not self.is_logged_in:
             raise SesameLoginError("Login required to send toggle commands.")
