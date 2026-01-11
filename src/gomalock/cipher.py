@@ -11,6 +11,11 @@ from Crypto.PublicKey import ECC
 
 
 def generate_app_keys() -> tuple[bytes, ECC.EccKey]:
+    """Generates a new application private key and its corresponding public key.
+
+    Returns:
+        A tuple containing the application's public key and private key.
+    """
     app_private_key = ECC.generate(curve="NIST P-256")
     app_uncompressed_public_key = app_private_key.public_key().export_key(format="raw")
     # remove the uncompressed flag to match the Sesame protocol
@@ -21,6 +26,16 @@ def generate_app_keys() -> tuple[bytes, ECC.EccKey]:
 def generate_device_secret_key(
     device_protocol_public_key: bytes, app_private_key: ECC.EccKey
 ) -> bytes:
+    """Generates the device secret key using ECDH.
+
+    Args:
+        device_protocol_public_key: The device's public key as received from the
+            SesameOS3 device (without the uncompressed flag).
+        app_private_key: The application's private ECC key.
+
+    Returns:
+        The 16-byte device secret key.
+    """
     # add the uncompressed flag
     device_uncompressed_public_key = b"\x04" + device_protocol_public_key
     device_public_key = ECC.import_key(
@@ -29,7 +44,7 @@ def generate_device_secret_key(
     shared_secret = key_agreement(
         static_priv=app_private_key, static_pub=device_public_key, kdf=lambda x: x
     )
-    return shared_secret[:16]
+    return shared_secret[:16]  # truncate to 16 bytes as per SesameOS3 protocol
 
 
 def generate_session_key(secret_key: bytes, session_token: bytes) -> bytes:
