@@ -110,7 +110,7 @@ class SesameBleDevice:
         self._rx_buffer = b""
         self._sesame_advertisement_data = None
 
-    async def connect(self) -> None:
+    async def connect_and_start_notification(self) -> None:
         """Connect to the Sesame BLE device.
 
         Raises:
@@ -122,20 +122,10 @@ class SesameBleDevice:
         self._cleanup()
         self._sesame_advertisement_data = await self._get_sesame_advertisement_data()
         await self._bleak_client.connect()
-        logger.debug("Connection established.")
-
-    async def start_notification(self) -> None:
-        """Start receiving notifications from the Sesame device.
-
-        Raises:
-            SesameConnectionError: If not connected.
-        """
-        if not self._bleak_client.is_connected:
-            raise SesameConnectionError("Not connected to Sesame.")
         await self._bleak_client.start_notify(
             UUID_NOTIFICATION, self._notification_handler
         )
-        logger.debug("Enabled BLE notifications from the Sesame device.")
+        logger.debug("BLE connection established.")
 
     async def write_gatt(self, send_data: bytes, is_encrypted: bool) -> None:
         """Fragment and write data to the Sesame device via GATT.

@@ -226,18 +226,16 @@ class OS3Device:
             return response
 
     async def connect(self) -> None:
-        """Establishes a BLE connection to the device."""
+        """Establishes a connection to the device."""
         if self.is_connected:
             raise SesameConnectionError("Already connected to Sesame OS3 device.")
         logger.debug("Connecting to Sesame OS3 device.")
         self._cleanup()
         self._session_token_future = asyncio.get_running_loop().create_future()
-        await self._ble_device.connect()
-        logger.debug("BLE connected.")
-        await self._ble_device.start_notification()
-        logger.debug("Waiting for session token from Sesame OS3 device.")
+        await self._ble_device.connect_and_start_notification()
+        logger.debug("Awaiting session token.")
         await asyncio.wait_for(self._session_token_future, SESSION_TOKEN_TIMEOUT)
-        logger.debug("Session token received. Connection established.")
+        logger.debug("Connected to Sesame OS3 device.")
 
     async def register(self) -> str:
         """Register the Sesame OS3 device and derive a shared secret key.
