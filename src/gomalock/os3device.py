@@ -197,6 +197,7 @@ class OS3Device:
 
         Raises:
             asyncio.TimeoutError: If the response times out.
+            SesameConnectionError: If not connected to the device.
             SesameLoginError: If encryption is attempted before login.
             SesameOperationError: If the operation fails.
         """
@@ -226,7 +227,13 @@ class OS3Device:
             return response
 
     async def connect(self) -> None:
-        """Establishes a connection to the device."""
+        """Establishes a connection to the device.
+
+        Raises:
+            asyncio.TimeoutError: If the session token retrieval times out.
+            SesameConnectionError: If already connected.
+            SesameError: If the device cannot be found during scanning.
+        """
         if self.is_connected:
             raise SesameConnectionError("Already connected to Sesame OS3 device.")
         logger.debug("Connecting to Sesame OS3 device.")
@@ -247,7 +254,10 @@ class OS3Device:
             The derived device secret key as a hexadecimal string.
 
         Raises:
+            asyncio.TimeoutError: If the response times out.
+            SesameConnectionError: If not connected to the device.
             SesameError: If the device is already registered.
+            SesameOperationError: If the registration operation fails.
         """
         if self.sesame_advertisement_data.is_registered:
             raise SesameError("Already registered.")
@@ -275,8 +285,10 @@ class OS3Device:
             The login timestamp.
 
         Raises:
-            asyncio.TimeoutError: If the session token retrieval times out.
-            SesameLoginError: If already logged in or logging in.
+            asyncio.TimeoutError: If the response times out.
+            SesameConnectionError: If no connection is established or not connected.
+            SesameLoginError: If already logged in.
+            SesameOperationError: If the login operation fails.
         """
         if self._is_logged_in:
             raise SesameLoginError("Already logged in.")

@@ -46,6 +46,9 @@ class Sesame5MechStatus:
         Args:
             payload: The byte payload received from the Sesame5 device
                 with item code mech_status.
+
+        Raises:
+            struct.error: If payload has an invalid format or length.
         """
         raw_battery, target, position, status_flags = struct.unpack("<HhhB", payload)
         return cls(raw_battery, status_flags, target, position)
@@ -193,7 +196,13 @@ class Sesame5:
         return unregister
 
     async def connect(self) -> None:
-        """Connects to the Sesame 5 device via BLE."""
+        """Connects to the Sesame 5 device via BLE.
+
+        Raises:
+            asyncio.TimeoutError: If the session token retrieval times out.
+            SesameConnectionError: If already connected.
+            SesameError: If the device cannot be found during scanning.
+        """
         if self.is_connected:
             raise SesameConnectionError("Already connected to Sesame 5 device.")
         logger.info("Connecting to Sesame 5 (MAC=%s)", self._os3_device.mac_address)
@@ -208,6 +217,12 @@ class Sesame5:
 
         Returns:
             The login timestamp.
+
+        Raises:
+            asyncio.TimeoutError: If the response times out.
+            SesameConnectionError: If not connected to the device.
+            SesameLoginError: If already logged in.
+            SesameOperationError: If the login operation fails.
         """
         if self.is_logged_in:
             raise SesameLoginError("Already logged in to Sesame 5 device.")
@@ -237,6 +252,12 @@ class Sesame5:
 
         Args:
             history_name: The history tag name.
+
+        Raises:
+            asyncio.TimeoutError: If the response times out.
+            SesameConnectionError: If not connected to the device.
+            SesameLoginError: If not logged in.
+            SesameOperationError: If the lock operation fails.
         """
         if not self.is_logged_in:
             raise SesameLoginError("Login required to send lock commands.")
@@ -247,6 +268,12 @@ class Sesame5:
 
         Args:
             history_name: The history tag name.
+
+        Raises:
+            asyncio.TimeoutError: If the response times out.
+            SesameConnectionError: If not connected to the device.
+            SesameLoginError: If not logged in.
+            SesameOperationError: If the unlock operation fails.
         """
         if not self.is_logged_in:
             raise SesameLoginError("Login required to send unlock commands.")
@@ -257,6 +284,12 @@ class Sesame5:
 
         Args:
             history_name: The history tag name.
+
+        Raises:
+            asyncio.TimeoutError: If the response times out.
+            SesameConnectionError: If not connected to the device.
+            SesameLoginError: If not logged in.
+            SesameOperationError: If the toggle operation fails.
         """
         if not self.is_logged_in:
             raise SesameLoginError("Login required to send toggle commands.")

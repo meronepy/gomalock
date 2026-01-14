@@ -32,6 +32,10 @@ class SesameAdvertisementData:
 
         Args:
             manufacturer_data: CANDYHOUSE, Inc-specific data.
+
+        Raises:
+            struct.error: If manufacturer_data has an invalid format or length.
+            ValueError: If the product model or UUID data is invalid.
         """
         model_value, registered_value, uuid_value = struct.unpack(
             "<HB16s", manufacturer_data
@@ -64,6 +68,9 @@ class ReceivedSesamePacket:
 
         Returns:
             A ReceivedSesamePacket instance.
+
+        Raises:
+            IndexError: If ble_data is empty.
         """
         header = ble_data[0]
         payload = ble_data[1:]
@@ -108,6 +115,10 @@ class ReceivedSesameMessage:
 
         Returns:
             A ReceivedSesameMessage instance.
+
+        Raises:
+            IndexError: If reassembled_data is empty.
+            ValueError: If the opcode value is invalid.
         """
         op_code = OpCodes(reassembled_data[0])
         payload = reassembled_data[1:]
@@ -137,6 +148,10 @@ class ReceivedSesameResponse:
 
         Returns:
             A ReceivedSesameResponse instance.
+
+        Raises:
+            IndexError: If message_payload is too short (less than 2 bytes).
+            ValueError: If the item code or result code value is invalid.
         """
         item_code = ItemCodes(message_payload[0])
         result_code = ResultCodes(message_payload[1])
@@ -165,6 +180,10 @@ class ReceivedSesamePublish:
 
         Returns:
             A ReceivedSesamePublish instance.
+
+        Raises:
+            IndexError: If message_payload is empty.
+            ValueError: If the item code value is invalid.
         """
         item_code = ItemCodes(message_payload[0])
         payload = message_payload[1:]

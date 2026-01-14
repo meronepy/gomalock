@@ -159,9 +159,6 @@ class SesameScanner:
             A tuple of device address and parsed Sesame advertisement data
             if a matching device is found within the timeout period,
             otherwise None.
-
-        Raises:
-            asyncio.TimeoutError: If the timeout period is exceeded.
         """
 
         async def find_task():
@@ -191,6 +188,10 @@ class SesameScanner:
         Args:
             address: The BLE address of the device to find.
             timeout: The maximum time to wait for the device.
+
+        Returns:
+            A tuple of device address and parsed Sesame advertisement data
+            if the device is found within the timeout period, otherwise None.
         """
         return await cls.find_device_by_filter(
             lambda detected_address, _: detected_address.lower() == address.lower(),
@@ -206,6 +207,10 @@ class SesameScanner:
         Args:
             uuid: The UUID of the device to find.
             timeout: The maximum time to wait for the device.
+
+        Returns:
+            A tuple of device address and parsed Sesame advertisement data
+            if the device is found within the timeout period, otherwise None.
         """
         return await cls.find_device_by_filter(
             lambda _, sesame_adv_data: sesame_adv_data.device_uuid == uuid, timeout

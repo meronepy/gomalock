@@ -115,6 +115,7 @@ class SesameBleDevice:
 
         Raises:
             SesameConnectionError: If already connected.
+            SesameError: If the device cannot be found during scanning.
         """
         if self._bleak_client.is_connected:
             raise SesameConnectionError("Already connected to Sesame.")

@@ -48,6 +48,9 @@ class SesameTouchMechStatus:
         Args:
             payload: The byte payload received from the Sesame Touch device
                 with item code mech_status.
+
+        Raises:
+            struct.error: If payload has an invalid format or length.
         """
         (
             raw_battery,
@@ -178,7 +181,13 @@ class SesameTouch:
         return unregister
 
     async def connect(self) -> None:
-        """Connects to the Sesame Touch device via BLE."""
+        """Connects to the Sesame Touch device via BLE.
+
+        Raises:
+            asyncio.TimeoutError: If the session token retrieval times out.
+            SesameConnectionError: If already connected.
+            SesameError: If the device cannot be found during scanning.
+        """
         if self.is_connected:
             raise SesameConnectionError("Already connected to Sesame Touch device.")
         logger.info("Connecting to Sesame Touch (MAC=%s)", self._os3_device.mac_address)
@@ -189,7 +198,14 @@ class SesameTouch:
         logger.info("Connection established.")
 
     async def login(self) -> None:
-        """Performs login to the device."""
+        """Performs login to the device.
+
+        Raises:
+            asyncio.TimeoutError: If the response times out.
+            SesameConnectionError: If not connected to the device.
+            SesameLoginError: If already logged in.
+            SesameOperationError: If the login operation fails.
+        """
         if self.is_logged_in:
             raise SesameLoginError("Already logged in to Sesame Touch device.")
         logger.info("Logging in to Sesame Touch.")
