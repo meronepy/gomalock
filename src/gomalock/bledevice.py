@@ -81,9 +81,16 @@ class SesameBleDevice:
             self._rx_buffer = b""
         self._rx_buffer += packet.payload
         if not packet.is_end:
-            logger.debug("Incomplete BLE packet received, waiting for more fragments.")
+            logger.debug(
+                "Received partial BLE packet, awaiting more fragments [buffer_size=%d]",
+                len(self._rx_buffer),
+            )
             return
-        logger.debug("Reassembled BLE packet (encrypted=%s)", packet.is_encrypted)
+        logger.debug(
+            "Reassembled complete BLE message [size=%d, encrypted=%s]",
+            len(self._rx_buffer),
+            packet.is_encrypted,
+        )
         self._received_data_callback(self._rx_buffer, packet.is_encrypted)
 
     async def _get_sesame_advertisement_data(self) -> SesameAdvertisementData:
@@ -96,13 +103,21 @@ class SesameBleDevice:
             SesameError: If the scan times out.
         """
 
-        logger.debug("Starting BLE scan to retrieve Sesame advertisement data.")
+        logger.debug(
+            "Scanning for Sesame device [address=%s, timeout=%ds]",
+            self.mac_address,
+            SCAN_TIMEOUT,
+        )
         found_device = await SesameScanner.find_device_by_address(
             self.mac_address, timeout=SCAN_TIMEOUT
         )
         if found_device is None:
             raise SesameError(f"Failed to find Sesame (address={self.mac_address})")
-        logger.debug("Sesame advertisement data successfully retrieved.")
+        logger.debug(
+            "Retrieved advertisement data [address=%s, model=%s]",
+            self.mac_address,
+            found_device[1].product_model.name,
+        )
         return found_device[1]
 
     def _cleanup(self) -> None:
@@ -119,14 +134,17 @@ class SesameBleDevice:
         """
         if self._bleak_client.is_connected:
             raise SesameConnectionError("Already connected to Sesame.")
-        logger.debug("Connecting to Sesame device.")
+        logger.debug("Initiating BLE connection [address=%s]", self.mac_address)
         self._cleanup()
         self._sesame_advertisement_data = await self._get_sesame_advertisement_data()
         await self._bleak_client.connect()
         await self._bleak_client.start_notify(
             UUID_NOTIFICATION, self._notification_handler
         )
-        logger.debug("BLE connection established.")
+        logger.debug(
+            "BLE connection established and notifications enabled [address=%s]",
+            self.mac_address,
+        )
 
     async def write_gatt(self, send_data: bytes, is_encrypted: bool) -> None:
         """Fragment and write data to the Sesame device via GATT.
@@ -142,9 +160,11 @@ class SesameBleDevice:
             raise SesameConnectionError("Not connected to Sesame.")
         payload_max_len = MTU_SIZE - 1  # 1 byte for header
         total_len = len(send_data)
+        total_packets = (total_len + payload_max_len - 1) // payload_max_len
         logger.debug(
-            "Sending data to Sesame device (length=%d, encrypted=%s)",
+            "Transmitting data via GATT [size=%d, packets=%d, encrypted=%s]",
             total_len,
+            total_packets,
             is_encrypted,
         )
         for offset in range(0, total_len, payload_max_len):
@@ -153,26 +173,29 @@ class SesameBleDevice:
             is_end = offset + payload_max_len >= total_len
             header = generate_header(is_beginning, is_end, is_encrypted)
             packet = header + chunk
+            packet_num = offset // payload_max_len + 1
             logger.debug(
-                "Writing packet to GATT (offset=%d, length=%d, beginning=%s, end=%s)",
-                offset,
+                "Writing GATT packet [packet=%d/%d, size=%d]",
+                packet_num,
+                total_packets,
                 len(packet),
-                is_beginning,
-                is_end,
             )
             await self._bleak_client.write_gatt_char(UUID_WRITE, packet, response=False)
 
     async def disconnect(self) -> None:
         """Disconnect from Sesame device if connected and always clean up resources."""
         if self._bleak_client.is_connected:
-            logger.debug("Disconnecting from Sesame device.")
+            logger.debug("Closing BLE connection [address=%s]", self.mac_address)
             try:
                 await self._bleak_client.disconnect()
-                logger.debug("Disconnected from Sesame device.")
+                logger.debug("BLE connection closed [address=%s]", self.mac_address)
             finally:
                 self._cleanup()
         else:
-            logger.debug("Disconnect skipped: already disconnected.")
+            logger.debug(
+                "Skipping disconnect, device not connected [address=%s]",
+                self.mac_address,
+            )
 
     @property
     def mac_address(self) -> str:

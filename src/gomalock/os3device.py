@@ -116,32 +116,32 @@ class OS3Device:
             is_encrypted: Whether `data` is encrypted.
         """
         logger.debug(
-            "Reassembled data received (encrypted=%s, len=%d)", is_encrypted, len(data)
+            "Processing received data [size=%d, encrypted=%s]", len(data), is_encrypted
         )
         if is_encrypted:
             # after sending REGISTRATION command, for some reason sometimes receive
             # encrypted packets before login.
             if self._cipher is None:
-                logger.debug("Encrypted data received before login.")
+                logger.debug(
+                    "Ignoring encrypted data received before cipher initialization"
+                )
                 return
             data = self._cipher.decrypt(data)
-            logger.debug("Reassembled data decrypted.")
+            logger.debug("Decrypted received data [size=%d]", len(data))
         sesame_message = ReceivedSesameMessage.from_reassembled_data(data)
         match sesame_message.op_code:
             case OpCodes.RESPONSE:
-                logger.debug("Received RESPONSE opcode.")
                 self._handle_response(
                     ReceivedSesameResponse.from_sesame_message(sesame_message.payload)
                 )
             case OpCodes.PUBLISH:
-                logger.debug("Received PUBLISH opcode.")
                 self._handle_publish(
                     ReceivedSesamePublish.from_sesame_message(sesame_message.payload)
                 )
             case _:
-                logger.debug(
-                    "Received unsupported notification (opcode=%s)",
-                    sesame_message.op_code,
+                logger.warning(
+                    "Received unsupported opcode [opcode=%s]",
+                    sesame_message.op_code.name,
                 )
 
     def _handle_response(self, response_data: ReceivedSesameResponse) -> None:
@@ -151,9 +151,9 @@ class OS3Device:
             response_data: The response data object.
         """
         logger.debug(
-            "Handling response (item_code=%s, result_code=%s)",
-            response_data.item_code,
-            response_data.result_code,
+            "Received response [item=%s, result=%s]",
+            response_data.item_code.name,
+            response_data.result_code.name,
         )
         response_future = self._response_futures.pop(response_data.item_code)
         response_future.set_result(response_data)
@@ -164,10 +164,13 @@ class OS3Device:
         Args:
             publish_data: The publish data object.
         """
-        logger.debug("Handling publish (item_code=%s)", publish_data.item_code)
+        logger.debug(
+            "Received publish notification [item=%s]", publish_data.item_code.name
+        )
         if publish_data.item_code == ItemCodes.INITIAL:
             if self._session_token_future is None:
                 raise SesameConnectionError("No connection established.")
+            logger.debug("Session token received")
             self._session_token_future.set_result(publish_data.payload)
         else:
             self._publish_data_callback(publish_data)
@@ -203,27 +206,33 @@ class OS3Device:
         """
         async with self._send_lock:
             logger.debug(
-                "Sending command (item_code=%s, encrypted=%s)",
-                command.item_code,
+                "Sending command [item=%s, encrypted=%s, payload_size=%d]",
+                command.item_code.name,
                 should_encrypt,
+                len(command.payload),
             )
             send_data = command.transmission_data
             if should_encrypt:
                 if self._cipher is None:
                     raise SesameLoginError("Encryption attempted before login.")
                 send_data = self._cipher.encrypt(send_data)
-                logger.debug("Command encrypted.")
             response_future = asyncio.get_running_loop().create_future()
             self._response_futures[command.item_code] = response_future
             await self._ble_device.write_gatt(send_data, should_encrypt)
-            logger.debug("Command written to GATT. Awaiting response.")
+            logger.debug(
+                "Command sent, awaiting response [item=%s, timeout=%ds]",
+                command.item_code.name,
+                RESPONSE_TIMEOUT,
+            )
             response = await asyncio.wait_for(response_future, RESPONSE_TIMEOUT)
             if response.result_code != ResultCodes.SUCCESS:
                 raise SesameOperationError(
                     f"Operation failed with code {response.result_code}",
                     response.result_code,
                 )
-            logger.debug("Command succeeded (item_code=%s)", command.item_code)
+            logger.debug(
+                "Command completed successfully [item=%s]", command.item_code.name
+            )
             return response
 
     async def connect(self) -> None:
@@ -236,13 +245,17 @@ class OS3Device:
         """
         if self.is_connected:
             raise SesameConnectionError("Already connected to Sesame OS3 device.")
-        logger.debug("Connecting to Sesame OS3 device.")
+        logger.debug(
+            "Establishing OS3 protocol connection [address=%s]", self.mac_address
+        )
         self._cleanup()
         self._session_token_future = asyncio.get_running_loop().create_future()
         await self._ble_device.connect_and_start_notification()
-        logger.debug("Awaiting session token.")
+        logger.debug("Waiting for session token [timeout=%ds]", SESSION_TOKEN_TIMEOUT)
         await asyncio.wait_for(self._session_token_future, SESSION_TOKEN_TIMEOUT)
-        logger.debug("Connected to Sesame OS3 device.")
+        logger.debug(
+            "OS3 protocol connection established [address=%s]", self.mac_address
+        )
 
     async def register(self) -> str:
         """Register the Sesame OS3 device and derive a shared secret key.
@@ -261,7 +274,7 @@ class OS3Device:
         """
         if self.sesame_advertisement_data.is_registered:
             raise SesameError("Already registered.")
-        logger.debug("Registering a new Sesame OS3 device.")
+        logger.info("Starting device registration [address=%s]", self.mac_address)
         app_protocol_public_key, app_private_key = generate_app_keys()
         timestamp = int(time.time()).to_bytes(4, "little")
         response = await self.send_command(
@@ -272,7 +285,9 @@ class OS3Device:
         secret_key = generate_device_secret_key(
             device_protocol_public_key, app_private_key
         )
-        logger.debug("Registration successful.")
+        logger.info(
+            "Device registration completed successfully [address=%s]", self.mac_address
+        )
         return secret_key.hex()
 
     async def login(self, secret_key: str) -> int:
@@ -294,31 +309,40 @@ class OS3Device:
             raise SesameLoginError("Already logged in.")
         if self._session_token_future is None:
             raise SesameConnectionError("No connection established.")
-        logger.debug("Logging in to Sesame OS3 device.")
+        logger.debug("Initiating login sequence [address=%s]", self.mac_address)
         session_key = generate_session_key(
             bytes.fromhex(secret_key), self._session_token_future.result()
         )
         self._cipher = OS3Cipher(self._session_token_future.result(), session_key)
-        logger.debug("Cipher initialized.")
+        logger.debug("Session cipher initialized")
         response = await self.send_command(
             SesameCommand(ItemCodes.LOGIN, session_key[:4]), False
         )
         self._is_logged_in = True
         timestamp = int.from_bytes(response.payload, "little")
-        logger.debug("Login successful (timestamp=%d)", timestamp)
+        logger.debug(
+            "Login completed [address=%s, timestamp=%d]", self.mac_address, timestamp
+        )
         return timestamp
 
     async def disconnect(self) -> None:
         """Disconnects from the device and cleans up resources."""
         if self.is_connected:
-            logger.debug("Disconnecting from Sesame OS3 device.")
+            logger.debug(
+                "Closing OS3 protocol connection [address=%s]", self.mac_address
+            )
             try:
                 await self._ble_device.disconnect()
-                logger.debug("Disconnected from Sesame OS3 device.")
+                logger.debug(
+                    "OS3 protocol connection closed [address=%s]", self.mac_address
+                )
             finally:
                 self._cleanup()
         else:
-            logger.debug("Disconnect skipped: already disconnected.")
+            logger.debug(
+                "Skipping disconnect, device not connected [address=%s]",
+                self.mac_address,
+            )
 
     @property
     def mac_address(self) -> str:

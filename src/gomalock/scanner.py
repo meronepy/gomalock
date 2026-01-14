@@ -54,13 +54,15 @@ class SesameScanner:
         model_id = int.from_bytes(manufacturer_data[0:2], byteorder="little")
         if not model_id in ProductModels:
             logger.debug(
-                "Unsupported Sesame device detected (address=%s, model_id=%d)",
+                "Skipping unsupported device [address=%s, model_id=%d]",
                 device.address,
                 model_id,
             )
             return
         logger.debug(
-            "Sesame device detected (address=%s, model_id=%d)", device.address, model_id
+            "Detected Sesame device [address=%s, model=%s]",
+            device.address,
+            ProductModels(model_id).name,
         )
         sesame_adv_data = SesameAdvertisementData.from_manufacturer_data(
             manufacturer_data
@@ -81,14 +83,14 @@ class SesameScanner:
 
         Starts BLE scanning and clears previously detected devices.
         """
-        logger.debug("Starting Sesame BLE scanner.")
+        logger.debug("Starting BLE scanner for Sesame devices")
         self._seen_devices.clear()
         await self._scanner.start()
 
     async def stop(self) -> None:
         """Stop scanning for Sesame devices."""
         await self._scanner.stop()
-        logger.debug("Sesame BLE scanner stopped.")
+        logger.debug("BLE scanner stopped [devices_found=%d]", len(self._seen_devices))
 
     def register_detection_callback(
         self, callback: Callable[[str, SesameAdvertisementData], None]
@@ -169,14 +171,17 @@ class SesameScanner:
                 ) in scanner.detected_devices_generator():
                     if filter_func(address, sesame_adv_data):
                         logger.debug(
-                            "Matching Sesame device found (address=%s)", address
+                            "Found matching device [address=%s, model=%s]",
+                            address,
+                            sesame_adv_data.product_model.name,
                         )
                         return address, sesame_adv_data
 
         try:
-            logger.debug("Starting device search with filter (timeout=%s)", timeout)
+            logger.debug("Searching for device with filter [timeout=%.1fs]", timeout)
             return await asyncio.wait_for(find_task(), timeout)
         except asyncio.TimeoutError:
+            logger.debug("Device search timed out [timeout=%.1fs]", timeout)
             return None
 
     @classmethod

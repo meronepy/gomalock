@@ -134,20 +134,20 @@ class Sesame5:
         match publish_data.item_code:
             case ItemCodes.MECH_STATUS:
                 self._mech_status = Sesame5MechStatus.from_payload(publish_data.payload)
-                logger.debug("Received mech status update.")
+                logger.debug("Mechanical status updated")
                 for callback in self._mech_status_callbacks.values():
                     callback(self, self._mech_status)
             case _:
                 logger.debug(
-                    "Received unsupported publish data (item_code=%s)",
-                    publish_data.item_code,
+                    "Received unhandled publish notification [item=%s]",
+                    publish_data.item_code.name,
                 )
 
         if publish_data.item_code in self._remaining_login_pending_items:
             self._remaining_login_pending_items.discard(publish_data.item_code)
             logger.debug(
-                "Login pending item received (item_code=%s, remaining=%s)",
-                publish_data.item_code,
+                "Login pending item received [item=%s, remaining_items=%s]",
+                publish_data.item_code.name,
                 self._remaining_login_pending_items,
             )
             if not self._remaining_login_pending_items:
@@ -164,7 +164,13 @@ class Sesame5:
             raise SesameLoginError("Login required to send lock/unlock commands.")
         tag = create_history_tag(history_name)
         item_code = ItemCodes.LOCK if locked else ItemCodes.UNLOCK
-        logger.info("Sending %s command with history: '%s'", item_code, history_name)
+        action = "lock" if locked else "unlock"
+        logger.info(
+            "Executing %s command [address=%s, history=%s]",
+            action,
+            self.mac_address,
+            history_name,
+        )
         await self._os3_device.send_command(
             SesameCommand(item_code, tag), should_encrypt=True
         )
@@ -205,12 +211,12 @@ class Sesame5:
         """
         if self.is_connected:
             raise SesameConnectionError("Already connected to Sesame 5 device.")
-        logger.info("Connecting to Sesame 5 (MAC=%s)", self._os3_device.mac_address)
+        logger.info("Connecting to Sesame 5 [address=%s]", self._os3_device.mac_address)
         self._cleanup()
         self._device_status = DeviceStatus.CONNECTING
         await self._os3_device.connect()
         self._device_status = DeviceStatus.CONNECTED
-        logger.info("Connection established.")
+        logger.info("Connected to Sesame 5 [address=%s]", self._os3_device.mac_address)
 
     async def login(self) -> int:
         """Performs login to the device.
@@ -226,26 +232,33 @@ class Sesame5:
         """
         if self.is_logged_in:
             raise SesameLoginError("Already logged in to Sesame 5 device.")
-        logger.info("Logging in to Sesame 5.")
+        logger.info("Logging in to Sesame 5 [address=%s]", self.mac_address)
         self._device_status = DeviceStatus.LOGGING_IN
         timestamp = await self._os3_device.login(self._secret_key)
         await self._login_completed.wait()
         self._device_status = DeviceStatus.LOGGED_IN
-        logger.info("Login successful (timestamp=%d)", timestamp)
+        logger.info(
+            "Logged in to Sesame 5 [address=%s, timestamp=%d]",
+            self.mac_address,
+            timestamp,
+        )
         return timestamp
 
     async def disconnect(self) -> None:
         """Disconnects from the Sesame 5 device."""
         if self.is_connected:
-            logger.info("Disconnecting from Sesame 5.")
+            logger.info("Disconnecting from Sesame 5 [address=%s]", self.mac_address)
             self._device_status = DeviceStatus.DISCONNECTING
             try:
                 await self._os3_device.disconnect()
-                logger.info("Disconnected from Sesame 5.")
+                logger.info("Disconnected from Sesame 5 [address=%s]", self.mac_address)
             finally:
                 self._cleanup()
         else:
-            logger.debug("Disconnect skipped: already disconnected.")
+            logger.debug(
+                "Skipping disconnect, device not connected [address=%s]",
+                self.mac_address,
+            )
 
     async def lock(self, history_name: str) -> None:
         """Locks the Sesame 5 device.

@@ -135,20 +135,20 @@ class SesameTouch:
                 self._mech_status = SesameTouchMechStatus.from_payload(
                     publish_data.payload
                 )
-                logger.debug("Received mech status update.")
+                logger.debug("Mechanical status updated")
                 for callback in self._mech_status_callbacks.values():
                     callback(self, self._mech_status)
             case _:
                 logger.debug(
-                    "Received unsupported publish data (item_code=%s)",
-                    publish_data.item_code,
+                    "Received unhandled publish notification [item=%s]",
+                    publish_data.item_code.name,
                 )
 
         if publish_data.item_code in self._remaining_login_pending_items:
             self._remaining_login_pending_items.discard(publish_data.item_code)
             logger.debug(
-                "Login pending item received (item_code=%s, remaining=%s)",
-                publish_data.item_code,
+                "Login pending item received [item=%s, remaining_items=%s]",
+                publish_data.item_code.name,
                 self._remaining_login_pending_items,
             )
             if not self._remaining_login_pending_items:
@@ -190,12 +190,16 @@ class SesameTouch:
         """
         if self.is_connected:
             raise SesameConnectionError("Already connected to Sesame Touch device.")
-        logger.info("Connecting to Sesame Touch (MAC=%s)", self._os3_device.mac_address)
+        logger.info(
+            "Connecting to Sesame Touch [address=%s]", self._os3_device.mac_address
+        )
         self._cleanup()
         self._device_status = DeviceStatus.CONNECTING
         await self._os3_device.connect()
         self._device_status = DeviceStatus.CONNECTED
-        logger.info("Connection established.")
+        logger.info(
+            "Connected to Sesame Touch [address=%s]", self._os3_device.mac_address
+        )
 
     async def login(self) -> None:
         """Performs login to the device.
@@ -208,25 +212,32 @@ class SesameTouch:
         """
         if self.is_logged_in:
             raise SesameLoginError("Already logged in to Sesame Touch device.")
-        logger.info("Logging in to Sesame Touch.")
+        logger.info("Logging in to Sesame Touch [address=%s]", self.mac_address)
         self._device_status = DeviceStatus.LOGGING_IN
         await self._os3_device.login(self._secret_key)
         await self._login_completed.wait()
         self._device_status = DeviceStatus.LOGGED_IN
-        logger.info("Login successful.")
+        logger.info("Logged in to Sesame Touch [address=%s]", self.mac_address)
 
     async def disconnect(self) -> None:
         """Disconnects from the Sesame Touch device."""
         if self.is_connected:
-            logger.info("Disconnecting from Sesame Touch.")
+            logger.info(
+                "Disconnecting from Sesame Touch [address=%s]", self.mac_address
+            )
             self._device_status = DeviceStatus.DISCONNECTING
             try:
                 await self._os3_device.disconnect()
-                logger.info("Disconnected from Sesame Touch.")
+                logger.info(
+                    "Disconnected from Sesame Touch [address=%s]", self.mac_address
+                )
             finally:
                 self._cleanup()
         else:
-            logger.info("Disconnect skipped: already disconnected.")
+            logger.debug(
+                "Skipping disconnect, device not connected [address=%s]",
+                self.mac_address,
+            )
 
     @property
     def mac_address(self) -> str:
