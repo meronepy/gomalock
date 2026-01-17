@@ -224,6 +224,7 @@ class ResultCodes(Enum):
     UNKNOWN = 6
     BUSY = 7
     INVALID_PARAM = 8
+    INVALID_ACTION = 9
 
 
 COMPANY_ID = 0x055A
