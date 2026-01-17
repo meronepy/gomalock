@@ -101,7 +101,7 @@ class OS3Cipher:
             OverflowError: If the internal encryption counter exceeds its maximum value.
         """
         if self._encrypt_counter >= OS3Cipher._MAX_COUNTER:
-            raise OverflowError("Encryption counter overflow.")
+            raise OverflowError("Encryption counter has exceeded its maximum value")
         nonce = self._generate_nonce(self._encrypt_counter)
         cipher = AES.new(self._session_key, AES.MODE_CCM, nonce=nonce, mac_len=4)
         cipher.update(b"\x00")
@@ -125,7 +125,7 @@ class OS3Cipher:
                 or malformed data.
         """
         if self._decrypt_counter >= OS3Cipher._MAX_COUNTER:
-            raise OverflowError("Decryption counter overflow.")
+            raise OverflowError("Decryption counter has exceeded its maximum value")
         nonce = self._generate_nonce(self._decrypt_counter)
         cipher = AES.new(self._session_key, AES.MODE_CCM, nonce=nonce, mac_len=4)
         cipher.update(b"\x00")

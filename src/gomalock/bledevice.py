@@ -112,7 +112,7 @@ class SesameBleDevice:
             self.mac_address, timeout=SCAN_TIMEOUT
         )
         if found_device is None:
-            raise SesameError(f"Failed to find Sesame (address={self.mac_address})")
+            raise SesameError(f"Device not found: {self.mac_address}")
         logger.debug(
             "Retrieved advertisement data [address=%s, model=%s]",
             self.mac_address,
@@ -133,7 +133,7 @@ class SesameBleDevice:
             SesameError: If the device cannot be found during scanning.
         """
         if self._bleak_client.is_connected:
-            raise SesameConnectionError("Already connected to Sesame.")
+            raise SesameConnectionError("Already connected")
         logger.debug("Initiating BLE connection [address=%s]", self.mac_address)
         self._cleanup()
         self._sesame_advertisement_data = await self._get_sesame_advertisement_data()
@@ -157,7 +157,7 @@ class SesameBleDevice:
             SesameConnectionError: If not connected.
         """
         if not self._bleak_client.is_connected:
-            raise SesameConnectionError("Not connected to Sesame.")
+            raise SesameConnectionError("Not connected")
         payload_max_len = MTU_SIZE - 1  # 1 byte for header
         total_len = len(send_data)
         total_packets = (total_len + payload_max_len - 1) // payload_max_len
@@ -210,7 +210,7 @@ class SesameBleDevice:
             SesameConnectionError: If not connected.
         """
         if self._sesame_advertisement_data is None:
-            raise SesameConnectionError("Not connected to Sesame.")
+            raise SesameConnectionError("Not connected")
         return self._sesame_advertisement_data
 
     @property

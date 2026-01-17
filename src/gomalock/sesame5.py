@@ -162,7 +162,7 @@ class Sesame5:
             locked: True to lock, False to unlock.
         """
         if not self.is_logged_in:
-            raise SesameLoginError("Login required to send lock/unlock commands.")
+            raise SesameLoginError("Login is required to send lock/unlock commands")
         tag = create_history_tag(history_name)
         item_code = ItemCodes.LOCK if locked else ItemCodes.UNLOCK
         action = "lock" if locked else "unlock"
@@ -211,7 +211,7 @@ class Sesame5:
             SesameError: If the device cannot be found during scanning.
         """
         if self.is_connected:
-            raise SesameConnectionError("Already connected to Sesame 5 device.")
+            raise SesameConnectionError("Already connected")
         logger.info("Connecting to Sesame 5 [address=%s]", self._os3_device.mac_address)
         self._cleanup()
         self._device_status = DeviceStatus.CONNECTING
@@ -232,7 +232,7 @@ class Sesame5:
             The secret key of the Sesame 5 device.
         """
         if not self.is_connected:
-            raise SesameConnectionError("Not connected to Sesame 5 device.")
+            raise SesameConnectionError("Not connected")
         return await self._os3_device.register()
 
     async def login(self, secret_key: str | None = None) -> int:
@@ -252,10 +252,10 @@ class Sesame5:
             SesameOperationError: If the login operation fails.
         """
         if self.is_logged_in:
-            raise SesameLoginError("Already logged in to Sesame 5 device.")
+            raise SesameLoginError("Already logged in")
         secret_key = secret_key or self._secret_key
         if secret_key is None:
-            raise SesameLoginError("Secret key is required for login.")
+            raise SesameLoginError("A secret key is required for login")
         logger.info("Logging in to Sesame 5 [address=%s]", self.mac_address)
         self._device_status = DeviceStatus.LOGGING_IN
         timestamp = await self._os3_device.login(secret_key)
@@ -342,7 +342,7 @@ class Sesame5:
             SesameLoginError: If not logged in.
         """
         if self._mech_status is None:
-            raise SesameLoginError("Login required to access mech status.")
+            raise SesameLoginError("Login is required to access mechanical status")
         return self._mech_status
 
     @property

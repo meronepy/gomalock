@@ -158,8 +158,8 @@ class OS3Device:
         response_future = self._response_futures.pop(response_data.item_code, None)
         if response_future is None:
             raise SesameError(
-                f"Received unexpected response "
-                f"[item={response_data.item_code.name}, result={response_data.result_code.name}]"
+                f"Unexpected response received: "
+                f"item={response_data.item_code.name}, result={response_data.result_code.name}"
             )
         response_future.set_result(response_data)
 
@@ -174,7 +174,7 @@ class OS3Device:
         )
         if publish_data.item_code == ItemCodes.INITIAL:
             if self._session_token_future is None:
-                raise SesameConnectionError("No connection established.")
+                raise SesameConnectionError("Connection has not been established")
             logger.debug("Session token received")
             self._session_token_future.set_result(publish_data.payload)
         else:
@@ -219,7 +219,7 @@ class OS3Device:
             send_data = command.transmission_data
             if should_encrypt:
                 if self._cipher is None:
-                    raise SesameLoginError("Encryption attempted before login.")
+                    raise SesameLoginError("Login is required before sending encrypted commands")
                 send_data = self._cipher.encrypt(send_data)
             response_future = asyncio.get_running_loop().create_future()
             self._response_futures[command.item_code] = response_future
@@ -232,7 +232,7 @@ class OS3Device:
             response = await asyncio.wait_for(response_future, RESPONSE_TIMEOUT)
             if response.result_code != ResultCodes.SUCCESS:
                 raise SesameOperationError(
-                    f"Operation failed with code {response.result_code}",
+                    f"Operation failed: {response.result_code.name}",
                     response.result_code,
                 )
             logger.debug(
@@ -249,7 +249,7 @@ class OS3Device:
             SesameError: If the device cannot be found during scanning.
         """
         if self.is_connected:
-            raise SesameConnectionError("Already connected to Sesame OS3 device.")
+            raise SesameConnectionError("Already connected")
         logger.debug(
             "Establishing OS3 protocol connection [address=%s]", self.mac_address
         )
@@ -278,7 +278,7 @@ class OS3Device:
             SesameOperationError: If the registration operation fails.
         """
         if self.sesame_advertisement_data.is_registered:
-            raise SesameError("Already registered.")
+            raise SesameError("Device is already registered")
         logger.info("Starting device registration [address=%s]", self.mac_address)
         app_protocol_public_key, app_private_key = generate_app_keys()
         timestamp = int(time.time()).to_bytes(4, "little")
@@ -311,9 +311,9 @@ class OS3Device:
             SesameOperationError: If the login operation fails.
         """
         if self._is_logged_in:
-            raise SesameLoginError("Already logged in.")
+            raise SesameLoginError("Already logged in")
         if self._session_token_future is None:
-            raise SesameConnectionError("No connection established.")
+            raise SesameConnectionError("Connection has not been established")
         logger.debug("Initiating login sequence [address=%s]", self.mac_address)
         session_key = generate_session_key(
             bytes.fromhex(secret_key), self._session_token_future.result()
