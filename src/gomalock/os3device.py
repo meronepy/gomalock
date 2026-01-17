@@ -155,7 +155,12 @@ class OS3Device:
             response_data.item_code.name,
             response_data.result_code.name,
         )
-        response_future = self._response_futures.pop(response_data.item_code)
+        response_future = self._response_futures.pop(response_data.item_code, None)
+        if response_future is None:
+            raise SesameError(
+                f"Received unexpected response "
+                f"[item={response_data.item_code.name}, result={response_data.result_code.name}]"
+            )
         response_future.set_result(response_data)
 
     def _handle_publish(self, publish_data: ReceivedSesamePublish) -> None:
