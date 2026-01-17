@@ -7,9 +7,11 @@
 
 ---
 
-## `class gomalock.sesame5.Sesame5(mac_address: str, secret_key: str, mech_status_callback: Callable[[Sesame5, Sesame5MechStatus], None] | None = None)`
+## `class gomalock.sesame5.Sesame5(mac_address: str, secret_key: str | None = None, mech_status_callback: Callable[[Sesame5, Sesame5MechStatus], None] | None = None)`
 
 - Sesame5との接続、ログイン、操作などを行うクラスです
+- 引数`secret_key`が与えられた場合は非同期コンテキストマネージャー(`async with`)はログインを自動的に行います
+- 引数`secret_key`が`None`の場合は非同期コンテキストマネージャーは接続のみ自動で行います
 
 - 引数
   - mac_address: 接続するSesame5のMACアドレス
@@ -31,11 +33,24 @@
 
 - Sesame5とのBLE接続を切断します
 
-#### `async Sesame5.login() -> int`
+#### `async Sesame5.register() -> str`
+
+- 工場出荷時のSesame5の登録(初期設定)を行います
+- セットアップ済みのSesame5には実行できません
+- Sesame5に接続してからでないと実行できません
+- 返り値は次回以降のログインに必要な`secret_key`です
+
+#### `async Sesame5.login(secret_key: str | None = None) -> int`
 
 - Sesame5にログインして、施錠や開錠などの操作を可能にします
 - ログイン時のタイムスタンプを返します
 - `Sesame5.mech_status`が利用可能になります
+- 引数`secret_key`を優先的に使用してログインをします
+- 引数`secret_key`が与えられない場合は`__init__`の`secret_key`を使用してログインします
+- 引数`secret_key`と`__init__`の`secret_key`の両方が`None`の場合は`SesameLoginError`を送出します
+
+- 引数
+  - secret_key: 接続するSesame5のシークレットキー
 
 #### `Sesame5.register_mech_status_callback(callback: Callable[[Sesame5, Sesame5MechStatus], None]) -> Callable[[], None]`
 

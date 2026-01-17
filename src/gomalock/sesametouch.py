@@ -92,7 +92,7 @@ class SesameTouch:
     def __init__(
         self,
         mac_address: str,
-        secret_key: str,
+        secret_key: str | None = None,
         mech_status_callback: (
             Callable[[SesameTouch, SesameTouchMechStatus], None] | None
         ) = None,
@@ -118,7 +118,8 @@ class SesameTouch:
 
     async def __aenter__(self) -> Self:
         await self.connect()
-        await self.login()
+        if self._secret_key is not None:
+            await self.login()
         return self
 
     async def __aexit__(self, exc_type, exc_value, traceback) -> None:
@@ -201,20 +202,43 @@ class SesameTouch:
             "Connected to Sesame Touch [address=%s]", self._os3_device.mac_address
         )
 
-    async def login(self) -> None:
-        """Performs login to the device.
+    async def register(self) -> str:
+        """Registers the device and retrieves the secret key.
 
         Raises:
             asyncio.TimeoutError: If the response times out.
             SesameConnectionError: If not connected to the device.
-            SesameLoginError: If already logged in.
+            SesameError: If the device is already registered.
+            SesameOperationError: If the registration operation fails.
+
+        Returns:
+            The secret key of the Sesame Touch device.
+        """
+        if not self.is_connected:
+            raise SesameConnectionError("Not connected to Sesame Touch device.")
+        return await self._os3_device.register()
+
+    async def login(self, secret_key: str | None = None) -> None:
+        """Performs login to the device.
+
+        Args:
+            secret_key: The secret key for login. If None, uses the one
+                provided during initialization.
+
+        Raises:
+            asyncio.TimeoutError: If the response times out.
+            SesameConnectionError: If not connected to the device.
+            SesameLoginError: If already logged in or secret key is missing.
             SesameOperationError: If the login operation fails.
         """
         if self.is_logged_in:
             raise SesameLoginError("Already logged in to Sesame Touch device.")
+        secret_key = secret_key or self._secret_key
+        if secret_key is None:
+            raise SesameLoginError("Secret key is required for login.")
         logger.info("Logging in to Sesame Touch [address=%s]", self.mac_address)
         self._device_status = DeviceStatus.LOGGING_IN
-        await self._os3_device.login(self._secret_key)
+        await self._os3_device.login(secret_key)
         await self._login_completed.wait()
         self._device_status = DeviceStatus.LOGGED_IN
         logger.info("Logged in to Sesame Touch [address=%s]", self.mac_address)

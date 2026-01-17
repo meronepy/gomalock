@@ -93,7 +93,7 @@ class Sesame5:
     def __init__(
         self,
         mac_address: str,
-        secret_key: str,
+        secret_key: str | None = None,
         mech_status_callback: (
             Callable[[Sesame5, Sesame5MechStatus], None] | None
         ) = None,
@@ -119,7 +119,8 @@ class Sesame5:
 
     async def __aenter__(self) -> Self:
         await self.connect()
-        await self.login()
+        if self._secret_key is not None:
+            await self.login()
         return self
 
     async def __aexit__(self, exc_type, exc_value, traceback) -> None:
@@ -218,8 +219,28 @@ class Sesame5:
         self._device_status = DeviceStatus.CONNECTED
         logger.info("Connected to Sesame 5 [address=%s]", self._os3_device.mac_address)
 
-    async def login(self) -> int:
+    async def register(self) -> str:
+        """Registers the device and retrieves the secret key.
+
+        Raises:
+            asyncio.TimeoutError: If the response times out.
+            SesameConnectionError: If not connected to the device.
+            SesameError: If the device is already registered.
+            SesameOperationError: If the registration operation fails.
+
+        Returns:
+            The secret key of the Sesame 5 device.
+        """
+        if not self.is_connected:
+            raise SesameConnectionError("Not connected to Sesame 5 device.")
+        return await self._os3_device.register()
+
+    async def login(self, secret_key: str | None = None) -> int:
         """Performs login to the device.
+
+        Args:
+            secret_key: The secret key for login. If None, uses the one
+                provided during initialization.
 
         Returns:
             The login timestamp.
@@ -227,14 +248,17 @@ class Sesame5:
         Raises:
             asyncio.TimeoutError: If the response times out.
             SesameConnectionError: If not connected to the device.
-            SesameLoginError: If already logged in.
+            SesameLoginError: If already logged in or secret key is missing.
             SesameOperationError: If the login operation fails.
         """
         if self.is_logged_in:
             raise SesameLoginError("Already logged in to Sesame 5 device.")
+        secret_key = secret_key or self._secret_key
+        if secret_key is None:
+            raise SesameLoginError("Secret key is required for login.")
         logger.info("Logging in to Sesame 5 [address=%s]", self.mac_address)
         self._device_status = DeviceStatus.LOGGING_IN
-        timestamp = await self._os3_device.login(self._secret_key)
+        timestamp = await self._os3_device.login(secret_key)
         await self._login_completed.wait()
         self._device_status = DeviceStatus.LOGGED_IN
         logger.info(
@@ -272,8 +296,6 @@ class Sesame5:
             SesameLoginError: If not logged in.
             SesameOperationError: If the lock operation fails.
         """
-        if not self.is_logged_in:
-            raise SesameLoginError("Login required to send lock commands.")
         await self._set_locked(history_name, True)
 
     async def unlock(self, history_name: str) -> None:
@@ -288,8 +310,6 @@ class Sesame5:
             SesameLoginError: If not logged in.
             SesameOperationError: If the unlock operation fails.
         """
-        if not self.is_logged_in:
-            raise SesameLoginError("Login required to send unlock commands.")
         await self._set_locked(history_name, False)
 
     async def toggle(self, history_name: str) -> None:
@@ -304,8 +324,6 @@ class Sesame5:
             SesameLoginError: If not logged in.
             SesameOperationError: If the toggle operation fails.
         """
-        if not self.is_logged_in:
-            raise SesameLoginError("Login required to send toggle commands.")
         if self.mech_status.is_in_lock_range:
             await self.unlock(history_name)
         else:

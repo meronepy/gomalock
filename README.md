@@ -11,6 +11,7 @@ Sesame スマートロックをPythonからBluetooth Low Energy (BLE)経由で�
 - Sesame 5 (Pro)をBluetooth経由で施錠、開錠などの操作と、施錠状態、電池残量などの変化をリアルタイムで受信
 - Sesame Touchの電池電圧、残量の変化をリアルタイムで受信
 - 周囲のSesameデバイスをスキャンして情報を取得
+- 新規Sesameデバイスの登録
 
 ## インストール
 
@@ -58,8 +59,7 @@ if __name__ == "__main__":
 
 ## 注意事項
 
-- Linuxで動作させる場合、 **BlueZ 5.82以降を強く推奨します。** Raspberry Pi OS Bookwormにインストール済みのBlueZ 5.66では、バグによってSesame 5のGATT Serviceが取得できず正常に動作しません。BlueZ 5.68で修正済みですが、Raspberry Pi OS TrixieにアップグレードしてBlueZ 5.82を使用するのが最も簡単で確実です。
-- `gomalock`ライブラリは、セットアップ済みのSesame 5デバイスのみ操作可能です。公式アプリでセットアップの上ご使用ください。
+- Linuxで動作させる場合、 **BlueZ 5.82以降を強く推奨します。** Raspberry Pi OS Bookwormにインストール済みのBlueZ 5.66では、バグによってSesame 5のGATT Serviceが取得できず正常に動作しません。
 - 履歴機能は公式アプリやクラウドとの連携が困難であるため実装しておりません。
 - 非公式のライブラリです。動作保証はありません。自己責任でご使用ください。
 

@@ -10,6 +10,8 @@
 ## `class gomalock.sesametouch.SesameTouch((mac_address: str, secret_key: str, mech_status_callback: Callable[[SesameTouch, SesameTouchMechStatus], None] | None = None)`
 
 - Sesame Touchとの接続、ログイン、操作などを行うクラスです
+- 引数`secret_key`が与えられた場合は非同期コンテキストマネージャー(`async with`)はログインを自動的に行います
+- 引数`secret_key`が`None`の場合は非同期コンテキストマネージャーは接続のみ自動で行います
 
 - 引数
   - mac_address: 接続するSesame TouchのMACアドレス
@@ -29,10 +31,23 @@
 
 - Sesame5とのBLE接続を切断します
 
-#### `async SesameTouch.login() -> None`
+#### `async SesameTouch.register() -> str`
+
+- 工場出荷時のSesame Touchの登録(初期設定)を行います
+- セットアップ済みのSesame Touchには実行できません
+- Sesame Touchに接続してからでないと実行できません
+- 返り値は次回以降のログインに必要な`secret_key`です
+
+#### `async SesameTouch.login(secret_key: str | None = None) -> None`
 
 - Sesame5にログインして、ステータス監視を可能にします
 - `SesameTouch.mech_status`が利用可能になります
+- 引数`secret_key`を優先的に使用してログインをします
+- 引数`secret_key`が与えられない場合は`__init__`の`secret_key`を使用してログインします
+- 引数`secret_key`と`__init__`の`secret_key`の両方が`None`の場合は`SesameLoginError`を送出します
+
+- 引数
+  - secret_key: 接続するSesame5のシークレットキー
 
 #### `SesameTouch.register_mech_status_callback(callback: Callable[[SesameTouch, SesameTouchMechStatus], None]) -> Callable[[], None]`
 
