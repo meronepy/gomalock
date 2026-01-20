@@ -244,7 +244,7 @@ SCAN_TIMEOUT = 10
 """Timeout for BLE scanning."""
 SESSION_TOKEN_TIMEOUT = 5
 """Timeout for waiting for a session token."""
-RESPONSE_TIMEOUT = 2
+RESPONSE_TIMEOUT = 5
 """Timeout for waiting for a response from the device."""
 
 VOLTAGE_LEVELS = (
