@@ -20,7 +20,7 @@ from .const import (
     MechStatusBitFlags,
 )
 from .exc import SesameConnectionError, SesameLoginError
-from .os3device import (
+from .os3 import (
     OS3Device,
     OS3QRCodeInfo,
     calculate_battery_percentage,

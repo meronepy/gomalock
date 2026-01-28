@@ -15,7 +15,7 @@ from typing import Callable, Self
 from urllib import parse
 from uuid import UUID
 
-from .bledevice import SesameBleDevice
+from .ble import SesameBleDevice
 from .cipher import (
     OS3Cipher,
     generate_app_keys,

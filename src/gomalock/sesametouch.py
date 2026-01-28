@@ -19,7 +19,7 @@ from .const import (
     MechStatusBitFlags,
 )
 from .exc import SesameConnectionError, SesameLoginError
-from .os3device import (
+from .os3 import (
     KeyLevels,
     OS3Device,
     OS3QRCodeInfo,
