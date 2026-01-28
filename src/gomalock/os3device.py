@@ -97,22 +97,20 @@ class OS3DeviceInfo:
     Attributes:
         device_name: The name of the device displayed in the app.
         key_level: The permission level of the key (owner/manager).
-        model: The product model identifier.
+        product_model: The product model identifier.
         device_uuid: The UUID of the device.
         secret_key: The secret key used for device authentication.
-        public_key: According to the protocol specification, this should contain
-            the session token provided during registration. However, since it is
-            not actually used in practice, a default value of zeros is used.
+        session_token_when_registered: The session token provided during registration.
         key_index: A constant value used in the key structure.
     """
 
     device_name: str
     key_level: KeyLevels
-    model: ProductModels
+    product_model: ProductModels
     device_uuid: UUID
     secret_key: bytes
-    public_key: bytes = b"00000000"
-    key_index: bytes = b"0000"
+    registration_session_token: bytes = b"\x00\x00\x00\x00"
+    key_index: bytes = b"\x00\x00"
 
     @classmethod
     def from_qr_url(cls, qr_url: str) -> Self:
@@ -130,16 +128,16 @@ class OS3DeviceInfo:
             raise SesameError("Key level other than owner/manager are not supported")
         device_name = query.get("n", [""])[0]
         shared_key = base64.b64decode(query.get("sk", [""])[0])
-        model_value, secret_key, public_key, key_index, uuid_value = struct.unpack(
-            ">B16s4s2s16s", shared_key
+        product_model_value, secret_key, public_key, key_index, uuid_value = (
+            struct.unpack(">B16s4s2s16s", shared_key)
         )
         return cls(
             device_name=device_name,
             key_level=KeyLevels(key_level_value),
-            model=ProductModels(model_value),
+            product_model=ProductModels(product_model_value),
             device_uuid=UUID(bytes=uuid_value),
             secret_key=secret_key,
-            public_key=public_key,
+            registration_session_token=public_key,
             key_index=key_index,
         )
 
@@ -148,9 +146,9 @@ class OS3DeviceInfo:
         """Generates a QR code for the official app."""
         shared_key = struct.pack(
             ">B16s4s2s16s",
-            self.model.value,
+            self.product_model.value,
             self.secret_key,
-            self.public_key,
+            self.registration_session_token,
             self.key_index,
             self.device_uuid.bytes,
         )
@@ -352,14 +350,14 @@ class OS3Device:
             "OS3 protocol connection established [address=%s]", self.mac_address
         )
 
-    async def register(self) -> str:
+    async def register(self) -> bytes:
         """Register the Sesame OS3 device and derive a shared secret key.
 
         This method performs the initial registration handshake with a Sesame OS3
         device. The device must not be registered already.
 
         Returns:
-            The derived device secret key as a hexadecimal string.
+            The derived device secret key.
 
         Raises:
             asyncio.TimeoutError: If the response times out.
@@ -383,7 +381,7 @@ class OS3Device:
         logger.info(
             "Device registration completed successfully [address=%s]", self.mac_address
         )
-        return secret_key.hex()
+        return secret_key
 
     async def login(self, secret_key: bytes) -> int:
         """Authenticates with the device using the provided secret key.

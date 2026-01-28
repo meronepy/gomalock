@@ -216,7 +216,8 @@ class SesameTouch:
         """
         if not self.is_connected:
             raise SesameConnectionError("Not connected")
-        return await self._os3_device.register()
+        secret_key = await self._os3_device.register()
+        return secret_key.hex()
 
     async def login(self, secret_key: str | None = None) -> None:
         """Performs login to the device.
