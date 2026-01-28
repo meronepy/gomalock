@@ -77,7 +77,7 @@ def create_history_tag(history_name: str) -> bytes:
         History tag for Sesame OS3.
     """
     payload = history_name.encode("utf-8")[:HISTORY_TAG_MAX_LEN]
-    return bytes([len(payload)]) + payload
+    return len(payload).to_bytes(1, byteorder="little") + payload
 
 
 class OS3Device:

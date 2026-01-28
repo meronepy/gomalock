@@ -209,4 +209,4 @@ class SesameCommand:
         Returns:
             A bytes object with item code prepended to payload.
         """
-        return bytes([self.item_code.value]) + self.payload
+        return self.item_code.value.to_bytes(1, byteorder="little") + self.payload

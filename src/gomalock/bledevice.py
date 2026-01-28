@@ -40,7 +40,7 @@ def generate_header(is_beginning: bool, is_end: bool, is_encrypted: bool) -> byt
         header |= (
             PacketTypes.ENCRYPTED_END if is_encrypted else PacketTypes.PLAINTEXT_END
         )
-    return bytes([header])
+    return header.to_bytes(1, byteorder="little")
 
 
 class SesameBleDevice:
