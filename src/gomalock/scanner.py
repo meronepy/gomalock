@@ -52,7 +52,7 @@ class SesameScanner:
     ) -> None:
         manufacturer_data = adv_data.manufacturer_data[COMPANY_ID]
         model_id = int.from_bytes(manufacturer_data[0:2], byteorder="little")
-        if not model_id in ProductModels:
+        if model_id not in ProductModels:
             logger.debug(
                 "Skipping unsupported device [address=%s, model_id=%d]",
                 device.address,

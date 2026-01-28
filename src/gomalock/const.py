@@ -7,6 +7,13 @@ This module defines various constants and enumerations used throughout the
 from enum import Enum, Flag, IntFlag, auto
 
 
+class KeyLevels(Enum):
+    """Key levels for Sesame devices."""
+
+    OWNER = 0
+    MANAGER = 1
+
+
 class ProductModels(Enum):
     """The model IDs received in the advertisement data."""
 

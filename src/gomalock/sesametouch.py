@@ -238,7 +238,7 @@ class SesameTouch:
             raise SesameLoginError("A secret key is required for login")
         logger.info("Logging in to Sesame Touch [address=%s]", self.mac_address)
         self._device_status = DeviceStatus.LOGGING_IN
-        await self._os3_device.login(secret_key)
+        await self._os3_device.login(bytes.fromhex(secret_key))
         await self._login_completed.wait()
         self._device_status = DeviceStatus.LOGGED_IN
         logger.info("Logged in to Sesame Touch [address=%s]", self.mac_address)

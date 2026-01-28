@@ -6,9 +6,14 @@ command transmission, and notification processing.
 """
 
 import asyncio
+import base64
 import logging
+import struct
 import time
-from typing import Callable
+from dataclasses import dataclass
+from typing import Callable, Self
+from urllib import parse
+from uuid import UUID
 
 from .bledevice import SesameBleDevice
 from .cipher import (
@@ -24,7 +29,9 @@ from .const import (
     SESSION_TOKEN_TIMEOUT,
     VOLTAGE_LEVELS,
     ItemCodes,
+    KeyLevels,
     OpCodes,
+    ProductModels,
     ResultCodes,
 )
 from .exc import (
@@ -78,6 +85,85 @@ def create_history_tag(history_name: str) -> bytes:
     """
     payload = history_name.encode("utf-8")[:HISTORY_TAG_MAX_LEN]
     return len(payload).to_bytes(1, byteorder="little") + payload
+
+
+@dataclass(frozen=True)
+class OS3DeviceInfo:
+    """Represents device information for OS3 (Sesame 3) devices.
+
+    This class holds all the necessary information to identify and authenticate
+    with an OS3 device, including cryptographic keys and device metadata.
+
+    Attributes:
+        device_name: The name of the device displayed in the app.
+        key_level: The permission level of the key (owner/manager).
+        model: The product model identifier.
+        device_uuid: The UUID of the device.
+        secret_key: The secret key used for device authentication.
+        public_key: According to the protocol specification, this should contain
+            the session token provided during registration. However, since it is
+            not actually used in practice, a default value of zeros is used.
+        key_index: A constant value used in the key structure.
+    """
+
+    device_name: str
+    key_level: KeyLevels
+    model: ProductModels
+    device_uuid: UUID
+    secret_key: bytes
+    public_key: bytes = b"00000000"
+    key_index: bytes = b"0000"
+
+    @classmethod
+    def from_qr_url(cls, qr_url: str) -> Self:
+        """Creates an OS3DeviceInfo instance from a official app QR code URL.
+
+        Args:
+            qr_url: The QR code URL containing device information.
+
+        Returns:
+            An instance of OS3DeviceInfo.
+        """
+        query = parse.parse_qs(parse.urlparse(qr_url).query)
+        key_level_value = int(query.get("l", ["0"])[0])
+        if key_level_value not in KeyLevels:
+            raise SesameError("Key level other than owner/manager are not supported")
+        device_name = query.get("n", [""])[0]
+        shared_key = base64.b64decode(query.get("sk", [""])[0])
+        model_value, secret_key, public_key, key_index, uuid_value = struct.unpack(
+            ">B16s4s2s16s", shared_key
+        )
+        return cls(
+            device_name=device_name,
+            key_level=KeyLevels(key_level_value),
+            model=ProductModels(model_value),
+            device_uuid=UUID(bytes=uuid_value),
+            secret_key=secret_key,
+            public_key=public_key,
+            key_index=key_index,
+        )
+
+    @property
+    def qr_url(self) -> str:
+        """Generates a QR code for the official app."""
+        shared_key = struct.pack(
+            ">B16s4s2s16s",
+            self.model.value,
+            self.secret_key,
+            self.public_key,
+            self.key_index,
+            self.device_uuid.bytes,
+        )
+        sk_b64 = base64.b64encode(shared_key).decode("ascii")
+        params = parse.urlencode(
+            {
+                "t": "sk",
+                "sk": sk_b64,
+                "l": self.key_level.value,
+                "n": self.device_name,
+            }
+        )
+        return f"ssm://UI?{params}"
 
 
 class OS3Device:
@@ -299,11 +385,11 @@ class OS3Device:
         )
         return secret_key.hex()
 
-    async def login(self, secret_key: str) -> int:
+    async def login(self, secret_key: bytes) -> int:
         """Authenticates with the device using the provided secret key.
 
         Args:
-            secret_key: The secret key in hexadecimal string format.
+            secret_key: The secret key in bytes.
 
         Returns:
             The login timestamp.
@@ -320,7 +406,7 @@ class OS3Device:
             raise SesameConnectionError("Connection has not been established")
         logger.debug("Initiating login sequence [address=%s]", self.mac_address)
         session_key = generate_session_key(
-            bytes.fromhex(secret_key), self._session_token_future.result()
+            secret_key, self._session_token_future.result()
         )
         self._cipher = OS3Cipher(self._session_token_future.result(), session_key)
         logger.debug("Session cipher initialized")
