@@ -19,7 +19,12 @@ from .const import (
     MechStatusBitFlags,
 )
 from .exc import SesameConnectionError, SesameLoginError
-from .os3device import OS3Device, calculate_battery_percentage
+from .os3device import (
+    KeyLevels,
+    OS3Device,
+    OS3QRCodeInfo,
+    calculate_battery_percentage,
+)
 from .protocol import ReceivedSesamePublish, SesameAdvertisementData
 
 logger = logging.getLogger(__name__)
@@ -263,6 +268,36 @@ class SesameTouch:
                 "Skipping disconnect, device not connected [address=%s]",
                 self.mac_address,
             )
+
+    def generate_qr_url(
+        self, device_name: str, generate_owner_key: bool, secret_key: str | None = None
+    ) -> str:
+        """Generates a QR code URL for the Sesame Touch device.
+
+        Args:
+            device_name: The name of the device.
+            generate_owner_key: True to generate an owner key, False for a manager key.
+            secret_key: The secret key to include in the QR code. If None, uses the one
+                provided during initialization.
+
+        Returns:
+            The generated QR code URL.
+
+        Raises:
+            SesameConnectionError: If not connected to the device.
+            SesameLoginError: If the secret key is missing.
+        """
+        secret_key = secret_key or self._secret_key
+        if secret_key is None:
+            raise SesameLoginError("A secret key is required for QR code generation")
+        info = OS3QRCodeInfo(
+            device_name,
+            KeyLevels.OWNER if generate_owner_key else KeyLevels.MANAGER,
+            self.sesame_advertisement_data.product_model,
+            self.sesame_advertisement_data.device_uuid,
+            bytes.fromhex(secret_key),
+        )
+        return info.qr_url
 
     @property
     def mac_address(self) -> str:

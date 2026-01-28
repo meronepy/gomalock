@@ -88,8 +88,8 @@ def create_history_tag(history_name: str) -> bytes:
 
 
 @dataclass(frozen=True)
-class OS3DeviceInfo:
-    """Represents device information for OS3 (Sesame 3) devices.
+class OS3QRCodeInfo:
+    """Represents QR code information for OS3 (Sesame 3) devices.
 
     This class holds all the necessary information to identify and authenticate
     with an OS3 device, including cryptographic keys and device metadata.
