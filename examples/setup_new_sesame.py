@@ -1,5 +1,7 @@
 import asyncio
 
+import qrcode
+
 from gomalock.sesame5 import Sesame5
 
 MAC_ADDRESS = "XX:XX:XX:XX:XX:XX"
@@ -13,9 +15,19 @@ async def main():
         secret_key = await sesame5.register()
         print(secret_key)
 
-        # Configure the lock with desired settings (optional)
+        # You can configure the Lock and Unlock positions and Auto-lock duration
         await sesame5.set_lock_position(LOCK_POSITION, UNLOCK_POSITION)
         await sesame5.set_auto_lock_duration(AUTOLOCK_DURATION)
+
+        # Also generate a QR code for easy setup in the Sesame app
+        # Before running this, you need to run `pip install qrcode`
+        url = sesame5.generate_qr_url(
+            "Entrance Sesame", generate_owner_key=True, secret_key=secret_key
+        )
+        qr = qrcode.QRCode()
+        qr.add_data(url)
+        qr.make()
+        qr.print_ascii()
 
 
 if __name__ == "__main__":
