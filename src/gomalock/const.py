@@ -286,7 +286,7 @@ BATTERY_PERCENTAGES = (
 )
 """Battery percentage corresponding to the voltage levels."""
 
-SESAME5_LOGIN_PENDING_ITEMS = frozenset({ItemCodes.MECH_STATUS})
+SESAME5_LOGIN_PENDING_ITEMS = frozenset({ItemCodes.MECH_STATUS, ItemCodes.MECH_SETTING})
 """Item codes to wait for during Sesame5 login."""
 SESAME_TOUCH_LOGIN_PENDING_ITEMS = frozenset({ItemCodes.MECH_STATUS})
 """Item codes to wait for during SesameTouch login."""

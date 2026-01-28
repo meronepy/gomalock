@@ -219,9 +219,13 @@ class OS3Device:
             send_data = command.transmission_data
             if should_encrypt:
                 if self._cipher is None:
-                    raise SesameLoginError("Login is required before sending encrypted commands")
+                    raise SesameLoginError(
+                        "Login is required before sending encrypted commands"
+                    )
                 send_data = self._cipher.encrypt(send_data)
-            response_future = asyncio.get_running_loop().create_future()
+            response_future: asyncio.Future[ReceivedSesameResponse] = (
+                asyncio.get_running_loop().create_future()
+            )
             self._response_futures[command.item_code] = response_future
             await self._ble_device.write_gatt(send_data, should_encrypt)
             logger.debug(
