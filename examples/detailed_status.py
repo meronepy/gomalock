@@ -27,6 +27,9 @@ def on_mechstatus_changed(sesame5: Sesame5, status: Sesame5MechStatus) -> None:
         "Battery voltage": status.battery_voltage,
         "Battery percentage": status.battery_percentage,
         "Battery critical": status.is_battery_critical,
+        "Lock position": sesame5.mech_setting.lock_position,
+        "Unlock position": sesame5.mech_setting.unlock_position,
+        "Autolock duration": sesame5.mech_setting.auto_lock_duration,
     }
     for key, value in info.items():
         print(f"{key:19}: {value}")

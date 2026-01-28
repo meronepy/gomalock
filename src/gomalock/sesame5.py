@@ -91,12 +91,12 @@ class Sesame5MechSetting:
     Attributes:
         lock_position: The position value representing the locked state.
         unlock_position: The position value representing the unlocked state.
-        auto_lock_seconds: The duration in seconds before the device auto-locks.
+        auto_lock_duration: The duration in seconds before the device auto-locks.
     """
 
     lock_position: int
     unlock_position: int
-    auto_lock_seconds: int
+    auto_lock_duration: int
 
     @classmethod
     def from_payload(cls, payload: bytes) -> Self:
@@ -109,10 +109,10 @@ class Sesame5MechSetting:
         Raises:
             struct.error: If payload has an invalid format or length.
         """
-        lock_position, unlock_position, auto_lock_seconds = struct.unpack(
+        lock_position, unlock_position, auto_lock_duration = struct.unpack(
             "<hhH", payload
         )
-        return cls(lock_position, unlock_position, auto_lock_seconds)
+        return cls(lock_position, unlock_position, auto_lock_duration)
 
 
 class Sesame5:

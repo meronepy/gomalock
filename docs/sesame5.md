@@ -188,3 +188,26 @@
 #### `property Sesame5MechStatus.battery_percentage: int`
 
 - 電池残量のパーセンテージ
+
+---
+
+## Sesame5MechSettingクラス
+
+### 器械設定
+
+#### `Sesame5MechSetting.lock_position: int`
+
+施錠状態を表す位置  
+サムターンが水平の時の値が`0`です  
+反時計回りの回転角度（単位: °）で位置を表します
+
+#### `Sesame5MechSetting.unlock_position: int`
+
+開錠状態を表す位置  
+サムターンが水平の時の値が`0`です  
+反時計回りの回転角度（単位: °）で位置を表します
+
+#### `Sesame5MechSetting.auto_lock_seconds: int`
+
+オートロックまでの秒数  
+`0`の場合はオートロック機能が無効
