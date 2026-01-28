@@ -89,6 +89,27 @@
 - 引数
   - history_name: 操作履歴に表示される名前
 
+#### `async Sesame5.set_lock_position(lock_position: int, unlock_position: int) -> None`
+
+- Sesame5の施錠位置と開錠位置を設定します
+- ログイン後でないと実行できません
+- サムターンが水平の時の値が`0`です
+- 反時計回りの回転角度（単位: °）で位置を表します
+- 例: サムターンを反時計回りに90°回転させた場合、値は`90`になります
+
+- 引数
+  - lock_position: 施錠状態を表す位置
+  - unlock_position: 開錠状態を表す位置
+
+#### `async Sesame5.set_auto_lock_duration(auto_lock_duration: int) -> None`
+
+- Sesame5のオートロックまでの時間（単位: 秒）を設定します
+- `0`を設定するとオートロック機能が無効になります
+- ログイン後でないと実行できません
+
+- 引数
+  - auto_lock_duration: オートロックまでの秒数
+
 ---
 
 ### デバイス情報と設定
@@ -135,7 +156,10 @@
 
 #### `Sesame5MechStatus.position: int`
 
-最新の角度センサーの値
+最新の角度センサーの値  
+サムターンが水平の時の値が`0`です  
+反時計回りの回転角度（単位: °）で位置を表します  
+例: サムターンを反時計回りに90°回転させた場合、値は`90`になります
 
 #### `Sesame5MechStatus.target: int`
 
