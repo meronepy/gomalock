@@ -15,6 +15,7 @@ Sesame スマートロックをPythonからBluetooth Low Energy (BLE)経由で�
 - 新規Sesameデバイスの登録
 - 施錠、開錠角度の設定
 - オートロック秒数の設定
+- 鍵の共有用QRコードの作成
 
 ## インストール
 
