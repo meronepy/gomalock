@@ -16,11 +16,11 @@ from .const import (
     SESAME_TOUCH_LOGIN_PENDING_ITEMS,
     DeviceStatus,
     ItemCodes,
+    KeyLevels,
     MechStatusBitFlags,
 )
 from .exc import SesameConnectionError, SesameLoginError
 from .os3 import (
-    KeyLevels,
     OS3Device,
     OS3QRCodeInfo,
     calculate_battery_percentage,
