@@ -1,5 +1,6 @@
 import asyncio
 
+# you need to run 'pip install qrcode' to use this example
 import qrcode
 
 from gomalock.sesame5 import Sesame5, Sesame5MechStatus
