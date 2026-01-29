@@ -15,6 +15,9 @@ async def main():
         secret_key = await sesame5.register()
         print(secret_key)
 
+        # Login with the newly obtained secret key
+        await sesame5.login(secret_key)
+
         # You can configure the Lock and Unlock positions and Auto-lock duration
         await sesame5.set_lock_position(LOCK_POSITION, UNLOCK_POSITION)
         await sesame5.set_auto_lock_duration(AUTOLOCK_DURATION)

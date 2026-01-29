@@ -233,7 +233,7 @@ Sesame5は履歴をCANDY HOUSE社のサーバーにアップロードするこ�
 サムターンが水平の時の値が`0`です  
 反時計回りの回転角度（単位: °）で位置を表します
 
-#### `Sesame5MechSetting.auto_lock_seconds: int`
+#### `Sesame5MechSetting.auto_lock_duration: int`
 
 オートロックまでの秒数  
 `0`の場合はオートロック機能が無効
