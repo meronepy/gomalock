@@ -115,7 +115,7 @@ Sesame5は履歴をCANDY HOUSE社のサーバーにアップロードするこ�
 - 引数
   - auto_lock_duration: オートロックまでの秒数
 
-#### `Sesame5.generate_qr_url(device_name: str, generate_owner_key: bool, secret_key: str | None = None) -> str`
+#### `Sesame5.generate_qr_url(device_name: str, generate_owner_key: bool = True, secret_key: str | None = None) -> str`
 
 `Sesame5.register()`を使用して初期設定されたSesame5を、このメソッドで公式アプリに追加しても**施錠開錠履歴が正常に動作しません。**  
 公式アプリで初期設定したSesame5を、このメソッドで別の公式アプリに追加した場合は履歴機能が正常動作します。
