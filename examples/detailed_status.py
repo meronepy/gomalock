@@ -77,7 +77,7 @@ async def handle_auto_lock(sesame5: Sesame5) -> None:
 
 def handle_display_qr(sesame5: Sesame5) -> None:
     print("Displaying QR code...")
-    url = sesame5.generate_qr_url(DEVICE_NAME, generate_owner_key=True)
+    url = sesame5.generate_qr_url(DEVICE_NAME)
     qr = qrcode.QRCode()
     qr.add_data(url)
     qr.make()
