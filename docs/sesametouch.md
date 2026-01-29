@@ -62,6 +62,24 @@
 > `v0.4.0`以前の`set_mech_status_callback()`からリネームされ、`call_immediately`引数は削除されました  
 > ログイン時に受信する初回の器械状態を取得したい場合は、`SesameTouch`クラスをインスタンス化する時の引数で登録してください
 
+#### `SesameTouch.generate_qr_url(device_name: str, generate_owner_key: bool, secret_key: str | None = None) -> str`
+
+- Sesame TouchのQRコードURLを生成します
+- 生成されたURLを基にQRコードを作成し、公式アプリでスキャンして鍵を共有できます
+- 接続後でないと実行できません
+
+- 引数
+  - device_name: 公式アプリに表示するデバイスの名前
+  - generate_owner_key: `True`でオーナーキー、`False`でマネージャーキーを生成
+  - secret_key: QRコードに含めるシークレットキー。`None`の場合は`__init__`の`secret_key`を使用
+
+- 返り値
+  - 生成されたQRコードURL
+
+- 例外
+  - `SesameConnectionError`: 接続されていない場合
+  - `SesameLoginError`: 引数`secret_key`と`__init__`の`secret_key`の両方が`None`の場合
+
 ---
 
 ### デバイス情報と設定

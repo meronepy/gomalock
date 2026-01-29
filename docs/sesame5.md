@@ -35,6 +35,11 @@
 
 #### `async Sesame5.register() -> str`
 
+このメソッドを使用して初期設定をしたSesame5は、**施錠開錠履歴が正常に動作しません。**  
+Sesame5は履歴をCANDY HOUSE社のサーバーにアップロードすることで管理しており、履歴機能の動作には初期設定時にCANDY HOUSE社のサーバーにデバイスのUUIDを登録する必要があるのですが、サードパーティー製のアプリでは登録が困難なためです。  
+公式アプリでの履歴機能を使用した場合は、初期設定はアプリで行ったうえでこのライブラリをご使用ください。  
+履歴機能を使用せず、ローカルのBluetoothでのみ操作する場合に最適です
+
 - 工場出荷時のSesame5の登録(初期設定)を行います
 - セットアップ済みのSesame5には実行できません
 - Sesame5に接続してからでないと実行できません
@@ -109,6 +114,27 @@
 
 - 引数
   - auto_lock_duration: オートロックまでの秒数
+
+#### `Sesame5.generate_qr_url(device_name: str, generate_owner_key: bool, secret_key: str | None = None) -> str`
+
+`Sesame5.register()`を使用して初期設定されたSesame5を、このメソッドで公式アプリに追加しても**施錠開錠履歴が正常に動作しません。**  
+公式アプリで初期設定したSesame5を、このメソッドで別の公式アプリに追加した場合は履歴機能が正常動作します。
+
+- Sesame5のQRコードURLを生成します
+- 生成されたURLを基にQRコードを作成し、公式アプリでスキャンして鍵を共有できます
+- 接続後でないと実行できません
+
+- 引数
+  - device_name: 公式アプリに表示するデバイスの名前
+  - generate_owner_key: `True`でオーナーキー、`False`でマネージャーキーを生成
+  - secret_key: QRコードに含めるシークレットキー。`None`の場合は`__init__`の`secret_key`を使用
+
+- 返り値
+  - 生成されたQRコードURL
+
+- 例外
+  - `SesameConnectionError`: 接続されていない場合
+  - `SesameLoginError`: 引数`secret_key`と`__init__`の`secret_key`の両方が`None`の場合
 
 ---
 
