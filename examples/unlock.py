@@ -3,7 +3,7 @@ import asyncio
 from gomalock.sesame5 import Sesame5
 
 MAC_ADDRESS = "XX:XX:XX:XX:XX:XX"
-SECRET_KEY = "1234567890abcdef1234567890abcdef"
+SECRET_KEY = "0123456789abcdef0123456789abcdef"
 
 
 async def main():

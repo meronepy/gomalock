@@ -1,15 +1,21 @@
 # [gomalock](https://github.com/meronepy/gomalock)
 
-![Python](https://img.shields.io/badge/python-3.11-5da1d8)
+![Python](https://img.shields.io/badge/python-3.12-5da1d8)
 [![License](https://img.shields.io/badge/license-MIT-5da1d8)](LICENSE)
 ![Platform](https://img.shields.io/badge/platform-Linux%20%2F%20Windows%20%2F%20macOS-ffb8d2)
 
-Sesame 5スマートロックをPythonからBluetooth Low Energy (BLE)経由で操作するためのライブラリ。
+Sesame スマートロックをPythonからBluetooth Low Energy (BLE)経由で操作するためのライブラリ。
 
 ## 機能説明
 
-- Sesame 5をBluetooth経由で施錠、開錠などの操作と、施錠状態、電池残量などの変化をリアルタイムで受信
+- Sesame 5 (Pro)をBluetooth経由で施錠、開錠などの操作
+- 施錠状態、電池残量などの変化をリアルタイムで受信
 - Sesame Touchの電池電圧、残量の変化をリアルタイムで受信
+- 周囲のSesameデバイスをスキャンして情報を取得
+- 新規Sesameデバイスの登録
+- 施錠、開錠角度の設定
+- オートロック秒数の設定
+- 鍵の共有用QRコードの作成
 
 ## インストール
 
@@ -47,18 +53,17 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-- `MAC_ADDRESS`は[discover.py](examples/discover.py)を使用して周囲のSesame 5をスキャンして取得できます。
+- `MAC_ADDRESS`は[discover.py](examples/discover.py)を使用して周囲のSesameをスキャンして取得できます。
 - `SECRET_KEY`はmochipon様作成の[QR Code Reader for SESAME](https://sesame-qr-reader.vercel.app/)を使用して、マネージャー権限以上のQRコードから抽出できます。
 - 詳細な使用方法は[examples](examples)および[docs](docs)をご覧ください。
 
 ### MQTTとブリッジするサンプルコード
 
-[![Readme Card](https://github-readme-stats.vercel.app/api/pin/?username=meronepy&repo=ssm2mqtt)](https://github.com/meronepy/ssm2mqtt)
+<https://github.com/meronepy/ssm2mqtt>
 
 ## 注意事項
 
-- Linuxで動作させる場合、 **BlueZ 5.82以降を強く推奨します。** Raspberry Pi OS Bookwormにインストール済みのBlueZ 5.66では、バグによってSesame 5のGATT Serviceが取得できず正常に動作しません。BlueZ 5.68で修正済みですが、Raspberry Pi OS TrixieにアップグレードしてBlueZ 5.82を使用するのが最も簡単で確実です。
-- `gomalock`ライブラリは、セットアップ済みのSesame 5デバイスのみ操作可能です。公式アプリでセットアップの上ご使用ください。
+- Linuxで動作させる場合、 **BlueZ 5.82以降を強く推奨します。** Raspberry Pi OS Bookwormにインストール済みのBlueZ 5.66では、バグによってSesame 5のGATT Serviceが取得できず正常に動作しません。
 - 履歴機能は公式アプリやクラウドとの連携が困難であるため実装しておりません。
 - 非公式のライブラリです。動作保証はありません。自己責任でご使用ください。
 
@@ -106,4 +111,4 @@ Linux環境では前述のバグが原因で、BlueZ 5.82以降が必要です�
 
 ### Python
 
-Python 3.11以降が必要です。
+Python 3.12以降が必要です。

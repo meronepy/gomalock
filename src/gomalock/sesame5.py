@@ -4,22 +4,29 @@ This module provides a main class of Sesame5 for controlling and abstracts
 the mechanical status of a Sesame 5 device.
 """
 
+from __future__ import annotations
+
 import asyncio
 import logging
 import struct
 from dataclasses import dataclass
 from typing import Callable, Self
 
-from .ble import ReceivedSesamePublish, SesameAdvertisementData, SesameCommand
 from .const import (
     SESAME5_LOGIN_PENDING_ITEMS,
     DeviceStatus,
     ItemCodes,
-    LoginStatus,
+    KeyLevels,
     MechStatusBitFlags,
 )
-from .exc import SesameError, SesameLoginError
-from .os3device import OS3Device, calculate_battery_percentage, create_history_tag
+from .exc import SesameConnectionError, SesameLoginError
+from .os3 import (
+    OS3Device,
+    OS3QRCodeInfo,
+    calculate_battery_percentage,
+    create_history_tag,
+)
+from .protocol import ReceivedSesamePublish, SesameAdvertisementData, SesameCommand
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +52,9 @@ class Sesame5MechStatus:
         Args:
             payload: The byte payload received from the Sesame5 device
                 with item code mech_status.
+
+        Raises:
+            struct.error: If payload has an invalid format or length.
         """
         raw_battery, target, position, status_flags = struct.unpack("<HhhB", payload)
         return cls(raw_battery, status_flags, target, position)
@@ -80,6 +90,37 @@ class Sesame5MechStatus:
         return calculate_battery_percentage(self.battery_voltage)
 
 
+@dataclass(frozen=True)
+class Sesame5MechSetting:
+    """Represents the mechanical settings of Sesame5 device.
+
+    Attributes:
+        lock_position: The position value representing the locked state.
+        unlock_position: The position value representing the unlocked state.
+        auto_lock_duration: The duration in seconds before the device auto-locks.
+    """
+
+    lock_position: int
+    unlock_position: int
+    auto_lock_duration: int
+
+    @classmethod
+    def from_payload(cls, payload: bytes) -> Self:
+        """Parses the payload received from the Sesame5 device.
+
+        Args:
+            payload: The byte payload received from the Sesame5 device
+                with item code mech_setting.
+
+        Raises:
+            struct.error: If payload has an invalid format or length.
+        """
+        lock_position, unlock_position, auto_lock_duration = struct.unpack(
+            "<hhH", payload
+        )
+        return cls(lock_position, unlock_position, auto_lock_duration)
+
+
 class Sesame5:
     """Main interface for controlling and monitoring a Sesame 5 device.
 
@@ -89,25 +130,35 @@ class Sesame5:
     def __init__(
         self,
         mac_address: str,
-        secret_key: str,
+        secret_key: str | None = None,
+        mech_status_callback: (
+            Callable[[Sesame5, Sesame5MechStatus], None] | None
+        ) = None,
     ) -> None:
         """Initializes the Sesame5 device interface.
 
         Args:
             mac_address: The MAC address of the Sesame 5 device.
             secret_key: The secret key for login.
+            mech_status_callback: A callable that is called when the mechanical status is updated.
         """
         self._os3_device = OS3Device(mac_address, self._on_published)
         self._secret_key = secret_key
-        self._mech_status_callback: Callable[[Sesame5MechStatus], None] | None = None
         self._remaining_login_pending_items = set(SESAME5_LOGIN_PENDING_ITEMS)
         self._login_completed = asyncio.Event()
         self._mech_status: Sesame5MechStatus | None = None
-        self._device_status = DeviceStatus.NO_BLE_SIGNAL
+        self._mech_setting: Sesame5MechSetting | None = None
+        self._device_status = DeviceStatus.DISCONNECTED
+        self._mech_status_callbacks: dict[
+            object, Callable[[Sesame5, Sesame5MechStatus], None]
+        ] = {}
+        if mech_status_callback is not None:
+            self.register_mech_status_callback(mech_status_callback)
 
     async def __aenter__(self) -> Self:
         await self.connect()
-        await self.login()
+        if self._secret_key is not None:
+            await self.login()
         return self
 
     async def __aexit__(self, exc_type, exc_value, traceback) -> None:
@@ -122,27 +173,27 @@ class Sesame5:
         match publish_data.item_code:
             case ItemCodes.MECH_STATUS:
                 self._mech_status = Sesame5MechStatus.from_payload(publish_data.payload)
-                logger.debug("Received mech status update.")
-                self._device_status = (
-                    DeviceStatus.LOCKED
-                    if self._mech_status.is_in_lock_range
-                    else DeviceStatus.UNLOCKED
+                logger.debug("Mechanical status updated [address=%s]", self.mac_address)
+                for callback in self._mech_status_callbacks.values():
+                    callback(self, self._mech_status)
+            case ItemCodes.MECH_SETTING:
+                self._mech_setting = Sesame5MechSetting.from_payload(
+                    publish_data.payload
                 )
-                if self._mech_status_callback:
-                    asyncio.get_running_loop().call_soon_threadsafe(
-                        self._mech_status_callback, self._mech_status
-                    )
+                logger.debug(
+                    "Mechanical setting updated [address=%s]", self.mac_address
+                )
             case _:
                 logger.debug(
-                    "Received unsupported publish data (item_code=%s)",
-                    publish_data.item_code,
+                    "Received unhandled publish notification [item=%s]",
+                    publish_data.item_code.name,
                 )
 
         if publish_data.item_code in self._remaining_login_pending_items:
             self._remaining_login_pending_items.discard(publish_data.item_code)
             logger.debug(
-                "Login pending item received (item_code=%s, remaining=%s)",
-                publish_data.item_code,
+                "Login pending item received [item=%s, remaining_items=%s]",
+                publish_data.item_code.name,
                 self._remaining_login_pending_items,
             )
             if not self._remaining_login_pending_items:
@@ -155,77 +206,195 @@ class Sesame5:
             history_name: The history tag name.
             locked: True to lock, False to unlock.
         """
+        if not self.is_logged_in:
+            raise SesameLoginError("Login is required to send lock/unlock commands")
         tag = create_history_tag(history_name)
         item_code = ItemCodes.LOCK if locked else ItemCodes.UNLOCK
-        logger.info("Sending %s command with history: '%s'", item_code, history_name)
+        action = "lock" if locked else "unlock"
+        logger.info(
+            "Executing %s command [address=%s, history=%s]",
+            action,
+            self.mac_address,
+            history_name,
+        )
         await self._os3_device.send_command(
             SesameCommand(item_code, tag), should_encrypt=True
         )
 
-    def set_mech_status_callback(
-        self,
-        callback: Callable[[Sesame5MechStatus], None] | None = None,
-        call_immediately: bool = True,
-    ) -> None:
-        """Sets or clear mech status callback.
+    def _cleanup(self) -> None:
+        """Cleans up resources."""
+        self._remaining_login_pending_items = set(SESAME5_LOGIN_PENDING_ITEMS)
+        self._login_completed = asyncio.Event()
+        self._device_status = DeviceStatus.DISCONNECTED
+        self._mech_status = None
+        self._mech_setting = None
 
-        Sets a callback function. If `None` is passed,
-        the existing callback (if any) will be cleared.
+    def register_mech_status_callback(
+        self, callback: Callable[[Sesame5, Sesame5MechStatus], None]
+    ) -> Callable[[], None]:
+        """Register a callback for mechanical status updates.
 
         Args:
-            callback: a callback function that is invoked when the
-                mechanical status changes.
-            call_immediately: If True and there is an existing mech status,
-                the callback will be invoked immediately with the latest status.
-        """
-        self._mech_status_callback = callback
+            callback: A callable that is called when the mechanical status is updated.
 
-        if (
-            call_immediately
-            and self._mech_status_callback is not None
-            and self._mech_status is not None
-        ):
-            asyncio.get_running_loop().call_soon_threadsafe(
-                self._mech_status_callback, self._mech_status
-            )
+        Returns:
+            A callable that can be used to unregister the callback.
+        """
+        token = object()
+        self._mech_status_callbacks[token] = callback
+
+        def unregister() -> None:
+            self._mech_status_callbacks.pop(token, None)
+
+        return unregister
 
     async def connect(self) -> None:
-        """Connects to the Sesame 5 device via BLE."""
-        logger.info("Connecting to Sesame 5 (MAC=%s)", self._os3_device.mac_address)
-        self._device_status = DeviceStatus.BLE_CONNECTING
-        await self._os3_device.connect()
-        logger.info("Connection established.")
+        """Connects to the Sesame 5 device via BLE.
 
-    async def login(self) -> int:
+        Raises:
+            asyncio.TimeoutError: If the session token retrieval times out.
+            SesameConnectionError: If already connected.
+            SesameError: If the device cannot be found during scanning.
+        """
+        if self.is_connected:
+            raise SesameConnectionError("Already connected")
+        logger.info("Connecting to Sesame 5 [address=%s]", self._os3_device.mac_address)
+        self._cleanup()
+        self._device_status = DeviceStatus.CONNECTING
+        await self._os3_device.connect()
+        self._device_status = DeviceStatus.CONNECTED
+        logger.info("Connected to Sesame 5 [address=%s]", self._os3_device.mac_address)
+
+    async def register(self) -> str:
+        """Registers the device and retrieves the secret key.
+
+        Raises:
+            asyncio.TimeoutError: If the response times out.
+            SesameConnectionError: If not connected to the device.
+            SesameError: If the device is already registered.
+            SesameOperationError: If the registration operation fails.
+
+        Returns:
+            The secret key as a hexadecimal string.
+        """
+        if not self.is_connected:
+            raise SesameConnectionError("Not connected")
+        secret_key = await self._os3_device.register()
+        return secret_key.hex()
+
+    async def login(self, secret_key: str | None = None) -> int:
         """Performs login to the device.
+
+        Args:
+            secret_key: The secret key for login. If None, uses the one
+                provided during initialization.
 
         Returns:
             The login timestamp.
+
+        Raises:
+            asyncio.TimeoutError: If the response times out.
+            SesameConnectionError: If not connected to the device.
+            SesameLoginError: If already logged in or secret key is missing.
+            SesameOperationError: If the login operation fails.
         """
-        logger.info("Logging in to Sesame 5.")
-        self._device_status = DeviceStatus.BLE_LOGINING
-        timestamp = await self._os3_device.login(self._secret_key)
+        if self.is_logged_in:
+            raise SesameLoginError("Already logged in")
+        secret_key = secret_key or self._secret_key
+        if secret_key is None:
+            raise SesameLoginError("A secret key is required for login")
+        logger.info("Logging in to Sesame 5 [address=%s]", self.mac_address)
+        self._device_status = DeviceStatus.LOGGING_IN
+        timestamp = await self._os3_device.login(bytes.fromhex(secret_key))
         await self._login_completed.wait()
-        logger.info("Login successful (timestamp=%d)", timestamp)
+        self._device_status = DeviceStatus.LOGGED_IN
+        logger.info(
+            "Logged in to Sesame 5 [address=%s, timestamp=%d]",
+            self.mac_address,
+            timestamp,
+        )
         return timestamp
 
     async def disconnect(self) -> None:
         """Disconnects from the Sesame 5 device."""
-        logger.info("Disconnecting from Sesame 5.")
-        try:
-            await self._os3_device.disconnect()
-        finally:
-            self._remaining_login_pending_items = set(SESAME5_LOGIN_PENDING_ITEMS)
-            self._login_completed = asyncio.Event()
-            self._device_status = DeviceStatus.NO_BLE_SIGNAL
-            self._mech_status = None
-        logger.info("Disconnected from Sesame 5.")
+        if self.is_connected:
+            logger.info("Disconnecting from Sesame 5 [address=%s]", self.mac_address)
+            self._device_status = DeviceStatus.DISCONNECTING
+            try:
+                await self._os3_device.disconnect()
+                logger.info("Disconnected from Sesame 5 [address=%s]", self.mac_address)
+            finally:
+                self._cleanup()
+        else:
+            logger.debug(
+                "Skipping disconnect, device not connected [address=%s]",
+                self.mac_address,
+            )
+
+    async def set_lock_position(self, lock_position: int, unlock_position: int) -> None:
+        """Sets the lock and unlock positions of the Sesame 5 device.
+
+        Args:
+            lock_position: The position value representing the locked state.
+            unlock_position: The position value representing the unlocked state.
+
+        Raises:
+            asyncio.TimeoutError: If the response times out.
+            SesameConnectionError: If not connected to the device.
+            SesameLoginError: If not logged in.
+            SesameOperationError: If the operation fails.
+        """
+        if not self.is_logged_in:
+            raise SesameLoginError("Login is required to set lock and unlock positions")
+        payload = struct.pack("<hh", lock_position, unlock_position)
+        logger.info(
+            "Setting lock positions [address=%s, lock_position=%d, unlock_position=%d]",
+            self.mac_address,
+            lock_position,
+            unlock_position,
+        )
+        await self._os3_device.send_command(
+            SesameCommand(ItemCodes.MECH_SETTING, payload), should_encrypt=True
+        )
+
+    async def set_auto_lock_duration(self, auto_lock_duration: int) -> None:
+        """Sets the auto lock duration of the Sesame 5 device.
+
+        Sets the duration in seconds before the device auto-locks. If set to 0,
+        the auto-lock feature is disabled.
+
+        Args:
+            auto_lock_duration: The duration in seconds before the device auto-locks.
+
+        Raises:
+            asyncio.TimeoutError: If the response times out.
+            SesameConnectionError: If not connected to the device.
+            SesameLoginError: If not logged in.
+            SesameOperationError: If the operation fails.
+        """
+        if not self.is_logged_in:
+            raise SesameLoginError("Login is required to set auto lock duration")
+        payload = struct.pack("<H", auto_lock_duration)
+        logger.info(
+            "Setting auto lock duration [address=%s, auto_lock_duration=%d]",
+            self.mac_address,
+            auto_lock_duration,
+        )
+        await self._os3_device.send_command(
+            SesameCommand(ItemCodes.AUTOLOCK, payload), should_encrypt=True
+        )
 
     async def lock(self, history_name: str) -> None:
         """Locks the Sesame 5 device.
 
         Args:
             history_name: The history tag name.
+
+        Raises:
+            asyncio.TimeoutError: If the response times out.
+            SesameConnectionError: If not connected to the device.
+            SesameLoginError: If not logged in.
+            SesameOperationError: If the lock operation fails.
         """
         await self._set_locked(history_name, True)
 
@@ -234,6 +403,12 @@ class Sesame5:
 
         Args:
             history_name: The history tag name.
+
+        Raises:
+            asyncio.TimeoutError: If the response times out.
+            SesameConnectionError: If not connected to the device.
+            SesameLoginError: If not logged in.
+            SesameOperationError: If the unlock operation fails.
         """
         await self._set_locked(history_name, False)
 
@@ -244,16 +419,48 @@ class Sesame5:
             history_name: The history tag name.
 
         Raises:
-            SesameError: If device is not in locked or unlocked state.
+            asyncio.TimeoutError: If the response times out.
+            SesameConnectionError: If not connected to the device.
+            SesameLoginError: If not logged in.
+            SesameOperationError: If the toggle operation fails.
         """
-        if self._device_status == DeviceStatus.LOCKED:
+        if self.mech_status.is_in_lock_range:
             await self.unlock(history_name)
-        elif self._device_status == DeviceStatus.UNLOCKED:
-            await self.lock(history_name)
         else:
-            raise SesameError(
-                "Cannot toggle lock state when device is not in locked or unlocked state."
-            )
+            await self.lock(history_name)
+
+    def generate_qr_url(
+        self,
+        device_name: str,
+        generate_owner_key: bool = True,
+        secret_key: str | None = None,
+    ) -> str:
+        """Generates a QR code URL for the Sesame 5 device.
+
+        Args:
+            device_name: The name of the device.
+            generate_owner_key: True to generate an owner key, False for a manager key.
+            secret_key: The secret key to include in the QR code. If None, uses the one
+                provided during initialization.
+
+        Returns:
+            The generated QR code URL.
+
+        Raises:
+            SesameConnectionError: If not connected to the device.
+            SesameLoginError: If the secret key is missing.
+        """
+        secret_key = secret_key or self._secret_key
+        if secret_key is None:
+            raise SesameLoginError("A secret key is required for QR code generation")
+        info = OS3QRCodeInfo(
+            device_name,
+            KeyLevels.OWNER if generate_owner_key else KeyLevels.MANAGER,
+            self.sesame_advertisement_data.product_model,
+            self.sesame_advertisement_data.device_uuid,
+            bytes.fromhex(secret_key),
+        )
+        return info.qr_url
 
     @property
     def mac_address(self) -> str:
@@ -268,8 +475,19 @@ class Sesame5:
             SesameLoginError: If not logged in.
         """
         if self._mech_status is None:
-            raise SesameLoginError("Login required to access mech status.")
+            raise SesameLoginError("Login is required to access mechanical status")
         return self._mech_status
+
+    @property
+    def mech_setting(self) -> Sesame5MechSetting:
+        """The latest mechanical setting of the device.
+
+        Raises:
+            SesameLoginError: If not logged in.
+        """
+        if self._mech_setting is None:
+            raise SesameLoginError("Login is required to access mechanical setting")
+        return self._mech_setting
 
     @property
     def is_connected(self) -> bool:
@@ -277,9 +495,9 @@ class Sesame5:
         return self._os3_device.is_connected
 
     @property
-    def login_status(self) -> LoginStatus:
-        """The current login status of the device."""
-        return self._os3_device.login_status
+    def is_logged_in(self) -> bool:
+        """True if the device is currently logged in."""
+        return self._device_status in DeviceStatus.AUTHENTICATED
 
     @property
     def device_status(self) -> DeviceStatus:

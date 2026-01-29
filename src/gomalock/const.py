@@ -4,7 +4,14 @@ This module defines various constants and enumerations used throughout the
 `gomalock` library for interacting with Sesame devices.
 """
 
-from enum import Enum, IntFlag, auto
+from enum import Enum, Flag, IntFlag, auto
+
+
+class KeyLevels(Enum):
+    """Key levels for Sesame devices."""
+
+    OWNER = 0
+    MANAGER = 1
 
 
 class ProductModels(Enum):
@@ -37,21 +44,18 @@ class MechStatusBitFlags(IntFlag):
     IS_CLOCKWISE = 0b01000000
 
 
-class DeviceStatus(Enum):
+class DeviceStatus(Flag):
     """Device status of Sesame."""
 
-    NO_BLE_SIGNAL = auto()
-    BLE_CONNECTING = auto()
-    BLE_LOGINING = auto()
-    LOCKED = auto()
-    UNLOCKED = auto()
+    DISCONNECTED = auto()
+    CONNECTING = auto()
+    CONNECTED = auto()
+    LOGGING_IN = auto()
+    LOGGED_IN = auto()
+    DISCONNECTING = auto()
 
-
-class LoginStatus(Enum):
-    """Login status of Sesame."""
-
-    UNLOGIN = auto()
-    LOGIN = auto()
+    UNAUTHENTICATED = DISCONNECTED | CONNECTING | CONNECTED | LOGGING_IN | DISCONNECTING
+    AUTHENTICATED = LOGGED_IN
 
 
 class ItemCodes(Enum):
@@ -227,6 +231,7 @@ class ResultCodes(Enum):
     UNKNOWN = 6
     BUSY = 7
     INVALID_PARAM = 8
+    INVALID_ACTION = 9
 
 
 COMPANY_ID = 0x055A
@@ -243,7 +248,7 @@ HISTORY_TAG_MAX_LEN = 20
 MTU_SIZE = 20
 """The MTU for BLE communication."""
 SCAN_TIMEOUT = 10
-"""Timeout for BLE scanning to get advertisement data."""
+"""Timeout for BLE scanning."""
 SESSION_TOKEN_TIMEOUT = 5
 """Timeout for waiting for a session token."""
 RESPONSE_TIMEOUT = 2
@@ -288,7 +293,7 @@ BATTERY_PERCENTAGES = (
 )
 """Battery percentage corresponding to the voltage levels."""
 
-SESAME5_LOGIN_PENDING_ITEMS = frozenset({ItemCodes.MECH_STATUS})
+SESAME5_LOGIN_PENDING_ITEMS = frozenset({ItemCodes.MECH_STATUS, ItemCodes.MECH_SETTING})
 """Item codes to wait for during Sesame5 login."""
 SESAME_TOUCH_LOGIN_PENDING_ITEMS = frozenset({ItemCodes.MECH_STATUS})
 """Item codes to wait for during SesameTouch login."""

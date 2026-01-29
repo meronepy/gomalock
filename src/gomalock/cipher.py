@@ -6,6 +6,45 @@ encryption and decryption for secure communication with SesameOS3 devices.
 
 from Crypto.Cipher import AES
 from Crypto.Hash import CMAC
+from Crypto.Protocol.DH import key_agreement
+from Crypto.PublicKey import ECC
+
+
+def generate_app_keys() -> tuple[bytes, ECC.EccKey]:
+    """Generates a new application private key and its corresponding public key.
+
+    Returns:
+        A tuple containing the application's public key and private key.
+    """
+    app_private_key = ECC.generate(curve="NIST P-256")
+    app_uncompressed_public_key = app_private_key.public_key().export_key(format="raw")
+    # remove the uncompressed flag to match the Sesame protocol
+    app_protocol_public_key = app_uncompressed_public_key[1:]
+    return app_protocol_public_key, app_private_key
+
+
+def generate_device_secret_key(
+    device_protocol_public_key: bytes, app_private_key: ECC.EccKey
+) -> bytes:
+    """Generates the device secret key using ECDH.
+
+    Args:
+        device_protocol_public_key: The device's public key as received from the
+            SesameOS3 device (without the uncompressed flag).
+        app_private_key: The application's private ECC key.
+
+    Returns:
+        The 16-byte device secret key.
+    """
+    # add the uncompressed flag
+    device_uncompressed_public_key = b"\x04" + device_protocol_public_key
+    device_public_key = ECC.import_key(
+        device_uncompressed_public_key, curve_name="NIST P-256"
+    )
+    shared_secret = key_agreement(
+        static_priv=app_private_key, static_pub=device_public_key, kdf=lambda x: x
+    )
+    return shared_secret[:16]  # truncate to 16 bytes as per SesameOS3 protocol
 
 
 def generate_session_key(secret_key: bytes, session_token: bytes) -> bytes:
@@ -62,7 +101,7 @@ class OS3Cipher:
             OverflowError: If the internal encryption counter exceeds its maximum value.
         """
         if self._encrypt_counter >= OS3Cipher._MAX_COUNTER:
-            raise OverflowError("Encryption counter overflow")
+            raise OverflowError("Encryption counter has exceeded its maximum value")
         nonce = self._generate_nonce(self._encrypt_counter)
         cipher = AES.new(self._session_key, AES.MODE_CCM, nonce=nonce, mac_len=4)
         cipher.update(b"\x00")
@@ -86,7 +125,7 @@ class OS3Cipher:
                 or malformed data.
         """
         if self._decrypt_counter >= OS3Cipher._MAX_COUNTER:
-            raise OverflowError("Decryption counter overflow")
+            raise OverflowError("Decryption counter has exceeded its maximum value")
         nonce = self._generate_nonce(self._decrypt_counter)
         cipher = AES.new(self._session_key, AES.MODE_CCM, nonce=nonce, mac_len=4)
         cipher.update(b"\x00")
