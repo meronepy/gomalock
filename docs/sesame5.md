@@ -154,7 +154,7 @@ Sesame5は履歴をCANDY HOUSE社のサーバーにアップロードするこ�
 
 > `v1.0.0`以降`Sesame5.login_status`は削除され、`Sesame5.is_logged_in`に変更されました
 
-#### `property Sesame5.sesame_advertisement_data: ble.SesameAdvertisementData`
+#### `property Sesame5.sesame_advertisement_data: protocol.SesameAdvertisementData`
 
 - Sesame5が[アドバタイズしている情報](sesame_advertisement_data.md)
 - 接続前に参照すると、`SesameConnectionError`を送出します

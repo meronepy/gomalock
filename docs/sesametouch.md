@@ -7,7 +7,7 @@
 
 ---
 
-## `class gomalock.sesametouch.SesameTouch((mac_address: str, secret_key: str, mech_status_callback: Callable[[SesameTouch, SesameTouchMechStatus], None] | None = None)`
+## `class gomalock.sesametouch.SesameTouch(mac_address: str, secret_key: str | None = None, mech_status_callback: Callable[[SesameTouch, SesameTouchMechStatus], None] | None = None)`
 
 - Sesame Touchとの接続、ログイン、操作などを行うクラスです
 - 引数`secret_key`が与えられた場合は非同期コンテキストマネージャー(`async with`)はログインを自動的に行います
@@ -98,7 +98,7 @@
 
 > `v1.0.0`以降`SesameTouch.login_status`は削除され、`SesameTouch.is_logged_in`に変更されました
 
-#### `property SesameTouch.sesame_advertisement_data: ble.SesameAdvertisementData`
+#### `property SesameTouch.sesame_advertisement_data: protocol.SesameAdvertisementData`
 
 - Sesame Touchが[アドバタイズしている情報](sesame_advertisement_data.md)
 - 接続前に参照すると、`SesameConnectionError`を送出します
