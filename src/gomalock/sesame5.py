@@ -430,7 +430,10 @@ class Sesame5:
             await self.lock(history_name)
 
     def generate_qr_url(
-        self, device_name: str, generate_owner_key: bool, secret_key: str | None = None
+        self,
+        device_name: str,
+        generate_owner_key: bool = True,
+        secret_key: str | None = None,
     ) -> str:
         """Generates a QR code URL for the Sesame 5 device.
 
