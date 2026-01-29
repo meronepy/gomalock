@@ -24,12 +24,12 @@
 
 #### `async SesameTouch.connect() -> None`
 
-- Sesame5とBLEで接続します
+- Sesame TouchとBLEで接続します
 - `SesameTouch.sesame_advertisement_data`が利用可能になります
 
 #### `async SesameTouch.disconnect() -> None`
 
-- Sesame5とのBLE接続を切断します
+- Sesame TouchとのBLE接続を切断します
 
 #### `async SesameTouch.register() -> str`
 
@@ -40,14 +40,14 @@
 
 #### `async SesameTouch.login(secret_key: str | None = None) -> None`
 
-- Sesame5にログインして、ステータス監視を可能にします
+- Sesame Touchにログインして、ステータス監視を可能にします
 - `SesameTouch.mech_status`が利用可能になります
 - 引数`secret_key`を優先的に使用してログインをします
 - 引数`secret_key`が与えられない場合は`__init__`の`secret_key`を使用してログインします
 - 引数`secret_key`と`__init__`の`secret_key`の両方が`None`の場合は`SesameLoginError`を送出します
 
 - 引数
-  - secret_key: 接続するSesame5のシークレットキー
+  - secret_key: 接続するSesame Touchのシークレットキー
 
 #### `SesameTouch.register_mech_status_callback(callback: Callable[[SesameTouch, SesameTouchMechStatus], None]) -> Callable[[], None]`
 
