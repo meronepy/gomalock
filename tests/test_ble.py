@@ -62,13 +62,18 @@ class TestSesameBleHeader:
         assert neither == 0
 
 
+@pytest.fixture
+def callback_ble_device(mocker):
+    ble_device = ble.SesameBleDevice("XX:XX:XX:XX:XX:XX", mocker.Mock())
+    mock_callback = mocker.patch.object(ble_device, "_received_data_callback")
+    return ble_device, mock_callback
+
+
 class TestSesameBleNotification:
     def test_notification_handler_receives_fragment(
-        self,
-        mocker: MockerFixture,
+        self, mocker: MockerFixture, callback_ble_device
     ):
-        ble_device = ble.SesameBleDevice("XX:XX:XX:XX:XX:XX", mocker.Mock())
-        mock_callback = mocker.patch.object(ble_device, "_received_data_callback")
+        ble_device, mock_callback = callback_ble_device
         mocker.patch.object(
             ble.ReceivedSesamePacket,
             "from_ble_data",
@@ -80,10 +85,9 @@ class TestSesameBleNotification:
         mock_callback.assert_not_called()
 
     def test_notification_handler_receives_complete_plaintext(
-        self, mocker: MockerFixture
+        self, mocker: MockerFixture, callback_ble_device
     ):
-        ble_device = ble.SesameBleDevice("XX:XX:XX:XX:XX:XX", mocker.Mock())
-        mock_callback = mocker.patch.object(ble_device, "_received_data_callback")
+        ble_device, mock_callback = callback_ble_device
         mocker.patch.object(
             ble.ReceivedSesamePacket,
             "from_ble_data",
@@ -95,9 +99,10 @@ class TestSesameBleNotification:
         ble_device.notification_handler(mocker.Mock(), bytearray())
         mock_callback.assert_called_once_with(b"plaintext", False)
 
-    def test_notification_handler_reassembles_packets(self, mocker: MockerFixture):
-        ble_device = ble.SesameBleDevice("XX:XX:XX:XX:XX:XX", mocker.Mock())
-        mock_callback = mocker.patch.object(ble_device, "_received_data_callback")
+    def test_notification_handler_reassembles_packets(
+        self, mocker: MockerFixture, callback_ble_device
+    ):
+        ble_device, mock_callback = callback_ble_device
         mocker.patch.object(
             ble.ReceivedSesamePacket,
             "from_ble_data",
