@@ -66,7 +66,7 @@ class SesameBleDevice:
         self._rx_buffer = b""
         self._sesame_advertisement_data: SesameAdvertisementData | None = None
 
-    def _notification_handler(
+    def notification_handler(
         self, characteristic: BleakGATTCharacteristic, data: bytearray
     ) -> None:
         """Parses an incoming BLE packet and reassembles fragmented messages.
@@ -139,7 +139,7 @@ class SesameBleDevice:
         self._sesame_advertisement_data = await self._get_sesame_advertisement_data()
         await self._bleak_client.connect()
         await self._bleak_client.start_notify(
-            UUID_NOTIFICATION, self._notification_handler
+            UUID_NOTIFICATION, self.notification_handler
         )
         logger.debug(
             "BLE connection established and notifications enabled [address=%s]",
