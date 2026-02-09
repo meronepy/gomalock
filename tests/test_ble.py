@@ -65,7 +65,7 @@ class TestSesameBleHeader:
 
 @pytest.fixture
 def callback_ble_device(mocker):
-    ble_device = ble.SesameBleDevice("XX:XX:XX:XX:XX:XX", mocker.Mock())
+    ble_device = ble.SesameBleDevice("AA:BB:CC:DD:EE:FF", mocker.Mock())
     mock_callback = mocker.patch.object(ble_device, "_received_data_callback")
     return ble_device, mock_callback
 
@@ -121,7 +121,7 @@ class TestSesameBleNotification:
 
 @pytest.fixture
 def connected_ble_device(mocker):
-    ble_device = ble.SesameBleDevice("XX:XX:XX:XX:XX:XX", mocker.Mock())
+    ble_device = ble.SesameBleDevice("AA:BB:CC:DD:EE:FF", mocker.Mock())
     mock_bleak_client = mocker.AsyncMock()
     type(mock_bleak_client).is_connected = mocker.PropertyMock(return_value=True)
     mocker.patch.object(ble_device, "_bleak_client", mock_bleak_client)
@@ -130,7 +130,7 @@ def connected_ble_device(mocker):
 
 @pytest.fixture
 def disconnected_ble_device(mocker):
-    ble_device = ble.SesameBleDevice("XX:XX:XX:XX:XX:XX", mocker.Mock())
+    ble_device = ble.SesameBleDevice("AA:BB:CC:DD:EE:FF", mocker.Mock())
     mock_bleak_client = mocker.AsyncMock()
     type(mock_bleak_client).is_connected = mocker.PropertyMock(return_value=False)
     mocker.patch.object(ble_device, "_bleak_client", mock_bleak_client)
@@ -152,7 +152,7 @@ class TestSesameBleConnect:
             ble.SesameScanner,
             "find_device_by_address",
             new=mocker.AsyncMock(
-                return_value=("XX:XX:XX:XX:XX:XX", mock_advertisement_data)
+                return_value=("AA:BB:CC:DD:EE:FF", mock_advertisement_data)
             ),
         )
         await ble_device.connect_and_start_notification()

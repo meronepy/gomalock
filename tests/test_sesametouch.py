@@ -15,15 +15,17 @@ def sesame_touch_device(mocker: MockerFixture):
     mock_os3_device.register = mocker.AsyncMock(return_value=b"\x22" * 16)
     mock_os3_device.disconnect = mocker.AsyncMock()
     type(mock_os3_device).is_connected = mocker.PropertyMock(return_value=False)
-    type(mock_os3_device).mac_address = mocker.PropertyMock(return_value="CC:DD")
+    type(mock_os3_device).mac_address = mocker.PropertyMock(
+        return_value="AA:BB:CC:DD:EE:FF"
+    )
     type(mock_os3_device).sesame_advertisement_data = mocker.PropertyMock(
         return_value=mocker.Mock(
             product_model=const.ProductModels.SESAME_TOUCH,
-            device_uuid=UUID("abcdef01-2345-6789-abcd-ef0123456789"),
+            device_uuid=UUID("01234567-89ab-cdef-0123-456789abcdef"),
         )
     )
     mocker.patch("src.gomalock.sesametouch.OS3Device", return_value=mock_os3_device)
-    device = sesametouch.SesameTouch("CC:DD", secret_key="11" * 16)
+    device = sesametouch.SesameTouch("AA:BB:CC:DD:EE:FF", secret_key="11" * 16)
     return device, mock_os3_device
 
 
@@ -51,7 +53,9 @@ class TestSesameTouchPublishHandling:
         mock_os3_device = mocker.Mock()
         mocker.patch("src.gomalock.sesametouch.OS3Device", return_value=mock_os3_device)
         callback = mocker.Mock()
-        device = sesametouch.SesameTouch("CC:DD", mech_status_callback=callback)
+        device = sesametouch.SesameTouch(
+            "AA:BB:CC:DD:EE:FF", mech_status_callback=callback
+        )
         status_payload = struct.pack(
             "<HhhhB",
             2300,
@@ -144,7 +148,7 @@ class TestSesameTouchConnectRegisterLogin:
         type(mock_os3_device).is_connected = mocker.PropertyMock(return_value=True)
         mock_os3_device.connect = mocker.AsyncMock()
         mocker.patch("src.gomalock.sesametouch.OS3Device", return_value=mock_os3_device)
-        device = sesametouch.SesameTouch("CC:DD")
+        device = sesametouch.SesameTouch("AA:BB:CC:DD:EE:FF")
         with pytest.raises(exc.SesameConnectionError):
             await device.connect()
         mock_os3_device.connect.assert_not_awaited()

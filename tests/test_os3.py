@@ -18,12 +18,14 @@ def os3_device(mocker: MockerFixture):
     mock_ble_device.connect_and_start_notification = mocker.AsyncMock()
     mock_ble_device.disconnect = mocker.AsyncMock()
     type(mock_ble_device).is_connected = mocker.PropertyMock(return_value=False)
-    type(mock_ble_device).mac_address = mocker.PropertyMock(return_value="AA:BB")
+    type(mock_ble_device).mac_address = mocker.PropertyMock(
+        return_value="AA:BB:CC:DD:EE:FF"
+    )
     type(mock_ble_device).sesame_advertisement_data = mocker.PropertyMock(
         return_value=mocker.Mock(is_registered=False)
     )
     mocker.patch("src.gomalock.os3.SesameBleDevice", return_value=mock_ble_device)
-    device = os3.OS3Device("AA:BB", publish_callback)
+    device = os3.OS3Device("AA:BB:CC:DD:EE:FF", publish_callback)
     return device, mock_ble_device, publish_callback
 
 
@@ -313,7 +315,7 @@ class TestOS3DeviceConnectLoginRegister:
         type(mock_ble_device).is_connected = mocker.PropertyMock(return_value=True)
         mock_ble_device.connect_and_start_notification = mocker.AsyncMock()
         mocker.patch("src.gomalock.os3.SesameBleDevice", return_value=mock_ble_device)
-        device = os3.OS3Device("AA:BB", publish_callback)
+        device = os3.OS3Device("AA:BB:CC:DD:EE:FF", publish_callback)
         with pytest.raises(exc.SesameConnectionError):
             await device.connect()
         mock_ble_device.connect_and_start_notification.assert_not_awaited()
@@ -426,10 +428,10 @@ class TestOS3DeviceDisconnectProperties:
     def test_properties(self, mocker: MockerFixture, os3_device) -> None:
         device, mock_ble_device, _ = os3_device
         type(mock_ble_device).mac_address = mocker.PropertyMock(
-            return_value="11:22:33:44:55:66"
+            return_value="AA:BB:CC:DD:EE:FF"
         )
         type(mock_ble_device).is_connected = mocker.PropertyMock(return_value=True)
         device._is_logged_in = True
-        assert device.mac_address == "11:22:33:44:55:66"
+        assert device.mac_address == "AA:BB:CC:DD:EE:FF"
         assert device.is_connected
         assert device.is_logged_in

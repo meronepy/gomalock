@@ -131,7 +131,7 @@ class TestSesameScannerStartStop:
         mocker: MockerFixture,
     ) -> None:
         sesame_scanner = scanner.SesameScanner()
-        sesame_scanner._seen_devices["AA"] = mocker.Mock()
+        sesame_scanner._seen_devices["AA:BB:CC:DD:EE:FF"] = mocker.Mock()
         mock_bleak_scanner = mocker.AsyncMock()
         sesame_scanner._scanner = mock_bleak_scanner
         await sesame_scanner.start()
@@ -217,7 +217,7 @@ class TestSesameScannerFind:
         adv_data = mocker.Mock()
         assert filter_func("aa:bb:cc:dd:ee:ff", adv_data)
         assert filter_func("AA:BB:CC:DD:EE:FF", adv_data)
-        assert not filter_func("AA:BB:CC:DD:EE:00", adv_data)
+        assert not filter_func("11:22:33:44:55:66", adv_data)
 
     @pytest.mark.asyncio
     async def test_find_device_by_uuid_filters_by_uuid(

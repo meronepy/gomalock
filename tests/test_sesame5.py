@@ -16,7 +16,9 @@ def sesame5_device(mocker: MockerFixture):
     mock_os3_device.disconnect = mocker.AsyncMock()
     mock_os3_device.send_command = mocker.AsyncMock()
     type(mock_os3_device).is_connected = mocker.PropertyMock(return_value=False)
-    type(mock_os3_device).mac_address = mocker.PropertyMock(return_value="AA:BB")
+    type(mock_os3_device).mac_address = mocker.PropertyMock(
+        return_value="AA:BB:CC:DD:EE:FF"
+    )
     type(mock_os3_device).sesame_advertisement_data = mocker.PropertyMock(
         return_value=mocker.Mock(
             product_model=const.ProductModels.SESAME5,
@@ -24,7 +26,7 @@ def sesame5_device(mocker: MockerFixture):
         )
     )
     mocker.patch("src.gomalock.sesame5.OS3Device", return_value=mock_os3_device)
-    device = sesame5.Sesame5("AA:BB", secret_key="00" * 16)
+    device = sesame5.Sesame5("AA:BB:CC:DD:EE:FF", secret_key="00" * 16)
     return device, mock_os3_device
 
 
@@ -64,7 +66,7 @@ class TestSesame5PublishHandling:
         mock_os3_device = mocker.Mock()
         mocker.patch("src.gomalock.sesame5.OS3Device", return_value=mock_os3_device)
         callback = mocker.Mock()
-        device = sesame5.Sesame5("AA:BB", mech_status_callback=callback)
+        device = sesame5.Sesame5("AA:BB:CC:DD:EE:FF", mech_status_callback=callback)
         status_payload = struct.pack(
             "<HhhB",
             2400,
@@ -162,7 +164,7 @@ class TestSesame5ConnectRegisterLogin:
         type(mock_os3_device).is_connected = mocker.PropertyMock(return_value=True)
         mock_os3_device.connect = mocker.AsyncMock()
         mocker.patch("src.gomalock.sesame5.OS3Device", return_value=mock_os3_device)
-        device = sesame5.Sesame5("AA:BB")
+        device = sesame5.Sesame5("AA:BB:CC:DD:EE:FF")
         with pytest.raises(exc.SesameConnectionError):
             await device.connect()
         mock_os3_device.connect.assert_not_awaited()
