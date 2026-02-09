@@ -5,7 +5,7 @@ from uuid import UUID
 import pytest
 from pytest_mock import MockerFixture
 
-from src.gomalock import const, protocol, scanner
+from gomalock import const, protocol, scanner
 
 
 @pytest.fixture
@@ -192,7 +192,7 @@ class TestSesameScannerFind:
             raise asyncio.TimeoutError
 
         mock_wait_for = mocker.patch(
-            "src.gomalock.scanner.asyncio.wait_for",
+            "gomalock.scanner.asyncio.wait_for",
             new=mocker.AsyncMock(side_effect=fake_wait_for),
         )
         result = await scanner.SesameScanner.find_device_by_filter(
@@ -256,7 +256,7 @@ class TestSesameScannerFind:
             new=mocker.AsyncMock(return_value=None),
         )
         mock_sleep = mocker.patch(
-            "src.gomalock.scanner.asyncio.sleep",
+            "gomalock.scanner.asyncio.sleep",
             new=mocker.AsyncMock(),
         )
         result = await scanner.SesameScanner.discover(timeout=1.5)

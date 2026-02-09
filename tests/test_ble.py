@@ -1,7 +1,7 @@
 import pytest
 from pytest_mock import MockerFixture
 
-from src.gomalock import ble, const, exc
+from gomalock import ble, const, exc
 
 
 class TestSesameBleHeader:

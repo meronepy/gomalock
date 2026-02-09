@@ -3,7 +3,7 @@ from uuid import UUID
 
 import pytest
 
-from src.gomalock import const, protocol
+from gomalock import const, protocol
 
 
 @pytest.fixture

@@ -4,7 +4,7 @@ from uuid import UUID
 import pytest
 from pytest_mock import MockerFixture
 
-from src.gomalock import const, exc, os3, protocol, sesame5
+from gomalock import const, exc, os3, protocol, sesame5
 
 
 @pytest.fixture
@@ -25,7 +25,7 @@ def sesame5_device(mocker: MockerFixture):
             device_uuid=UUID("01234567-89ab-cdef-0123-456789abcdef"),
         )
     )
-    mocker.patch("src.gomalock.sesame5.OS3Device", return_value=mock_os3_device)
+    mocker.patch("gomalock.sesame5.OS3Device", return_value=mock_os3_device)
     device = sesame5.Sesame5("AA:BB:CC:DD:EE:FF", secret_key="00" * 16)
     return device, mock_os3_device
 
@@ -64,7 +64,7 @@ class TestSesame5MechSetting:
 class TestSesame5PublishHandling:
     def test_init_registers_callback(self, mocker: MockerFixture) -> None:
         mock_os3_device = mocker.Mock()
-        mocker.patch("src.gomalock.sesame5.OS3Device", return_value=mock_os3_device)
+        mocker.patch("gomalock.sesame5.OS3Device", return_value=mock_os3_device)
         callback = mocker.Mock()
         device = sesame5.Sesame5("AA:BB:CC:DD:EE:FF", mech_status_callback=callback)
         status_payload = struct.pack(
@@ -163,7 +163,7 @@ class TestSesame5ConnectRegisterLogin:
         mock_os3_device = mocker.Mock()
         type(mock_os3_device).is_connected = mocker.PropertyMock(return_value=True)
         mock_os3_device.connect = mocker.AsyncMock()
-        mocker.patch("src.gomalock.sesame5.OS3Device", return_value=mock_os3_device)
+        mocker.patch("gomalock.sesame5.OS3Device", return_value=mock_os3_device)
         device = sesame5.Sesame5("AA:BB:CC:DD:EE:FF")
         with pytest.raises(exc.SesameConnectionError):
             await device.connect()

@@ -7,7 +7,7 @@ from uuid import UUID
 import pytest
 from pytest_mock import MockerFixture
 
-from src.gomalock import const, exc, os3, protocol
+from gomalock import const, exc, os3, protocol
 
 
 @pytest.fixture
@@ -24,7 +24,7 @@ def os3_device(mocker: MockerFixture):
     type(mock_ble_device).sesame_advertisement_data = mocker.PropertyMock(
         return_value=mocker.Mock(is_registered=False)
     )
-    mocker.patch("src.gomalock.os3.SesameBleDevice", return_value=mock_ble_device)
+    mocker.patch("gomalock.os3.SesameBleDevice", return_value=mock_ble_device)
     device = os3.OS3Device("AA:BB:CC:DD:EE:FF", publish_callback)
     return device, mock_ble_device, publish_callback
 
@@ -314,7 +314,7 @@ class TestOS3DeviceConnectLoginRegister:
         mock_ble_device = mocker.Mock()
         type(mock_ble_device).is_connected = mocker.PropertyMock(return_value=True)
         mock_ble_device.connect_and_start_notification = mocker.AsyncMock()
-        mocker.patch("src.gomalock.os3.SesameBleDevice", return_value=mock_ble_device)
+        mocker.patch("gomalock.os3.SesameBleDevice", return_value=mock_ble_device)
         device = os3.OS3Device("AA:BB:CC:DD:EE:FF", publish_callback)
         with pytest.raises(exc.SesameConnectionError):
             await device.connect()

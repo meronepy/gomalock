@@ -1,7 +1,7 @@
 import pytest
 from pytest_mock import MockerFixture
 
-from src.gomalock import cipher
+from gomalock import cipher
 
 
 def test_generate_app_keys(mocker: MockerFixture) -> None:
