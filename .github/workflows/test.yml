@@ -1,4 +1,4 @@
-name: Run pytest push or pull request
+name: test
 
 on:
   - push
