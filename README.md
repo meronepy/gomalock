@@ -3,6 +3,7 @@
 ![Python](https://img.shields.io/badge/python-3.12-5da1d8)
 [![License](https://img.shields.io/badge/license-MIT-5da1d8)](LICENSE)
 ![Platform](https://img.shields.io/badge/platform-Linux%20%2F%20Windows%20%2F%20macOS-ffb8d2)
+[![test](https://github.com/meronepy/gomalock/actions/workflows/test.yml/badge.svg)](https://github.com/meronepy/gomalock/actions/workflows/test.yml)
 
 Sesame スマートロックをPythonからBluetooth Low Energy (BLE)経由で操作するためのライブラリ。
 
