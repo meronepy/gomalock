@@ -1,10 +1,8 @@
 name: Run pytest push or pull request
 
 on:
-  push:
-    branches: [main, "develop", "feature-*"]
-  pull_request:
-    branches: [main, "develop", "feature-*"]
+  - push
+  - pull_request
 
 jobs:
   test:
