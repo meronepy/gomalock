@@ -56,6 +56,15 @@ def calculate_battery_percentage(battery_voltage: float) -> int:
 
     This is calculated by linearly interpolating the `battery_voltage`
     against a predefined table of voltage levels and corresponding percentages.
+
+    Args:
+        battery_voltage: The battery voltage to convert.
+
+    Returns:
+        The calculated battery percentage.
+
+    Raises:
+        AssertionError: If the code reaches an unreachable state.
     """
     if battery_voltage >= VOLTAGE_LEVELS[0]:
         return int(BATTERY_PERCENTAGES[0])
@@ -71,7 +80,7 @@ def calculate_battery_percentage(battery_voltage: float) -> int:
             upper_percent = BATTERY_PERCENTAGES[i]
             lower_percent = BATTERY_PERCENTAGES[i + 1]
             return int((upper_percent - lower_percent) * voltage_ratio + lower_percent)
-    return 0
+    raise AssertionError("Unreachable code reached in battery percentage calculation")
 
 
 def create_history_tag(history_name: str) -> bytes:

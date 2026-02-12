@@ -55,8 +55,9 @@ class TestOS3Helpers:
         assert tag[0] == const.HISTORY_TAG_MAX_LEN
         assert tag[1:] == b"a" * const.HISTORY_TAG_MAX_LEN
 
-    def test_calculate_battery_percentage_nan_returns_zero(self) -> None:
-        assert os3.calculate_battery_percentage(float("nan")) == 0
+    def test_calculate_battery_percentage_nan_raises_assertion_error(self) -> None:
+        with pytest.raises(AssertionError):
+            os3.calculate_battery_percentage(float("nan"))
 
 
 class TestOS3QRCodeInfo:
