@@ -168,7 +168,8 @@ class OS3QRCodeInfo:
                 "sk": sk_b64,
                 "l": self.key_level.value,
                 "n": self.device_name,
-            }
+            },
+            quote_via=parse.quote,
         )
         return f"ssm://UI?{params}"
 
