@@ -110,6 +110,7 @@ class OS3QRCodeInfo:
         device_uuid: The UUID of the device.
         secret_key: The secret key used for device authentication.
         session_token_when_registered: The session token provided during registration.
+            It has no meaning in Sesame OS3, so 4 zero bytes are used as a placeholder.
         key_index: A constant value used in the key structure.
     """
 
@@ -118,8 +119,8 @@ class OS3QRCodeInfo:
     product_model: ProductModels
     device_uuid: UUID
     secret_key: bytes
-    registration_session_token: bytes = b"\x00\x00\x00\x00"
-    key_index: bytes = b"\x00\x00"
+    registration_session_token: bytes = bytes(4)
+    key_index: bytes = bytes(2)
 
     @classmethod
     def from_qr_url(cls, qr_url: str) -> Self:
