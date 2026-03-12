@@ -22,7 +22,7 @@ from .const import (
 from .exc import SesameConnectionError, SesameLoginError
 from .os3 import (
     OS3Device,
-    OS3QRCodeInfo,
+    OS3QRCode,
     calculate_battery_percentage,
 )
 from .protocol import ReceivedSesamePublish, SesameAdvertisementData
@@ -293,7 +293,7 @@ class SesameTouch:
         secret_key = secret_key or self._secret_key
         if secret_key is None:
             raise SesameLoginError("A secret key is required for QR code generation")
-        info = OS3QRCodeInfo(
+        info = OS3QRCode(
             device_name,
             KeyLevels.OWNER if generate_owner_key else KeyLevels.MANAGER,
             self.sesame_advertisement_data.product_model,

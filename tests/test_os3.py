@@ -63,7 +63,7 @@ class TestOS3Helpers:
 class TestOS3QRCodeInfo:
     def test_qr_url_round_trip(self) -> None:
         device_uuid = UUID("01234567-89ab-cdef-0123-456789abcdef")
-        info = os3.OS3QRCodeInfo(
+        info = os3.OS3QRCode(
             device_name="Sesame",
             key_level=const.KeyLevels.OWNER,
             product_model=const.ProductModels.SESAME5,
@@ -72,7 +72,7 @@ class TestOS3QRCodeInfo:
             registration_session_token=b"\x02" * 4,
             key_index=b"\x03\x04",
         )
-        parsed = os3.OS3QRCodeInfo.from_qr_url(info.qr_url)
+        parsed = os3.OS3QRCode.from_qr_url(info.qr_url)
         assert parsed.device_name == info.device_name
         assert parsed.key_level == info.key_level
         assert parsed.product_model == info.product_model
@@ -93,7 +93,7 @@ class TestOS3QRCodeInfo:
         sk_b64 = base64.b64encode(shared_key).decode("ascii")
         qr_url = f"ssm://UI?t=sk&sk={sk_b64}&l=9&n=Sesame"
         with pytest.raises(exc.SesameError):
-            _ = os3.OS3QRCodeInfo.from_qr_url(qr_url)
+            _ = os3.OS3QRCode.from_qr_url(qr_url)
 
 
 class TestOS3DeviceReceive:

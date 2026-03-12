@@ -323,7 +323,7 @@ class TestSesame5QRCodeAndProperties:
         type(mock_os3_device).sesame_advertisement_data = type(
             mock_os3_device
         ).sesame_advertisement_data
-        expected = os3.OS3QRCodeInfo(
+        expected = os3.OS3QRCode(
             "Sesame",
             const.KeyLevels.OWNER,
             device.sesame_advertisement_data.product_model,
