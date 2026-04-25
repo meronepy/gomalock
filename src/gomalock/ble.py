@@ -5,6 +5,7 @@ Sesame devices using the Bleak library. It handles device scanning, connection,
 service discovery, notification handling, and data transmission.
 """
 
+import asyncio
 import logging
 from typing import Callable
 
@@ -136,8 +137,15 @@ class SesameBleDevice:
             raise SesameConnectionError("Already connected")
         logger.debug("Initiating BLE connection [address=%s]", self.mac_address)
         self._cleanup()
-        self._sesame_advertisement_data = await self._get_sesame_advertisement_data()
-        await self._bleak_client.connect()
+        try:
+            async with asyncio.TaskGroup() as tg:
+                advertisement_task = tg.create_task(
+                    self._get_sesame_advertisement_data()
+                )
+                tg.create_task(self._bleak_client.connect())
+        except* SesameError as eg:
+            raise SesameError(f"Device not found: {self.mac_address}") from eg
+        self._sesame_advertisement_data = advertisement_task.result()
         await self._bleak_client.start_notify(
             UUID_NOTIFICATION, self.notification_handler
         )
