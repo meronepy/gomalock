@@ -186,19 +186,20 @@ class OS3Device:
         self,
         mac_address: str,
         publish_data_callback: Callable[[ReceivedSesamePublish], None],
-        disconnected_callback: Callable[[], None],
+        unexpected_disconnect_callback: Callable[[], None],
     ) -> None:
         """Initializes the OS3Device instance.
 
         Args:
             mac_address: The MAC address of the BLE device.
             publish_data_callback: Callback for publish data notifications.
+            unexpected_disconnect_callback: Callback for unexpected disconnections.
         """
         self._ble_device = SesameBleDevice(
-            mac_address, self.on_received, self.on_disconnected
+            mac_address, self.on_received, self.on_unexpected_disconnect
         )
         self._publish_data_callback = publish_data_callback
-        self._disconnected_callback = disconnected_callback
+        self._unexpected_disconnect_callback = unexpected_disconnect_callback
         self._is_logged_in = False
         self._send_lock = asyncio.Lock()
         self._response_futures: dict[
@@ -207,13 +208,13 @@ class OS3Device:
         self._session_token_future: asyncio.Future[bytes] | None = None
         self._cipher: OS3Cipher | None = None
 
-    def on_disconnected(self) -> None:
-        """Handles BLE disconnection events."""
-        logger.debug(
-                "OS3 protocol connection closed [address=%s]", self.mac_address
-            )
+    def on_unexpected_disconnect(self) -> None:
+        """Handles unexpected disconnection events."""
+        logger.warning(
+            "Unexpected OS3 device disconnection [address=%s]", self.mac_address
+        )
         self._cleanup()
-        self._disconnected_callback()
+        self._unexpected_disconnect_callback()
 
     def on_received(self, data: bytes, is_encrypted: bool) -> None:
         """Handles reassembled received data.
@@ -446,7 +447,13 @@ class OS3Device:
             logger.debug(
                 "Closing OS3 protocol connection [address=%s]", self.mac_address
             )
-            await self._ble_device.disconnect()
+            try:
+                await self._ble_device.disconnect()
+            finally:
+                self._cleanup()
+            logger.debug(
+                "OS3 protocol connection closed [address=%s]", self.mac_address
+            )
         else:
             logger.debug(
                 "Skipping disconnect, device not connected [address=%s]",
@@ -462,11 +469,6 @@ class OS3Device:
     def is_connected(self) -> bool:
         """Whether the BLE device is currently connected."""
         return self._ble_device.is_connected
-
-    @property
-    def is_logged_in(self) -> bool:
-        """The current login status of the device."""
-        return self._is_logged_in
 
     @property
     def sesame_advertisement_data(self) -> SesameAdvertisementData:

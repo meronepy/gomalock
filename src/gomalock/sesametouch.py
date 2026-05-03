@@ -109,7 +109,7 @@ class SesameTouch:
             mech_status_callback: A callable that is called when the mechanical status is updated.
         """
         self._os3_device = OS3Device(
-            mac_address, self._on_published, self.on_disconnected
+            mac_address, self._on_published, self.on_unexpected_disconnect
         )
         self._secret_key = secret_key
         self._login_completed: asyncio.Event | None = None
@@ -130,10 +130,12 @@ class SesameTouch:
     async def __aexit__(self, exc_type, exc_value, traceback) -> None:
         await self.disconnect()
 
-    def on_disconnected(self) -> None:
-        """Handles device disconnection events."""
+    def on_unexpected_disconnect(self) -> None:
+        """Handles unexpected disconnection events."""
+        logger.warning(
+            "Unexpected Sesame Touch disconnection [address=%s]", self.mac_address
+        )
         self._cleanup()
-        logger.info("Disconnected from Sesame Touch [address=%s]", self.mac_address)
 
     def _on_published(self, publish_data: ReceivedSesamePublish) -> None:
         """Handles published data from the device.
@@ -146,12 +148,13 @@ class SesameTouch:
                 self._mech_status = SesameTouchMechStatus.from_payload(
                     publish_data.payload
                 )
-                logger.debug("Mechanical status updated")
+                logger.debug("Mechanical status updated [address=%s]", self.mac_address)
                 for callback in self._mech_status_callbacks.values():
                     callback(self, self._mech_status)
             case _:
                 logger.debug(
-                    "Received unhandled publish notification [item=%s]",
+                    "Received unhandled publish notification [address=%s, item=%s]",
+                    self.mac_address,
                     publish_data.item_code.name,
                 )
         if (
@@ -256,7 +259,11 @@ class SesameTouch:
                 "Disconnecting from Sesame Touch [address=%s]", self.mac_address
             )
             self._device_status = DeviceStatus.DISCONNECTING
-            await self._os3_device.disconnect()
+            try:
+                await self._os3_device.disconnect()
+            finally:
+                self._cleanup()
+            logger.info("Disconnected from Sesame Touch [address=%s]", self.mac_address)
         else:
             logger.debug(
                 "Skipping disconnect, device not connected [address=%s]",

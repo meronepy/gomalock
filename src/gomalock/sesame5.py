@@ -142,7 +142,7 @@ class Sesame5:
             mech_status_callback: A callable that is called when the mechanical status is updated.
         """
         self._os3_device = OS3Device(
-            mac_address, self.on_published, self.on_disconnected
+            mac_address, self.on_published, self.on_unexpected_disconnect
         )
         self._secret_key = secret_key
         self._login_completed: asyncio.Event | None = None
@@ -164,10 +164,12 @@ class Sesame5:
     async def __aexit__(self, exc_type, exc_value, traceback) -> None:
         await self.disconnect()
 
-    def on_disconnected(self) -> None:
-        """Handles device disconnection events."""
+    def on_unexpected_disconnect(self) -> None:
+        """Handles unexpected disconnection events."""
+        logger.warning(
+            "Unexpected Sesame 5 disconnection [address=%s]", self.mac_address
+        )
         self._cleanup()
-        logger.info("Disconnected from Sesame 5 [address=%s]", self.mac_address)
 
     def on_published(self, publish_data: ReceivedSesamePublish) -> None:
         """Handles published data from the device.
@@ -190,7 +192,8 @@ class Sesame5:
                 )
             case _:
                 logger.debug(
-                    "Received unhandled publish notification [item=%s]",
+                    "Received unhandled publish notification [address=%s, item=%s]",
+                    self.mac_address,
                     publish_data.item_code.name,
                 )
         if (
@@ -321,7 +324,11 @@ class Sesame5:
         if self.is_connected:
             logger.info("Disconnecting from Sesame 5 [address=%s]", self.mac_address)
             self._device_status = DeviceStatus.DISCONNECTING
-            await self._os3_device.disconnect()
+            try:
+                await self._os3_device.disconnect()
+            finally:
+                self._cleanup()
+            logger.info("Disconnected from Sesame 5 [address=%s]", self.mac_address)
         else:
             logger.debug(
                 "Skipping disconnect, device not connected [address=%s]",

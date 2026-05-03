@@ -54,30 +54,34 @@ class SesameBleDevice:
         self,
         mac_address: str,
         received_data_callback: Callable[[bytes, bool], None],
-        disconnected_callback: Callable[[], None],
+        unexpected_disconnect_callback: Callable[[], None],
     ) -> None:
         """Initialize the SesameBleDevice.
 
         Args:
             mac_address: The MAC address of the Sesame device.
             received_data_callback: Callback for received data.
+            unexpected_disconnect_callback: Callback for unexpected disconnections.
         """
-        self._bleak_client = BleakClient(mac_address, self.on_disconnected)
+        self._bleak_client = BleakClient(mac_address, self.on_disconnect)
         self._received_data_callback = received_data_callback
-        self._disconnected_callback = disconnected_callback
+        self._unexpected_disconnect_callback = unexpected_disconnect_callback
+        self._is_expectedly_disconnected = False
         self._rx_buffer = b""
         self._sesame_advertisement_data: SesameAdvertisementData | None = None
 
-    def on_disconnected(self, client: BleakClient) -> None:
+    def on_disconnect(self, client: BleakClient) -> None:
         """Handles BLE disconnection events.
 
         Args:
             client: The BleakClient instance that was disconnected.
         """
         del client  # Unused by Sesame.
-        logger.debug("BLE connection closed [address=%s]", self.mac_address)
+        if self._is_expectedly_disconnected:
+            return
+        logger.warning("Unexpected BLE disconnection [address=%s]", self.mac_address)
         self._cleanup()
-        self._disconnected_callback()
+        self._unexpected_disconnect_callback()
 
     def notification_handler(
         self, characteristic: BleakGATTCharacteristic, data: bytearray
@@ -135,6 +139,7 @@ class SesameBleDevice:
 
     def _cleanup(self) -> None:
         """Cleans up resources."""
+        self._is_expectedly_disconnected = False
         self._rx_buffer = b""
         self._sesame_advertisement_data = None
 
@@ -198,7 +203,12 @@ class SesameBleDevice:
         """Disconnect from Sesame device if connected."""
         if self._bleak_client.is_connected:
             logger.debug("Closing BLE connection [address=%s]", self.mac_address)
-            await self._bleak_client.disconnect()
+            self._is_expectedly_disconnected = True
+            try:
+                await self._bleak_client.disconnect()
+            finally:
+                self._cleanup()
+            logger.debug("BLE connection closed [address=%s]", self.mac_address)
         else:
             logger.debug(
                 "Skipping disconnect, device not connected [address=%s]",
