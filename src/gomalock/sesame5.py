@@ -262,11 +262,11 @@ class Sesame5:
         """
         if self.is_connected:
             raise SesameConnectionError("Already connected")
-        logger.info("Connecting to Sesame 5 [address=%s]", self._os3_device.mac_address)
+        logger.info("Connecting to Sesame 5 [address=%s]", self.mac_address)
         self._device_status = DeviceStatus.CONNECTING
         await self._os3_device.connect()
         self._device_status = DeviceStatus.CONNECTED
-        logger.info("Connected to Sesame 5 [address=%s]", self._os3_device.mac_address)
+        logger.info("Connected to Sesame 5 [address=%s]", self.mac_address)
 
     async def register(self) -> str:
         """Registers the device and retrieves the secret key.
