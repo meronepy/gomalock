@@ -12,7 +12,7 @@ class SesameError(Exception):
 
 
 class SesameConnectionError(SesameError):
-    """Exception raised when operating under improper connection conditions"""
+    """Exception raised when there is a connection issue with the Sesame device."""
 
 
 class SesameLoginError(SesameError):

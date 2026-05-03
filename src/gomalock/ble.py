@@ -9,10 +9,11 @@ import logging
 from typing import Callable
 
 from bleak import BleakClient
+from bleak.exc import BleakDeviceNotFoundError
 from bleak.backends.characteristic import BleakGATTCharacteristic
 
 from .const import MTU_SIZE, SCAN_TIMEOUT, UUID_NOTIFICATION, UUID_WRITE, PacketTypes
-from .exc import SesameConnectionError, SesameError
+from .exc import SesameConnectionError
 from .protocol import ReceivedSesamePacket, SesameAdvertisementData
 from .scanner import SesameScanner
 
@@ -117,7 +118,7 @@ class SesameBleDevice:
             The advertisement data from the Sesame device.
 
         Raises:
-            SesameError: If the scan times out.
+            SesameConnectionError: If the scan times out.
         """
 
         logger.debug(
@@ -129,7 +130,7 @@ class SesameBleDevice:
             self.mac_address, timeout=SCAN_TIMEOUT
         )
         if found_device is None:
-            raise SesameError(f"Device not found: {self.mac_address}")
+            raise SesameConnectionError(f"Device not found: {self.mac_address}")
         logger.debug(
             "Retrieved advertisement data [address=%s, model=%s]",
             self.mac_address,
@@ -147,14 +148,18 @@ class SesameBleDevice:
         """Connect to the Sesame BLE device.
 
         Raises:
-            SesameConnectionError: If already connected.
-            SesameError: If the device cannot be found during scanning.
+            SesameConnectionError: If already connected or connection fails.
         """
         if self._bleak_client.is_connected:
             raise SesameConnectionError("Already connected")
         logger.debug("Initiating BLE connection [address=%s]", self.mac_address)
         self._sesame_advertisement_data = await self._get_sesame_advertisement_data()
-        await self._bleak_client.connect()
+        try:
+            await self._bleak_client.connect()
+        except BleakDeviceNotFoundError as e:
+            raise SesameConnectionError(
+                f"Failed to connect to device: {self.mac_address}"
+            ) from e
         await self._bleak_client.start_notify(
             UUID_NOTIFICATION, self.notification_handler
         )
