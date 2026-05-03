@@ -13,7 +13,6 @@ from dataclasses import dataclass
 from typing import Callable, Self
 
 from .const import (
-    SESAME_TOUCH_LOGIN_PENDING_ITEMS,
     DeviceStatus,
     ItemCodes,
     KeyLevels,
@@ -111,7 +110,6 @@ class SesameTouch:
         """
         self._os3_device = OS3Device(mac_address, self._on_published)
         self._secret_key = secret_key
-        self._remaining_login_pending_items = set(SESAME_TOUCH_LOGIN_PENDING_ITEMS)
         self._login_completed = asyncio.Event()
         self._mech_status: SesameTouchMechStatus | None = None
         self._device_status = DeviceStatus.DISCONNECTED
@@ -149,20 +147,11 @@ class SesameTouch:
                     "Received unhandled publish notification [item=%s]",
                     publish_data.item_code.name,
                 )
-
-        if publish_data.item_code in self._remaining_login_pending_items:
-            self._remaining_login_pending_items.discard(publish_data.item_code)
-            logger.debug(
-                "Login pending item received [item=%s, remaining_items=%s]",
-                publish_data.item_code.name,
-                self._remaining_login_pending_items,
-            )
-            if not self._remaining_login_pending_items:
-                self._login_completed.set()
+        if not self._login_completed.is_set() and self._mech_status is not None:
+            self._login_completed.set()
 
     def _cleanup(self) -> None:
         """Cleans up resources."""
-        self._remaining_login_pending_items = set(SESAME_TOUCH_LOGIN_PENDING_ITEMS)
         self._login_completed = asyncio.Event()
         self._device_status = DeviceStatus.DISCONNECTED
         self._mech_status = None
