@@ -200,7 +200,6 @@ class OS3Device:
         )
         self._publish_data_callback = publish_data_callback
         self._unexpected_disconnect_callback = unexpected_disconnect_callback
-        self._is_logged_in = False
         self._send_lock = asyncio.Lock()
         self._response_futures: dict[
             ItemCodes, asyncio.Future[ReceivedSesameResponse]
@@ -302,7 +301,6 @@ class OS3Device:
         self._response_futures.clear()
         self._session_token_future = None
         self._cipher = None
-        self._is_logged_in = False
 
     async def send_command(
         self, command: SesameCommand, should_encrypt: bool
@@ -422,7 +420,7 @@ class OS3Device:
             SesameLoginError: If already logged in.
             SesameOperationError: If the login operation fails.
         """
-        if self._is_logged_in:
+        if self._cipher is not None:
             raise SesameLoginError("Already logged in")
         if self._session_token_future is None:
             raise SesameConnectionError("Connection has not been established")
@@ -435,7 +433,6 @@ class OS3Device:
         response = await self.send_command(
             SesameCommand(ItemCodes.LOGIN, session_key[:4]), False
         )
-        self._is_logged_in = True
         timestamp = int.from_bytes(response.payload, "little")
         logger.debug(
             "Login completed [address=%s, timestamp=%d]", self.mac_address, timestamp
