@@ -54,6 +54,7 @@ class SesameBleDevice:
         self,
         mac_address: str,
         received_data_callback: Callable[[bytes, bool], None],
+        disconnected_callback: Callable[[], None],
     ) -> None:
         """Initialize the SesameBleDevice.
 
@@ -61,10 +62,22 @@ class SesameBleDevice:
             mac_address: The MAC address of the Sesame device.
             received_data_callback: Callback for received data.
         """
-        self._bleak_client = BleakClient(mac_address)
+        self._bleak_client = BleakClient(mac_address, self.on_disconnected)
         self._received_data_callback = received_data_callback
+        self._disconnected_callback = disconnected_callback
         self._rx_buffer = b""
         self._sesame_advertisement_data: SesameAdvertisementData | None = None
+
+    def on_disconnected(self, client: BleakClient) -> None:
+        """Handles BLE disconnection events.
+
+        Args:
+            client: The BleakClient instance that was disconnected.
+        """
+        del client  # Unused by Sesame.
+        logger.debug("BLE connection closed [address=%s]", self.mac_address)
+        self._cleanup()
+        self._disconnected_callback()
 
     def notification_handler(
         self, characteristic: BleakGATTCharacteristic, data: bytearray
@@ -135,7 +148,6 @@ class SesameBleDevice:
         if self._bleak_client.is_connected:
             raise SesameConnectionError("Already connected")
         logger.debug("Initiating BLE connection [address=%s]", self.mac_address)
-        self._cleanup()
         self._sesame_advertisement_data = await self._get_sesame_advertisement_data()
         await self._bleak_client.connect()
         await self._bleak_client.start_notify(
@@ -183,14 +195,10 @@ class SesameBleDevice:
             await self._bleak_client.write_gatt_char(UUID_WRITE, packet, response=False)
 
     async def disconnect(self) -> None:
-        """Disconnect from Sesame device if connected and always clean up resources."""
+        """Disconnect from Sesame device if connected."""
         if self._bleak_client.is_connected:
             logger.debug("Closing BLE connection [address=%s]", self.mac_address)
-            try:
-                await self._bleak_client.disconnect()
-                logger.debug("BLE connection closed [address=%s]", self.mac_address)
-            finally:
-                self._cleanup()
+            await self._bleak_client.disconnect()
         else:
             logger.debug(
                 "Skipping disconnect, device not connected [address=%s]",

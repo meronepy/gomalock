@@ -141,7 +141,9 @@ class Sesame5:
             secret_key: The secret key for login.
             mech_status_callback: A callable that is called when the mechanical status is updated.
         """
-        self._os3_device = OS3Device(mac_address, self._on_published)
+        self._os3_device = OS3Device(
+            mac_address, self.on_published, self.on_disconnected
+        )
         self._secret_key = secret_key
         self._login_completed = asyncio.Event()
         self._mech_status: Sesame5MechStatus | None = None
@@ -162,7 +164,12 @@ class Sesame5:
     async def __aexit__(self, exc_type, exc_value, traceback) -> None:
         await self.disconnect()
 
-    def _on_published(self, publish_data: ReceivedSesamePublish) -> None:
+    def on_disconnected(self) -> None:
+        """Handles device disconnection events."""
+        logger.info("Disconnected from Sesame 5 [address=%s]", self.mac_address)
+        self._cleanup()
+
+    def on_published(self, publish_data: ReceivedSesamePublish) -> None:
         """Handles published data from the device.
 
         Args:
@@ -252,7 +259,6 @@ class Sesame5:
         if self.is_connected:
             raise SesameConnectionError("Already connected")
         logger.info("Connecting to Sesame 5 [address=%s]", self._os3_device.mac_address)
-        self._cleanup()
         self._device_status = DeviceStatus.CONNECTING
         await self._os3_device.connect()
         self._device_status = DeviceStatus.CONNECTED
@@ -313,11 +319,7 @@ class Sesame5:
         if self.is_connected:
             logger.info("Disconnecting from Sesame 5 [address=%s]", self.mac_address)
             self._device_status = DeviceStatus.DISCONNECTING
-            try:
-                await self._os3_device.disconnect()
-                logger.info("Disconnected from Sesame 5 [address=%s]", self.mac_address)
-            finally:
-                self._cleanup()
+            await self._os3_device.disconnect()
         else:
             logger.debug(
                 "Skipping disconnect, device not connected [address=%s]",

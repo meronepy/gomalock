@@ -74,7 +74,7 @@ class TestSesame5PublishHandling:
             0,
             const.MechStatusBitFlags.IS_IN_LOCK_RANGE,
         )
-        device._on_published(
+        device.on_published(
             protocol.ReceivedSesamePublish(const.ItemCodes.MECH_STATUS, status_payload)
         )
         callback.assert_called_once()
