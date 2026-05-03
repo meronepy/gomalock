@@ -145,7 +145,7 @@ class Sesame5:
             mac_address, self.on_published, self.on_disconnected
         )
         self._secret_key = secret_key
-        self._login_completed = asyncio.Event()
+        self._login_completed: asyncio.Event | None = None
         self._mech_status: Sesame5MechStatus | None = None
         self._mech_setting: Sesame5MechSetting | None = None
         self._device_status = DeviceStatus.DISCONNECTED
@@ -166,8 +166,8 @@ class Sesame5:
 
     def on_disconnected(self) -> None:
         """Handles device disconnection events."""
-        logger.info("Disconnected from Sesame 5 [address=%s]", self.mac_address)
         self._cleanup()
+        logger.info("Disconnected from Sesame 5 [address=%s]", self.mac_address)
 
     def on_published(self, publish_data: ReceivedSesamePublish) -> None:
         """Handles published data from the device.
@@ -194,7 +194,8 @@ class Sesame5:
                     publish_data.item_code.name,
                 )
         if (
-            not self._login_completed.is_set()
+            self._login_completed is not None
+            and not self._login_completed.is_set()
             and self._mech_status is not None
             and self._mech_setting is not None
         ):
@@ -224,10 +225,10 @@ class Sesame5:
 
     def _cleanup(self) -> None:
         """Cleans up resources."""
-        self._login_completed = asyncio.Event()
-        self._device_status = DeviceStatus.DISCONNECTED
+        self._login_completed = None
         self._mech_status = None
         self._mech_setting = None
+        self._device_status = DeviceStatus.DISCONNECTED
 
     def register_mech_status_callback(
         self, callback: Callable[[Sesame5, Sesame5MechStatus], None]
@@ -304,6 +305,7 @@ class Sesame5:
             raise SesameLoginError("A secret key is required for login")
         logger.info("Logging in to Sesame 5 [address=%s]", self.mac_address)
         self._device_status = DeviceStatus.LOGGING_IN
+        self._login_completed = asyncio.Event()
         timestamp = await self._os3_device.login(bytes.fromhex(secret_key))
         await self._login_completed.wait()
         self._device_status = DeviceStatus.LOGGED_IN

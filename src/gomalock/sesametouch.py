@@ -108,9 +108,11 @@ class SesameTouch:
             secret_key: The secret key for login.
             mech_status_callback: A callable that is called when the mechanical status is updated.
         """
-        self._os3_device = OS3Device(mac_address, self._on_published)
+        self._os3_device = OS3Device(
+            mac_address, self._on_published, self.on_disconnected
+        )
         self._secret_key = secret_key
-        self._login_completed = asyncio.Event()
+        self._login_completed: asyncio.Event | None = None
         self._mech_status: SesameTouchMechStatus | None = None
         self._device_status = DeviceStatus.DISCONNECTED
         self._mech_status_callbacks: dict[
@@ -127,6 +129,11 @@ class SesameTouch:
 
     async def __aexit__(self, exc_type, exc_value, traceback) -> None:
         await self.disconnect()
+
+    def on_disconnected(self) -> None:
+        """Handles device disconnection events."""
+        self._cleanup()
+        logger.info("Disconnected from Sesame Touch [address=%s]", self.mac_address)
 
     def _on_published(self, publish_data: ReceivedSesamePublish) -> None:
         """Handles published data from the device.
@@ -147,14 +154,18 @@ class SesameTouch:
                     "Received unhandled publish notification [item=%s]",
                     publish_data.item_code.name,
                 )
-        if not self._login_completed.is_set() and self._mech_status is not None:
+        if (
+            self._login_completed is not None
+            and not self._login_completed.is_set()
+            and self._mech_status is not None
+        ):
             self._login_completed.set()
 
     def _cleanup(self) -> None:
         """Cleans up resources."""
-        self._login_completed = asyncio.Event()
-        self._device_status = DeviceStatus.DISCONNECTED
+        self._login_completed = None
         self._mech_status = None
+        self._device_status = DeviceStatus.DISCONNECTED
 
     def register_mech_status_callback(
         self, callback: Callable[[SesameTouch, SesameTouchMechStatus], None]
@@ -188,7 +199,6 @@ class SesameTouch:
         logger.info(
             "Connecting to Sesame Touch [address=%s]", self._os3_device.mac_address
         )
-        self._cleanup()
         self._device_status = DeviceStatus.CONNECTING
         await self._os3_device.connect()
         self._device_status = DeviceStatus.CONNECTED
@@ -233,6 +243,7 @@ class SesameTouch:
             raise SesameLoginError("A secret key is required for login")
         logger.info("Logging in to Sesame Touch [address=%s]", self.mac_address)
         self._device_status = DeviceStatus.LOGGING_IN
+        self._login_completed = asyncio.Event()
         await self._os3_device.login(bytes.fromhex(secret_key))
         await self._login_completed.wait()
         self._device_status = DeviceStatus.LOGGED_IN
@@ -245,13 +256,7 @@ class SesameTouch:
                 "Disconnecting from Sesame Touch [address=%s]", self.mac_address
             )
             self._device_status = DeviceStatus.DISCONNECTING
-            try:
-                await self._os3_device.disconnect()
-                logger.info(
-                    "Disconnected from Sesame Touch [address=%s]", self.mac_address
-                )
-            finally:
-                self._cleanup()
+            await self._os3_device.disconnect()
         else:
             logger.debug(
                 "Skipping disconnect, device not connected [address=%s]",
