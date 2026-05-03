@@ -132,7 +132,7 @@ class SesameTouch:
 
     def on_unexpected_disconnect(self) -> None:
         """Handles unexpected disconnection events."""
-        logger.warning(
+        logger.error(
             "Unexpected Sesame Touch disconnection [address=%s]", self.mac_address
         )
         self._cleanup()
@@ -219,6 +219,7 @@ class SesameTouch:
         """
         if not self.is_connected:
             raise SesameConnectionError("Not connected")
+        logger.info("Starting device registration [address=%s]", self.mac_address)
         secret_key = await self._os3_device.register()
         return secret_key.hex()
 

@@ -166,7 +166,7 @@ class Sesame5:
 
     def on_unexpected_disconnect(self) -> None:
         """Handles unexpected disconnection events."""
-        logger.warning(
+        logger.error(
             "Unexpected Sesame 5 disconnection [address=%s]", self.mac_address
         )
         self._cleanup()
@@ -282,6 +282,7 @@ class Sesame5:
         """
         if not self.is_connected:
             raise SesameConnectionError("Not connected")
+        logger.info("Starting device registration [address=%s]", self.mac_address)
         secret_key = await self._os3_device.register()
         return secret_key.hex()
 

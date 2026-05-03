@@ -80,7 +80,7 @@ class SesameBleDevice:
         del client  # Unused by Sesame.
         if self._is_expectedly_disconnected:
             return
-        logger.warning("Unexpected BLE disconnection [address=%s]", self.mac_address)
+        logger.debug("Unexpected BLE disconnection [address=%s]", self.mac_address)
         self._cleanup()
         self._unexpected_disconnect_callback()
 

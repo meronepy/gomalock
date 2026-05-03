@@ -53,11 +53,6 @@ class SesameScanner:
         manufacturer_data = adv_data.manufacturer_data[COMPANY_ID]
         model_id = int.from_bytes(manufacturer_data[0:2], byteorder="little")
         if model_id not in ProductModels:
-            logger.debug(
-                "Skipping unsupported device [address=%s, model_id=%d]",
-                device.address,
-                model_id,
-            )
             return
         logger.debug(
             "Detected Sesame device [address=%s, model=%s]",
@@ -83,14 +78,14 @@ class SesameScanner:
 
         Starts BLE scanning and clears previously detected devices.
         """
-        logger.debug("Starting BLE scanner for Sesame devices")
+        logger.info("Starting BLE scanner for Sesame devices")
         self._seen_devices.clear()
         await self._scanner.start()
 
     async def stop(self) -> None:
         """Stop scanning for Sesame devices."""
         await self._scanner.stop()
-        logger.debug("BLE scanner stopped [devices_found=%d]", len(self._seen_devices))
+        logger.info("BLE scanner stopped [devices_found=%d]", len(self._seen_devices))
 
     def register_detection_callback(
         self, callback: Callable[[str, SesameAdvertisementData], None]

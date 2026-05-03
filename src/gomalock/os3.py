@@ -210,7 +210,7 @@ class OS3Device:
 
     def on_unexpected_disconnect(self) -> None:
         """Handles unexpected disconnection events."""
-        logger.warning(
+        logger.debug(
             "Unexpected OS3 device disconnection [address=%s]", self.mac_address
         )
         self._cleanup()
@@ -230,7 +230,7 @@ class OS3Device:
             # after sending REGISTRATION command, for some reason sometimes receive
             # encrypted packets before login.
             if self._cipher is None:
-                logger.debug(
+                logger.warning(
                     "Ignoring encrypted data received before cipher initialization"
                 )
                 return
@@ -265,10 +265,12 @@ class OS3Device:
         )
         response_future = self._response_futures.pop(response_data.item_code, None)
         if response_future is None:
-            raise SesameError(
-                f"Unexpected response received: "
-                f"item={response_data.item_code.name}, result={response_data.result_code.name}"
+            logger.warning(
+                "Received unexpected response [ItemCodes=%s, result=%s]",
+                response_data.item_code.name,
+                response_data.result_code.name,
             )
+            return
         response_future.set_result(response_data)
 
     def _handle_publish(self, publish_data: ReceivedSesamePublish) -> None:
@@ -282,7 +284,10 @@ class OS3Device:
         )
         if publish_data.item_code == ItemCodes.INITIAL:
             if self._session_token_future is None:
-                raise SesameConnectionError("Connection has not been established")
+                logger.warning(
+                    "Received initial publish data without a pending session token request"
+                )
+                return
             logger.debug("Session token received")
             self._session_token_future.set_result(publish_data.payload)
         else:
@@ -390,7 +395,6 @@ class OS3Device:
         """
         if self.sesame_advertisement_data.is_registered:
             raise SesameError("Device is already registered")
-        logger.info("Starting device registration [address=%s]", self.mac_address)
         app_protocol_public_key, app_private_key = generate_app_keys()
         timestamp = int(time.time()).to_bytes(4, "little")
         response = await self.send_command(
@@ -400,9 +404,6 @@ class OS3Device:
         device_protocol_public_key = response.payload[13:77]
         secret_key = generate_device_secret_key(
             device_protocol_public_key, app_private_key
-        )
-        logger.info(
-            "Device registration completed successfully [address=%s]", self.mac_address
         )
         return secret_key
 
