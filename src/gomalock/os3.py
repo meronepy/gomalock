@@ -266,7 +266,7 @@ class OS3Device:
             response_data.result_code.name,
         )
         response_future = self._response_futures.pop(response_data.item_code, None)
-        if response_future is None:
+        if response_future is None or response_future.done():
             logger.warning(
                 "Received unexpected response [ItemCodes=%s, result=%s]",
                 response_data.item_code.name,
@@ -285,7 +285,7 @@ class OS3Device:
             "Received publish notification [item=%s]", publish_data.item_code.name
         )
         if publish_data.item_code == ItemCodes.INITIAL:
-            if self._session_token_future is None:
+            if self._session_token_future is None or self._session_token_future.done():
                 logger.warning(
                     "Received initial publish data without a pending session token request"
                 )
