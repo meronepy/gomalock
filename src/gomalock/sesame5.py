@@ -174,7 +174,9 @@ class Sesame5:
         """Handles unexpected disconnection events."""
         logger.error("Unexpected Sesame 5 disconnection [address=%s]", self.mac_address)
         self._cleanup()
-        if self._auto_reconnection_limit > 0:
+        if self._auto_reconnection_limit > 0 and (
+            self._reconnect_task is None or self._reconnect_task.done()
+        ):
             logger.info(
                 "Starting auto-reconnection [address=%s, limit=%d]",
                 self.mac_address,

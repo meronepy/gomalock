@@ -5,6 +5,7 @@ Sesame devices using the Bleak library. It handles device scanning, connection,
 service discovery, notification handling, and data transmission.
 """
 
+import asyncio
 import logging
 from typing import Callable
 
@@ -68,6 +69,7 @@ class SesameBleDevice:
         self._received_data_callback = received_data_callback
         self._unexpected_disconnect_callback = unexpected_disconnect_callback
         self._is_expectedly_disconnected = False
+        self._clean_disconnect_task: asyncio.Task | None = None
         self._rx_buffer = b""
         self._sesame_advertisement_data: SesameAdvertisementData | None = None
 
@@ -77,12 +79,23 @@ class SesameBleDevice:
         Args:
             client: The BleakClient instance that was disconnected.
         """
-        del client  # Unused by Sesame.
+        del client  # Unused in this callback.
         if self._is_expectedly_disconnected:
+            self._is_expectedly_disconnected = False
             return
         logger.debug("Unexpected BLE disconnection [address=%s]", self.mac_address)
-        self._cleanup()
-        self._unexpected_disconnect_callback()
+        if self._clean_disconnect_task is None:
+            self._clean_disconnect_task = asyncio.create_task(
+                self._bleak_client.disconnect()
+            )
+
+            def on_clean_disconnect_done(task: asyncio.Task) -> None:
+                del task  # Unused in this callback.
+                self._clean_disconnect_task = None
+                self._cleanup()
+                self._unexpected_disconnect_callback()
+
+            self._clean_disconnect_task.add_done_callback(on_clean_disconnect_done)
 
     def notification_handler(
         self, characteristic: BleakGATTCharacteristic, data: bytearray
@@ -140,7 +153,6 @@ class SesameBleDevice:
 
     def _cleanup(self) -> None:
         """Cleans up resources."""
-        self._is_expectedly_disconnected = False
         self._rx_buffer = b""
         self._sesame_advertisement_data = None
 
