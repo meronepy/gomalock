@@ -26,7 +26,7 @@ from .const import (
     BATTERY_PERCENTAGES,
     HISTORY_TAG_MAX_LEN,
     RESPONSE_TIMEOUT,
-    SESSION_TOKEN_TIMEOUT,
+    PUBLISH_TIMEOUT,
     VOLTAGE_LEVELS,
     ItemCodes,
     KeyLevels,
@@ -370,8 +370,8 @@ class OS3Device:
         )
         self._session_token_future = asyncio.get_running_loop().create_future()
         await self._ble_device.connect_and_start_notification()
-        logger.debug("Waiting for session token [timeout=%ds]", SESSION_TOKEN_TIMEOUT)
-        await asyncio.wait_for(self._session_token_future, SESSION_TOKEN_TIMEOUT)
+        logger.debug("Waiting for session token [timeout=%ds]", PUBLISH_TIMEOUT)
+        await asyncio.wait_for(self._session_token_future, PUBLISH_TIMEOUT)
         logger.debug(
             "OS3 protocol connection established [address=%s]", self.mac_address
         )
