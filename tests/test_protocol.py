@@ -87,58 +87,42 @@ class TestReceivedSesamePacketProperties:
 
     def test_is_beginning_true(self) -> None:
         """Returns True when BEGINNING flag is set."""
-        packet = protocol.ReceivedSesamePacket(
-            const.PacketTypes.BEGINNING, b""
-        )
+        packet = protocol.ReceivedSesamePacket(const.PacketTypes.BEGINNING, b"")
         assert packet.is_beginning is True
 
     def test_is_beginning_false(self) -> None:
         """Returns False when BEGINNING flag is not set."""
-        packet = protocol.ReceivedSesamePacket(
-            const.PacketTypes.PLAINTEXT_END, b""
-        )
+        packet = protocol.ReceivedSesamePacket(const.PacketTypes.PLAINTEXT_END, b"")
         assert packet.is_beginning is False
 
     def test_is_end_plaintext(self) -> None:
         """Returns True when PLAINTEXT_END flag is set."""
-        packet = protocol.ReceivedSesamePacket(
-            const.PacketTypes.PLAINTEXT_END, b""
-        )
+        packet = protocol.ReceivedSesamePacket(const.PacketTypes.PLAINTEXT_END, b"")
         assert packet.is_end is True
 
     def test_is_end_encrypted(self) -> None:
         """Returns True when ENCRYPTED_END flag is set."""
-        packet = protocol.ReceivedSesamePacket(
-            const.PacketTypes.ENCRYPTED_END, b""
-        )
+        packet = protocol.ReceivedSesamePacket(const.PacketTypes.ENCRYPTED_END, b"")
         assert packet.is_end is True
 
     def test_is_end_false(self) -> None:
         """Returns False when neither end flag is set."""
-        packet = protocol.ReceivedSesamePacket(
-            const.PacketTypes.BEGINNING, b""
-        )
+        packet = protocol.ReceivedSesamePacket(const.PacketTypes.BEGINNING, b"")
         assert packet.is_end is False
 
     def test_is_encrypted_true(self) -> None:
         """Returns True when ENCRYPTED_END flag is set."""
-        packet = protocol.ReceivedSesamePacket(
-            const.PacketTypes.ENCRYPTED_END, b""
-        )
+        packet = protocol.ReceivedSesamePacket(const.PacketTypes.ENCRYPTED_END, b"")
         assert packet.is_encrypted is True
 
     def test_is_encrypted_false_plaintext(self) -> None:
         """Returns False when only PLAINTEXT_END flag is set."""
-        packet = protocol.ReceivedSesamePacket(
-            const.PacketTypes.PLAINTEXT_END, b""
-        )
+        packet = protocol.ReceivedSesamePacket(const.PacketTypes.PLAINTEXT_END, b"")
         assert packet.is_encrypted is False
 
     def test_is_encrypted_false_beginning(self) -> None:
         """Returns False when only BEGINNING flag is set."""
-        packet = protocol.ReceivedSesamePacket(
-            const.PacketTypes.BEGINNING, b""
-        )
+        packet = protocol.ReceivedSesamePacket(const.PacketTypes.BEGINNING, b"")
         assert packet.is_encrypted is False
 
 
@@ -162,7 +146,7 @@ class TestReceivedSesameMessage:
     def test_from_reassembled_data_invalid_opcode_raises(self) -> None:
         """Raises ValueError for invalid opcode."""
         with pytest.raises(ValueError):
-            protocol.ReceivedSesameMessage.from_reassembled_data(b"\xFF")
+            protocol.ReceivedSesameMessage.from_reassembled_data(b"\xff")
 
 
 class TestReceivedSesameResponse:
@@ -190,7 +174,7 @@ class TestReceivedSesameResponse:
     def test_from_sesame_message_invalid_item_code_raises(self) -> None:
         """Raises ValueError for unknown item code."""
         with pytest.raises(ValueError):
-            protocol.ReceivedSesameResponse.from_sesame_message(b"\xFF\x00")
+            protocol.ReceivedSesameResponse.from_sesame_message(b"\xff\x00")
 
 
 class TestReceivedSesamePublish:
@@ -198,10 +182,7 @@ class TestReceivedSesamePublish:
 
     def test_from_sesame_message_valid(self) -> None:
         """Parses item code and payload."""
-        data = (
-            const.ItemCodes.MECH_STATUS.value.to_bytes(1, "little")
-            + b"payload"
-        )
+        data = const.ItemCodes.MECH_STATUS.value.to_bytes(1, "little") + b"payload"
 
         result = protocol.ReceivedSesamePublish.from_sesame_message(data)
 
@@ -216,7 +197,7 @@ class TestReceivedSesamePublish:
     def test_from_sesame_message_invalid_item_code_raises(self) -> None:
         """Raises ValueError for unknown item code."""
         with pytest.raises(ValueError):
-            protocol.ReceivedSesamePublish.from_sesame_message(b"\xFF")
+            protocol.ReceivedSesamePublish.from_sesame_message(b"\xff")
 
 
 class TestSesameCommand:

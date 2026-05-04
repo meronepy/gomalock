@@ -18,19 +18,13 @@ def _make_os3_device(mocker: MockerFixture, *, is_connected: bool = False):
     mock_ble.write_gatt = mocker.AsyncMock()
     mock_ble.connect_and_start_notification = mocker.AsyncMock()
     mock_ble.disconnect = mocker.AsyncMock()
-    type(mock_ble).is_connected = mocker.PropertyMock(
-        return_value=is_connected
-    )
-    type(mock_ble).mac_address = mocker.PropertyMock(
-        return_value="AA:BB:CC:DD:EE:FF"
-    )
+    type(mock_ble).is_connected = mocker.PropertyMock(return_value=is_connected)
+    type(mock_ble).mac_address = mocker.PropertyMock(return_value="AA:BB:CC:DD:EE:FF")
     type(mock_ble).sesame_advertisement_data = mocker.PropertyMock(
         return_value=mocker.Mock(is_registered=False)
     )
     mocker.patch("gomalock.os3.SesameBleDevice", return_value=mock_ble)
-    device = os3.OS3Device(
-        "AA:BB:CC:DD:EE:FF", publish_cb, disconnect_cb
-    )
+    device = os3.OS3Device("AA:BB:CC:DD:EE:FF", publish_cb, disconnect_cb)
     return device, mock_ble, publish_cb, disconnect_cb
 
 
@@ -39,9 +33,7 @@ class TestCalculateBatteryPercentage:
 
     def test_calculate_battery_percentage_above_max(self) -> None:
         """Voltage above max returns highest percentage."""
-        result = os3.calculate_battery_percentage(
-            const.VOLTAGE_LEVELS[0] + 1.0
-        )
+        result = os3.calculate_battery_percentage(const.VOLTAGE_LEVELS[0] + 1.0)
         assert result == int(const.BATTERY_PERCENTAGES[0])
 
     def test_calculate_battery_percentage_at_max(self) -> None:
@@ -56,9 +48,7 @@ class TestCalculateBatteryPercentage:
 
     def test_calculate_battery_percentage_below_min(self) -> None:
         """Voltage below min returns lowest percentage."""
-        result = os3.calculate_battery_percentage(
-            const.VOLTAGE_LEVELS[-1] - 1.0
-        )
+        result = os3.calculate_battery_percentage(const.VOLTAGE_LEVELS[-1] - 1.0)
         assert result == int(const.BATTERY_PERCENTAGES[-1])
 
     def test_calculate_battery_percentage_interpolates(self) -> None:
@@ -128,9 +118,7 @@ class TestOS3QRCode:
         assert parsed.product_model == info.product_model
         assert parsed.device_uuid == info.device_uuid
         assert parsed.secret_key == info.secret_key
-        assert parsed.registration_session_token == (
-            info.registration_session_token
-        )
+        assert parsed.registration_session_token == (info.registration_session_token)
         assert parsed.key_index == info.key_index
 
     def test_from_qr_url_invalid_key_level_raises(self) -> None:
@@ -179,17 +167,13 @@ class TestOS3DeviceOnReceived:
         mock_from.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_on_received_dispatches_response(
-        self, mocker: MockerFixture
-    ) -> None:
+    async def test_on_received_dispatches_response(self, mocker: MockerFixture) -> None:
         """Encrypted response data is decrypted and dispatched."""
         device, _, _, _ = _make_os3_device(mocker)
         device._cipher = mocker.Mock()
         device._cipher.decrypt.return_value = b"decrypted"
 
-        mock_msg = mocker.Mock(
-            op_code=const.OpCodes.RESPONSE, payload=b"resp_payload"
-        )
+        mock_msg = mocker.Mock(op_code=const.OpCodes.RESPONSE, payload=b"resp_payload")
         mocker.patch.object(
             os3.ReceivedSesameMessage,
             "from_reassembled_data",
@@ -212,15 +196,11 @@ class TestOS3DeviceOnReceived:
         device._cipher.decrypt.assert_called_once_with(b"encrypted")
         assert future.result() is mock_response
 
-    def test_on_received_dispatches_publish(
-        self, mocker: MockerFixture
-    ) -> None:
+    def test_on_received_dispatches_publish(self, mocker: MockerFixture) -> None:
         """Plaintext publish data is dispatched to callback."""
         device, _, publish_cb, _ = _make_os3_device(mocker)
 
-        mock_msg = mocker.Mock(
-            op_code=const.OpCodes.PUBLISH, payload=b"pub_payload"
-        )
+        mock_msg = mocker.Mock(op_code=const.OpCodes.PUBLISH, payload=b"pub_payload")
         mocker.patch.object(
             os3.ReceivedSesameMessage,
             "from_reassembled_data",
@@ -245,9 +225,7 @@ class TestOS3DeviceOnReceived:
         device, _, _, _ = _make_os3_device(mocker)
         device._session_token_future = asyncio.get_running_loop().create_future()
 
-        mock_msg = mocker.Mock(
-            op_code=const.OpCodes.PUBLISH, payload=b"pub_payload"
-        )
+        mock_msg = mocker.Mock(op_code=const.OpCodes.PUBLISH, payload=b"pub_payload")
         mocker.patch.object(
             os3.ReceivedSesameMessage,
             "from_reassembled_data",
@@ -272,17 +250,13 @@ class TestOS3DeviceOnReceived:
         """INITIAL publish without pending future is silently ignored."""
         device, _, publish_cb, _ = _make_os3_device(mocker)
 
-        mock_msg = mocker.Mock(
-            op_code=const.OpCodes.PUBLISH, payload=b"pub_payload"
-        )
+        mock_msg = mocker.Mock(op_code=const.OpCodes.PUBLISH, payload=b"pub_payload")
         mocker.patch.object(
             os3.ReceivedSesameMessage,
             "from_reassembled_data",
             return_value=mock_msg,
         )
-        mock_publish = protocol.ReceivedSesamePublish(
-            const.ItemCodes.INITIAL, b"token"
-        )
+        mock_publish = protocol.ReceivedSesamePublish(const.ItemCodes.INITIAL, b"token")
         mocker.patch.object(
             os3.ReceivedSesamePublish,
             "from_sesame_message",
@@ -299,9 +273,7 @@ class TestOS3DeviceOnReceived:
         """Unsupported opcodes do not dispatch to handlers."""
         device, _, publish_cb, _ = _make_os3_device(mocker)
 
-        mock_msg = mocker.Mock(
-            op_code=const.OpCodes.CREATE, payload=b"payload"
-        )
+        mock_msg = mocker.Mock(op_code=const.OpCodes.CREATE, payload=b"payload")
         mocker.patch.object(
             os3.ReceivedSesameMessage,
             "from_reassembled_data",
@@ -333,9 +305,7 @@ class TestOS3DeviceSendCommand:
     """Tests for OS3Device.send_command method."""
 
     @pytest.mark.asyncio
-    async def test_send_command_success(
-        self, mocker: MockerFixture
-    ) -> None:
+    async def test_send_command_success(self, mocker: MockerFixture) -> None:
         """Sends command and returns successful response."""
         device, mock_ble, _, _ = _make_os3_device(mocker)
         command = protocol.SesameCommand(const.ItemCodes.LOGIN, b"data")
@@ -345,17 +315,13 @@ class TestOS3DeviceSendCommand:
 
         async def complete_response():
             await asyncio.sleep(0)
-            device._response_futures[const.ItemCodes.LOGIN].set_result(
-                response
-            )
+            device._response_futures[const.ItemCodes.LOGIN].set_result(response)
 
         asyncio.create_task(complete_response())
         result = await device.send_command(command, False)
 
         assert result is response
-        mock_ble.write_gatt.assert_awaited_once_with(
-            command.transmission_data, False
-        )
+        mock_ble.write_gatt.assert_awaited_once_with(command.transmission_data, False)
 
     @pytest.mark.asyncio
     async def test_send_command_encrypts_when_requested(
@@ -372,9 +338,7 @@ class TestOS3DeviceSendCommand:
 
         async def complete_response():
             await asyncio.sleep(0)
-            device._response_futures[const.ItemCodes.USER].set_result(
-                response
-            )
+            device._response_futures[const.ItemCodes.USER].set_result(response)
 
         asyncio.create_task(complete_response())
         result = await device.send_command(command, True)
@@ -406,9 +370,7 @@ class TestOS3DeviceSendCommand:
 
         async def complete_response():
             await asyncio.sleep(0)
-            device._response_futures[const.ItemCodes.LOGIN].set_result(
-                error_response
-            )
+            device._response_futures[const.ItemCodes.LOGIN].set_result(error_response)
 
         asyncio.create_task(complete_response())
 
@@ -440,9 +402,7 @@ class TestOS3DeviceConnect:
         self, mocker: MockerFixture
     ) -> None:
         """Raises SesameConnectionError if already connected."""
-        device, mock_ble, _, _ = _make_os3_device(
-            mocker, is_connected=True
-        )
+        device, mock_ble, _, _ = _make_os3_device(mocker, is_connected=True)
 
         with pytest.raises(exc.SesameConnectionError):
             await device.connect()
@@ -462,7 +422,8 @@ class TestOS3DeviceRegister:
         )
         mock_pub_key = b"\x11" * 64
         mocker.patch.object(
-            os3, "generate_app_keys",
+            os3,
+            "generate_app_keys",
             return_value=(mock_pub_key, mocker.Mock()),
         )
         mocker.patch.object(
@@ -515,9 +476,7 @@ class TestOS3DeviceLogin:
         device._session_token_future.set_result(session_token)
 
         mock_session_key = b"\x11" * 16
-        mocker.patch.object(
-            os3, "generate_session_key", return_value=mock_session_key
-        )
+        mocker.patch.object(os3, "generate_session_key", return_value=mock_session_key)
         mock_cipher = mocker.Mock()
         mocker.patch.object(os3, "OS3Cipher", return_value=mock_cipher)
 
@@ -533,16 +492,12 @@ class TestOS3DeviceLogin:
         assert result == 987654321
         assert device._cipher is mock_cipher
         device.send_command.assert_awaited_once_with(
-            protocol.SesameCommand(
-                const.ItemCodes.LOGIN, mock_session_key[:4]
-            ),
+            protocol.SesameCommand(const.ItemCodes.LOGIN, mock_session_key[:4]),
             False,
         )
 
     @pytest.mark.asyncio
-    async def test_login_already_logged_in_raises(
-        self, mocker: MockerFixture
-    ) -> None:
+    async def test_login_already_logged_in_raises(self, mocker: MockerFixture) -> None:
         """Raises SesameLoginError if already logged in."""
         device, _, _, _ = _make_os3_device(mocker)
         device._cipher = mocker.Mock()
@@ -551,9 +506,7 @@ class TestOS3DeviceLogin:
             await device.login(b"\x00" * 16)
 
     @pytest.mark.asyncio
-    async def test_login_without_connection_raises(
-        self, mocker: MockerFixture
-    ) -> None:
+    async def test_login_without_connection_raises(self, mocker: MockerFixture) -> None:
         """Raises SesameConnectionError without prior connect."""
         device, _, _, _ = _make_os3_device(mocker)
 
@@ -565,13 +518,9 @@ class TestOS3DeviceDisconnect:
     """Tests for OS3Device.disconnect method."""
 
     @pytest.mark.asyncio
-    async def test_disconnect_when_connected(
-        self, mocker: MockerFixture
-    ) -> None:
+    async def test_disconnect_when_connected(self, mocker: MockerFixture) -> None:
         """Disconnects BLE and cleans up."""
-        device, mock_ble, _, _ = _make_os3_device(
-            mocker, is_connected=True
-        )
+        device, mock_ble, _, _ = _make_os3_device(mocker, is_connected=True)
         device._cipher = mocker.Mock()
 
         await device.disconnect()
@@ -580,13 +529,9 @@ class TestOS3DeviceDisconnect:
         assert device._cipher is None
 
     @pytest.mark.asyncio
-    async def test_disconnect_when_not_connected(
-        self, mocker: MockerFixture
-    ) -> None:
+    async def test_disconnect_when_not_connected(self, mocker: MockerFixture) -> None:
         """Does nothing when already disconnected."""
-        device, mock_ble, _, _ = _make_os3_device(
-            mocker, is_connected=False
-        )
+        device, mock_ble, _, _ = _make_os3_device(mocker, is_connected=False)
 
         await device.disconnect()
 
@@ -608,9 +553,7 @@ class TestOS3DeviceProperties:
 
         assert device.is_connected is True
 
-    def test_sesame_advertisement_data_delegates(
-        self, mocker: MockerFixture
-    ) -> None:
+    def test_sesame_advertisement_data_delegates(self, mocker: MockerFixture) -> None:
         """Delegates to BLE device's sesame_advertisement_data."""
         device, mock_ble, _, _ = _make_os3_device(mocker)
         mock_adv = mocker.Mock()

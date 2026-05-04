@@ -7,18 +7,14 @@ from gomalock import cipher
 class TestGenerateAppKeys:
     """Tests for the generate_app_keys function."""
 
-    def test_generate_app_keys_valid_key_pair(
-        self, mocker: MockerFixture
-    ) -> None:
+    def test_generate_app_keys_valid_key_pair(self, mocker: MockerFixture) -> None:
         """Returns a 64-byte public key (without 0x04 prefix) and the private key."""
         mock_private_key = mocker.Mock()
         mock_public_key = mocker.Mock()
         raw_public = b"\x04" + bytes(64)
         mock_public_key.export_key.return_value = raw_public
         mock_private_key.public_key.return_value = mock_public_key
-        mocker.patch.object(
-            cipher.ECC, "generate", return_value=mock_private_key
-        )
+        mocker.patch.object(cipher.ECC, "generate", return_value=mock_private_key)
 
         pub, priv = cipher.generate_app_keys()
 
@@ -37,20 +33,16 @@ class TestGenerateDeviceSecretKey:
         device_protocol_pub = bytes(64)
         app_private_key = mocker.Mock()
         mock_device_pub = mocker.Mock()
-        mocker.patch.object(
+        mock_import_key = mocker.patch.object(
             cipher.ECC, "import_key", return_value=mock_device_pub
         )
         shared_secret = bytes(range(32))
-        mocker.patch.object(
-            cipher, "key_agreement", return_value=shared_secret
-        )
+        mocker.patch.object(cipher, "key_agreement", return_value=shared_secret)
 
-        result = cipher.generate_device_secret_key(
-            device_protocol_pub, app_private_key
-        )
+        result = cipher.generate_device_secret_key(device_protocol_pub, app_private_key)
 
         assert result == shared_secret[:16]
-        cipher.ECC.import_key.assert_called_once_with(
+        mock_import_key.assert_called_once_with(
             b"\x04" + device_protocol_pub, curve_name="NIST P-256"
         )
 
@@ -64,22 +56,20 @@ class TestGenerateDeviceSecretKey:
 class TestGenerateSessionKey:
     """Tests for the generate_session_key function."""
 
-    def test_generate_session_key_valid(
-        self, mocker: MockerFixture
-    ) -> None:
+    def test_generate_session_key_valid(self, mocker: MockerFixture) -> None:
         """Returns CMAC-AES digest of session token."""
         secret_key = bytes(16)
         session_token = bytes(4)
         mock_cmac = mocker.Mock()
         expected_digest = bytes(16)
         mock_cmac.digest.return_value = expected_digest
-        mocker.patch.object(cipher.CMAC, "new", return_value=mock_cmac)
+        mock_cmac_new = mocker.patch.object(
+            cipher.CMAC, "new", return_value=mock_cmac
+        )
 
         result = cipher.generate_session_key(secret_key, session_token)
 
-        cipher.CMAC.new.assert_called_once_with(
-            secret_key, ciphermod=cipher.AES
-        )
+        mock_cmac_new.assert_called_once_with(secret_key, ciphermod=cipher.AES)
         mock_cmac.update.assert_called_once_with(session_token)
         assert result == expected_digest
 
@@ -92,9 +82,7 @@ class TestGenerateSessionKey:
 class TestOS3CipherEncrypt:
     """Tests for the OS3Cipher.encrypt method."""
 
-    def test_encrypt_returns_ciphertext_with_tag(
-        self, mocker: MockerFixture
-    ) -> None:
+    def test_encrypt_returns_ciphertext_with_tag(self, mocker: MockerFixture) -> None:
         """Returns ciphertext + 4-byte tag and increments counter."""
         session_token = bytes(4)
         session_key = bytes(16)
@@ -102,32 +90,36 @@ class TestOS3CipherEncrypt:
 
         mock_aes = mocker.Mock()
         mock_aes.encrypt_and_digest.return_value = (b"ciphertext", b"tag!")
-        mocker.patch.object(cipher.AES, "new", return_value=mock_aes)
+        mock_aes_new = mocker.patch.object(
+            cipher.AES, "new", return_value=mock_aes
+        )
 
         result = os3_cipher.encrypt(b"plaintext")
 
         expected_nonce = (0).to_bytes(8, "little") + b"\x00" + session_token
-        cipher.AES.new.assert_called_once_with(
-            session_key, cipher.AES.MODE_CCM,
-            nonce=expected_nonce, mac_len=4,
+        mock_aes_new.assert_called_once_with(
+            session_key,
+            cipher.AES.MODE_CCM,
+            nonce=expected_nonce,
+            mac_len=4,
         )
         mock_aes.update.assert_called_once_with(b"\x00")
         mock_aes.encrypt_and_digest.assert_called_once_with(b"plaintext")
         assert result == b"ciphertexttag!"
 
-    def test_encrypt_increments_counter(
-        self, mocker: MockerFixture
-    ) -> None:
+    def test_encrypt_increments_counter(self, mocker: MockerFixture) -> None:
         """Counter increments after each encryption."""
         os3_cipher = cipher.OS3Cipher(bytes(4), bytes(16))
         mock_aes = mocker.Mock()
         mock_aes.encrypt_and_digest.return_value = (b"ct", b"tg!!")
-        mocker.patch.object(cipher.AES, "new", return_value=mock_aes)
+        mock_aes_new = mocker.patch.object(
+            cipher.AES, "new", return_value=mock_aes
+        )
 
         os3_cipher.encrypt(b"a")
         os3_cipher.encrypt(b"b")
 
-        nonce_calls = cipher.AES.new.call_args_list
+        nonce_calls = mock_aes_new.call_args_list
         nonce_0 = nonce_calls[0].kwargs["nonce"]
         nonce_1 = nonce_calls[1].kwargs["nonce"]
         assert nonce_0 != nonce_1
@@ -144,9 +136,7 @@ class TestOS3CipherEncrypt:
 class TestOS3CipherDecrypt:
     """Tests for the OS3Cipher.decrypt method."""
 
-    def test_decrypt_returns_plaintext(
-        self, mocker: MockerFixture
-    ) -> None:
+    def test_decrypt_returns_plaintext(self, mocker: MockerFixture) -> None:
         """Returns verified plaintext and increments counter."""
         session_token = bytes(4)
         session_key = bytes(16)
@@ -154,19 +144,21 @@ class TestOS3CipherDecrypt:
 
         mock_aes = mocker.Mock()
         mock_aes.decrypt_and_verify.return_value = b"plaintext"
-        mocker.patch.object(cipher.AES, "new", return_value=mock_aes)
+        mock_aes_new = mocker.patch.object(
+            cipher.AES, "new", return_value=mock_aes
+        )
 
         ciphertext_with_tag = b"ciphertext" + b"tag!"
         result = os3_cipher.decrypt(ciphertext_with_tag)
 
         expected_nonce = (0).to_bytes(8, "little") + b"\x00" + session_token
-        cipher.AES.new.assert_called_once_with(
-            session_key, cipher.AES.MODE_CCM,
-            nonce=expected_nonce, mac_len=4,
+        mock_aes_new.assert_called_once_with(
+            session_key,
+            cipher.AES.MODE_CCM,
+            nonce=expected_nonce,
+            mac_len=4,
         )
-        mock_aes.decrypt_and_verify.assert_called_once_with(
-            b"ciphertext", b"tag!"
-        )
+        mock_aes.decrypt_and_verify.assert_called_once_with(b"ciphertext", b"tag!")
         assert result == b"plaintext"
 
     def test_decrypt_counter_overflow(self) -> None:
