@@ -203,7 +203,11 @@ class Sesame5:
                 )
                 self._cleanup()
                 continue
-            logger.info("Auto-reconnection successful [address=%s]", self.mac_address)
+            logger.info(
+                "Auto-reconnection successful [address=%s, attempts=%d]",
+                self.mac_address,
+                attempt + 1,
+            )
             return
         logger.error(
             "Auto-reconnection failed [address=%s, attempts=%d]",

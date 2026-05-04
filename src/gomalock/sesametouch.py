@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from typing import Callable, Self
 
 from .const import (
+    PUBLISH_TIMEOUT,
     DeviceStatus,
     ItemCodes,
     KeyLevels,
@@ -100,6 +101,7 @@ class SesameTouch:
         mech_status_callback: (
             Callable[[SesameTouch, SesameTouchMechStatus], None] | None
         ) = None,
+        auto_reconnection_limit: int = 0,
     ) -> None:
         """Initializes the Sesame Touch device interface.
 
@@ -107,11 +109,15 @@ class SesameTouch:
             mac_address: The MAC address of the Sesame Touch device.
             secret_key: The secret key for login.
             mech_status_callback: A callable that is called when the mechanical status is updated.
+            auto_reconnection_limit: Maximum number of auto-reconnection attempts.
+                Defaults to 0 (disabled).
         """
         self._os3_device = OS3Device(
             mac_address, self._on_published, self.on_unexpected_disconnect
         )
         self._secret_key = secret_key
+        self._auto_reconnection_limit = auto_reconnection_limit
+        self._reconnect_task: asyncio.Task | None = None
         self._mech_status: SesameTouchMechStatus | None = None
         self._login_completed = asyncio.Event()
         self._device_status = DeviceStatus.DISCONNECTED
@@ -136,6 +142,54 @@ class SesameTouch:
             "Unexpected Sesame Touch disconnection [address=%s]", self.mac_address
         )
         self._cleanup()
+        if self._auto_reconnection_limit > 0 and (
+            self._reconnect_task is None or self._reconnect_task.done()
+        ):
+            logger.info(
+                "Starting auto-reconnection [address=%s, limit=%d]",
+                self.mac_address,
+                self._auto_reconnection_limit,
+            )
+            self._reconnect_task = asyncio.create_task(self._auto_reconnect())
+
+    async def _auto_reconnect(self) -> None:
+        """Automatically attempts to reconnect and login to the device."""
+        for attempt in range(self._auto_reconnection_limit):
+            if attempt > 0:
+                await asyncio.sleep(5)
+            try:
+                await self.connect()
+                if self._secret_key is not None:
+                    await self.login()
+            except (SesameConnectionError, asyncio.TimeoutError) as e:
+                logger.warning(
+                    "Auto-reconnection attempt failed [address=%s, attempt=%d/%d, error=%s]",
+                    self.mac_address,
+                    attempt + 1,
+                    self._auto_reconnection_limit,
+                    e,
+                )
+                self._cleanup()
+                continue
+            logger.info(
+                "Auto-reconnection successful [address=%s, attempts=%d]",
+                self.mac_address,
+                attempt + 1,
+            )
+            return
+        logger.error(
+            "Auto-reconnection failed [address=%s, attempts=%d]",
+            self.mac_address,
+            self._auto_reconnection_limit,
+        )
+
+    async def _wait_for_reconnection(self) -> None:
+        """Waits for an ongoing auto-reconnection task to complete."""
+        if self._reconnect_task is not None:
+            try:
+                await self._reconnect_task
+            except asyncio.CancelledError:
+                pass
 
     def _on_published(self, publish_data: ReceivedSesamePublish) -> None:
         """Handles published data from the device.
@@ -213,6 +267,7 @@ class SesameTouch:
         Returns:
             The secret key of the Sesame Touch device.
         """
+        await self._wait_for_reconnection()
         if not self.is_connected:
             raise SesameConnectionError("Not connected")
         logger.info("Starting device registration [address=%s]", self.mac_address)
@@ -240,12 +295,18 @@ class SesameTouch:
         logger.info("Logging in to Sesame Touch [address=%s]", self.mac_address)
         self._device_status = DeviceStatus.LOGGING_IN
         await self._os3_device.login(bytes.fromhex(secret_key))
-        await self._login_completed.wait()
+        await asyncio.wait_for(self._login_completed.wait(), timeout=PUBLISH_TIMEOUT)
         self._device_status = DeviceStatus.LOGGED_IN
         logger.info("Logged in to Sesame Touch [address=%s]", self.mac_address)
 
     async def disconnect(self) -> None:
         """Disconnects from the Sesame Touch device."""
+        if self._reconnect_task is not None and not self._reconnect_task.done():
+            self._reconnect_task.cancel()
+            try:
+                await self._reconnect_task
+            except asyncio.CancelledError:
+                pass
         if self.is_connected:
             logger.info(
                 "Disconnecting from Sesame Touch [address=%s]", self.mac_address
