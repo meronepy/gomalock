@@ -4,279 +4,332 @@ from pytest_mock import MockerFixture
 from gomalock import ble, const, exc
 
 
-class TestSesameBleHeader:
-    def test_generate_header_only_beginning(self) -> None:
-        beginning = int.from_bytes(
-            ble.generate_header(is_beginning=True, is_end=False, is_encrypted=False),
-            "little",
+class TestGenerateHeader:
+    """Tests for the generate_header function."""
+
+    def test_generate_header_beginning_only(self) -> None:
+        """Sets only the BEGINNING flag."""
+        header = int.from_bytes(
+            ble.generate_header(True, False, False), "little"
         )
-        assert beginning & const.PacketTypes.BEGINNING
-        assert not beginning & (
+        assert header & const.PacketTypes.BEGINNING
+        assert not header & (
             const.PacketTypes.PLAINTEXT_END | const.PacketTypes.ENCRYPTED_END
         )
 
-    def test_generate_header_only_plaintext_end(self) -> None:
-        plaintext_end = int.from_bytes(
-            ble.generate_header(is_beginning=False, is_end=True, is_encrypted=False),
-            "little",
+    def test_generate_header_plaintext_end_only(self) -> None:
+        """Sets only the PLAINTEXT_END flag."""
+        header = int.from_bytes(
+            ble.generate_header(False, True, False), "little"
         )
-        assert plaintext_end & const.PacketTypes.PLAINTEXT_END
-        assert not plaintext_end & (
+        assert header & const.PacketTypes.PLAINTEXT_END
+        assert not header & (
             const.PacketTypes.BEGINNING | const.PacketTypes.ENCRYPTED_END
         )
 
-    def test_generate_header_only_encrypted_end(self) -> None:
-        encrypted_end = int.from_bytes(
-            ble.generate_header(is_beginning=False, is_end=True, is_encrypted=True),
-            "little",
+    def test_generate_header_encrypted_end_only(self) -> None:
+        """Sets only the ENCRYPTED_END flag."""
+        header = int.from_bytes(
+            ble.generate_header(False, True, True), "little"
         )
-        assert encrypted_end & const.PacketTypes.ENCRYPTED_END
-        assert not encrypted_end & (
+        assert header & const.PacketTypes.ENCRYPTED_END
+        assert not header & (
             const.PacketTypes.BEGINNING | const.PacketTypes.PLAINTEXT_END
         )
 
     def test_generate_header_beginning_and_plaintext_end(self) -> None:
-        beginning_plaintext_end = int.from_bytes(
-            ble.generate_header(is_beginning=True, is_end=True, is_encrypted=False),
-            "little",
+        """Sets BEGINNING and PLAINTEXT_END flags."""
+        header = int.from_bytes(
+            ble.generate_header(True, True, False), "little"
         )
-        assert beginning_plaintext_end & (
-            const.PacketTypes.BEGINNING | const.PacketTypes.PLAINTEXT_END
-        )
-        assert not beginning_plaintext_end & const.PacketTypes.ENCRYPTED_END
+        assert header & const.PacketTypes.BEGINNING
+        assert header & const.PacketTypes.PLAINTEXT_END
+        assert not header & const.PacketTypes.ENCRYPTED_END
 
     def test_generate_header_beginning_and_encrypted_end(self) -> None:
-        beginning_encrypted_end = int.from_bytes(
-            ble.generate_header(is_beginning=True, is_end=True, is_encrypted=True),
-            "little",
+        """Sets BEGINNING and ENCRYPTED_END flags."""
+        header = int.from_bytes(
+            ble.generate_header(True, True, True), "little"
         )
-        assert beginning_encrypted_end & (
-            const.PacketTypes.BEGINNING | const.PacketTypes.ENCRYPTED_END
+        assert header & const.PacketTypes.BEGINNING
+        assert header & const.PacketTypes.ENCRYPTED_END
+        assert not header & const.PacketTypes.PLAINTEXT_END
+
+    def test_generate_header_no_flags(self) -> None:
+        """Returns zero when no flags are set."""
+        header = int.from_bytes(
+            ble.generate_header(False, False, False), "little"
         )
-        assert not beginning_encrypted_end & const.PacketTypes.PLAINTEXT_END
-
-    def test_generate_header_neither_beginning_nor_end(self) -> None:
-        neither = int.from_bytes(
-            ble.generate_header(is_beginning=False, is_end=False, is_encrypted=False),
-            "little",
-        )
-        assert neither == 0
+        assert header == 0
 
 
-@pytest.fixture
-def callback_ble_device(mocker):
-    ble_device = ble.SesameBleDevice("AA:BB:CC:DD:EE:FF", mocker.Mock())
-    mock_callback = mocker.patch.object(ble_device, "_received_data_callback")
-    return ble_device, mock_callback
+def _make_ble_device(mocker: MockerFixture, *, is_connected: bool):
+    """Helper to create a SesameBleDevice with a mocked BleakClient."""
+    received_cb = mocker.Mock()
+    disconnect_cb = mocker.Mock()
+    device = ble.SesameBleDevice(
+        "AA:BB:CC:DD:EE:FF", received_cb, disconnect_cb
+    )
+    mock_client = mocker.AsyncMock()
+    type(mock_client).is_connected = mocker.PropertyMock(
+        return_value=is_connected
+    )
+    type(mock_client).address = mocker.PropertyMock(
+        return_value="AA:BB:CC:DD:EE:FF"
+    )
+    mocker.patch.object(device, "_bleak_client", mock_client)
+    return device, mock_client, received_cb, disconnect_cb
 
 
-class TestSesameBleNotification:
-    def test_notification_handler_receives_fragment(
-        self, mocker: MockerFixture, callback_ble_device
+class TestNotificationHandler:
+    """Tests for SesameBleDevice.notification_handler."""
+
+    def test_notification_handler_fragment_buffered(
+        self, mocker: MockerFixture
     ) -> None:
-        ble_device, mock_callback = callback_ble_device
+        """Fragment packet is buffered without invoking callback."""
+        device, _, received_cb, _ = _make_ble_device(
+            mocker, is_connected=True
+        )
         mocker.patch.object(
-            ble.ReceivedSesamePacket,
-            "from_ble_data",
+            ble.ReceivedSesamePacket, "from_ble_data",
             return_value=ble.ReceivedSesamePacket(
                 const.PacketTypes.BEGINNING, b"fragment"
             ),
         )
-        ble_device.notification_handler(mocker.Mock(), bytearray())
-        mock_callback.assert_not_called()
 
-    def test_notification_handler_receives_complete_plaintext(
-        self, mocker: MockerFixture, callback_ble_device
+        device.notification_handler(mocker.Mock(), bytearray())
+
+        received_cb.assert_not_called()
+
+    def test_notification_handler_complete_plaintext(
+        self, mocker: MockerFixture
     ) -> None:
-        ble_device, mock_callback = callback_ble_device
+        """Complete plaintext message invokes callback with is_encrypted=False."""
+        device, _, received_cb, _ = _make_ble_device(
+            mocker, is_connected=True
+        )
         mocker.patch.object(
-            ble.ReceivedSesamePacket,
-            "from_ble_data",
+            ble.ReceivedSesamePacket, "from_ble_data",
             return_value=ble.ReceivedSesamePacket(
                 const.PacketTypes.BEGINNING | const.PacketTypes.PLAINTEXT_END,
                 b"plaintext",
             ),
         )
-        ble_device.notification_handler(mocker.Mock(), bytearray())
-        mock_callback.assert_called_once_with(b"plaintext", False)
 
-    def test_notification_handler_reassembles_packets(
-        self, mocker: MockerFixture, callback_ble_device
+        device.notification_handler(mocker.Mock(), bytearray())
+
+        received_cb.assert_called_once_with(b"plaintext", False)
+
+    def test_notification_handler_reassembles_fragments(
+        self, mocker: MockerFixture
     ) -> None:
-        ble_device, mock_callback = callback_ble_device
+        """Multi-packet message is reassembled before invoking callback."""
+        device, _, received_cb, _ = _make_ble_device(
+            mocker, is_connected=True
+        )
         mocker.patch.object(
-            ble.ReceivedSesamePacket,
-            "from_ble_data",
+            ble.ReceivedSesamePacket, "from_ble_data",
             side_effect=[
-                ble.ReceivedSesamePacket(const.PacketTypes.BEGINNING, b"part1-"),
-                ble.ReceivedSesamePacket(0, b"part2"),
-                ble.ReceivedSesamePacket(const.PacketTypes.ENCRYPTED_END, b"-part3"),
+                ble.ReceivedSesamePacket(
+                    const.PacketTypes.BEGINNING, b"part1-"
+                ),
+                ble.ReceivedSesamePacket(0, b"part2-"),
+                ble.ReceivedSesamePacket(
+                    const.PacketTypes.ENCRYPTED_END, b"part3"
+                ),
             ],
         )
-        ble_device.notification_handler(mocker.Mock(), bytearray())
-        ble_device.notification_handler(mocker.Mock(), bytearray())
-        ble_device.notification_handler(mocker.Mock(), bytearray())
-        mock_callback.assert_called_once_with(b"part1-part2-part3", True)
+
+        device.notification_handler(mocker.Mock(), bytearray())
+        device.notification_handler(mocker.Mock(), bytearray())
+        device.notification_handler(mocker.Mock(), bytearray())
+
+        received_cb.assert_called_once_with(b"part1-part2-part3", True)
 
 
-@pytest.fixture
-def connected_ble_device(mocker):
-    ble_device = ble.SesameBleDevice("AA:BB:CC:DD:EE:FF", mocker.Mock())
-    mock_bleak_client = mocker.AsyncMock()
-    type(mock_bleak_client).is_connected = mocker.PropertyMock(return_value=True)
-    mocker.patch.object(ble_device, "_bleak_client", mock_bleak_client)
-    return ble_device, mock_bleak_client
+class TestConnectAndStartNotification:
+    """Tests for SesameBleDevice.connect_and_start_notification."""
 
-
-@pytest.fixture
-def disconnected_ble_device(mocker):
-    ble_device = ble.SesameBleDevice("AA:BB:CC:DD:EE:FF", mocker.Mock())
-    mock_bleak_client = mocker.AsyncMock()
-    type(mock_bleak_client).is_connected = mocker.PropertyMock(return_value=False)
-    mocker.patch.object(ble_device, "_bleak_client", mock_bleak_client)
-    return ble_device, mock_bleak_client
-
-
-class TestSesameBleConnect:
     @pytest.mark.asyncio
-    async def test_connect_and_start_notification_successful(
-        self,
-        mocker: MockerFixture,
-        disconnected_ble_device,
+    async def test_connect_and_start_notification_success(
+        self, mocker: MockerFixture
     ) -> None:
-        ble_device, mock_bleak_client = disconnected_ble_device
-        mock_advertisement_data = mocker.Mock(
-            product_model=mocker.Mock(name="MOCK_MODEL")
+        """Scans, connects, and starts notifications."""
+        device, mock_client, _, _ = _make_ble_device(
+            mocker, is_connected=False
+        )
+        mock_adv = mocker.Mock(
+            product_model=mocker.Mock(name="SESAME5")
         )
         mocker.patch.object(
-            ble.SesameScanner,
-            "find_device_by_address",
+            ble.SesameScanner, "find_device_by_address",
             new=mocker.AsyncMock(
-                return_value=("AA:BB:CC:DD:EE:FF", mock_advertisement_data)
+                return_value=("AA:BB:CC:DD:EE:FF", mock_adv)
             ),
         )
-        await ble_device.connect_and_start_notification()
-        mock_bleak_client.connect.assert_awaited_once()
-        mock_bleak_client.start_notify.assert_awaited_once_with(
-            const.UUID_NOTIFICATION, ble_device.notification_handler
+
+        await device.connect_and_start_notification()
+
+        mock_client.connect.assert_awaited_once()
+        mock_client.start_notify.assert_awaited_once_with(
+            const.UUID_NOTIFICATION, device.notification_handler
         )
-        assert ble_device.sesame_advertisement_data is mock_advertisement_data
+        assert device.sesame_advertisement_data is mock_adv
 
     @pytest.mark.asyncio
     async def test_connect_and_start_notification_already_connected(
-        self,
-        mocker: MockerFixture,
-        connected_ble_device,
+        self, mocker: MockerFixture
     ) -> None:
-        ble_device, mock_bleak_client = connected_ble_device
+        """Raises SesameConnectionError if already connected."""
+        device, mock_client, _, _ = _make_ble_device(
+            mocker, is_connected=True
+        )
+
         with pytest.raises(exc.SesameConnectionError):
-            await ble_device.connect_and_start_notification()
-        mock_bleak_client.connect.assert_not_awaited()
-        mock_bleak_client.start_notify.assert_not_awaited()
+            await device.connect_and_start_notification()
+
+        mock_client.connect.assert_not_awaited()
 
     @pytest.mark.asyncio
-    async def test_connect_device_not_found(
-        self,
-        mocker: MockerFixture,
-        disconnected_ble_device,
+    async def test_connect_and_start_notification_device_not_found(
+        self, mocker: MockerFixture
     ) -> None:
-        ble_device, _ = disconnected_ble_device
+        """Raises SesameConnectionError when scan finds nothing."""
+        device, _, _, _ = _make_ble_device(mocker, is_connected=False)
         mocker.patch.object(
-            ble.SesameScanner,
-            "find_device_by_address",
+            ble.SesameScanner, "find_device_by_address",
             new=mocker.AsyncMock(return_value=None),
         )
-        with pytest.raises(exc.SesameError):
-            await ble_device.connect_and_start_notification()
+
+        with pytest.raises(exc.SesameConnectionError):
+            await device.connect_and_start_notification()
 
 
-class TestSesameWriteGATT:
-    @pytest.mark.asyncio
-    async def test_write_gatt_without_fragmentation(self, connected_ble_device) -> None:
-        ble_device, mock_bleak_client = connected_ble_device
-        payload_max_len = const.MTU_SIZE - 1  # 1 byte for header
-        mock_send_data = bytes([i for i in range(payload_max_len)])
-        await ble_device.write_gatt(mock_send_data, is_encrypted=False)
-        mock_bleak_client.write_gatt_char.assert_awaited_once()
-        call_args = mock_bleak_client.write_gatt_char.await_args.args
-        assert call_args[0] == const.UUID_WRITE
-        packet = call_args[1]
-        assert len(packet) == 1 + len(mock_send_data)
-        assert packet[1:] == mock_send_data
-        assert mock_bleak_client.write_gatt_char.await_args.kwargs == {
-            "response": False
-        }
+class TestWriteGatt:
+    """Tests for SesameBleDevice.write_gatt."""
 
     @pytest.mark.asyncio
-    async def test_write_gatt_with_fragmentation(self, connected_ble_device) -> None:
-        ble_device, mock_bleak_client = connected_ble_device
-        fragmentation_count = 3
-        payload_max_len = const.MTU_SIZE - 1
-        mock_send_data = bytes(
-            [i for i in range(payload_max_len * fragmentation_count)]
+    async def test_write_gatt_single_packet(
+        self, mocker: MockerFixture
+    ) -> None:
+        """Data fitting in one MTU is sent as a single packet."""
+        device, mock_client, _, _ = _make_ble_device(
+            mocker, is_connected=True
         )
-        await ble_device.write_gatt(mock_send_data, is_encrypted=False)
-        assert mock_bleak_client.write_gatt_char.await_count == fragmentation_count
-        calls = mock_bleak_client.write_gatt_char.await_args_list
+        payload_max = const.MTU_SIZE - 1
+        data = bytes(payload_max)
+
+        await device.write_gatt(data, is_encrypted=False)
+
+        mock_client.write_gatt_char.assert_awaited_once()
+        _, packet = mock_client.write_gatt_char.await_args.args
+        assert packet[1:] == data
+
+    @pytest.mark.asyncio
+    async def test_write_gatt_fragmented(
+        self, mocker: MockerFixture
+    ) -> None:
+        """Data exceeding MTU is fragmented into multiple packets."""
+        device, mock_client, _, _ = _make_ble_device(
+            mocker, is_connected=True
+        )
+        payload_max = const.MTU_SIZE - 1
+        fragment_count = 3
+        data = bytes(range(payload_max * fragment_count))
+
+        await device.write_gatt(data, is_encrypted=False)
+
+        assert mock_client.write_gatt_char.await_count == fragment_count
+        calls = mock_client.write_gatt_char.await_args_list
         for i, call in enumerate(calls):
-            uuid, packet = call.args
-            assert uuid == const.UUID_WRITE
-            expected_chunk = mock_send_data[
-                payload_max_len * i : payload_max_len * (i + 1)
-            ]
+            _, packet = call.args
+            expected_chunk = data[payload_max * i: payload_max * (i + 1)]
             assert packet[1:] == expected_chunk
             assert call.kwargs == {"response": False}
 
     @pytest.mark.asyncio
-    async def test_write_gatt_not_connected(self, disconnected_ble_device) -> None:
-        ble_device, _ = disconnected_ble_device
+    async def test_write_gatt_not_connected(
+        self, mocker: MockerFixture
+    ) -> None:
+        """Raises SesameConnectionError when not connected."""
+        device, _, _, _ = _make_ble_device(mocker, is_connected=False)
+
         with pytest.raises(exc.SesameConnectionError):
-            await ble_device.write_gatt(bytes(), is_encrypted=False)
+            await device.write_gatt(b"data", is_encrypted=False)
 
 
-class TestSesameBleDisconnect:
-    @pytest.mark.asyncio
-    async def test_disconnect_successful(self, connected_ble_device) -> None:
-        ble_device, mock_bleak_client = connected_ble_device
-        await ble_device.disconnect()
-        mock_bleak_client.disconnect.assert_awaited_once()
-        with pytest.raises(exc.SesameConnectionError):
-            _ = ble_device.sesame_advertisement_data
+class TestDisconnect:
+    """Tests for SesameBleDevice.disconnect."""
 
     @pytest.mark.asyncio
-    async def test_disconnect_not_connected(self, disconnected_ble_device) -> None:
-        ble_device, mock_bleak_client = disconnected_ble_device
-        await ble_device.disconnect()
-        mock_bleak_client.disconnect.assert_not_awaited()
+    async def test_disconnect_when_connected(
+        self, mocker: MockerFixture
+    ) -> None:
+        """Disconnects and clears advertisement data."""
+        device, mock_client, _, _ = _make_ble_device(
+            mocker, is_connected=True
+        )
+        device._sesame_advertisement_data = mocker.Mock()
+
+        await device.disconnect()
+
+        mock_client.disconnect.assert_awaited_once()
+        with pytest.raises(exc.SesameConnectionError):
+            _ = device.sesame_advertisement_data
+
+    @pytest.mark.asyncio
+    async def test_disconnect_when_not_connected(
+        self, mocker: MockerFixture
+    ) -> None:
+        """Does nothing when already disconnected."""
+        device, mock_client, _, _ = _make_ble_device(
+            mocker, is_connected=False
+        )
+
+        await device.disconnect()
+
+        mock_client.disconnect.assert_not_awaited()
 
 
 class TestSesameBleDeviceProperties:
-    def test_mac_address(self, mocker: MockerFixture, connected_ble_device) -> None:
-        ble_device, mock_bleak_client = connected_ble_device
-        type(mock_bleak_client).address = mocker.PropertyMock(
-            return_value="AA:BB:CC:DD:EE:FF"
-        )
-        assert ble_device.mac_address == "AA:BB:CC:DD:EE:FF"
+    """Tests for SesameBleDevice properties."""
 
-    def test_is_connected_when_connected(self, connected_ble_device) -> None:
-        ble_device, _ = connected_ble_device
-        assert ble_device.is_connected
-
-    def test_is_connected_when_disconnected(self, disconnected_ble_device) -> None:
-        ble_device, _ = disconnected_ble_device
-        assert not ble_device.is_connected
-
-    def test_sesame_advertisement_data_when_connected(
-        self, mocker: MockerFixture, connected_ble_device
+    def test_mac_address_returns_bleak_address(
+        self, mocker: MockerFixture
     ) -> None:
-        ble_device, _ = connected_ble_device
-        mock_advertisement_data = mocker.Mock()
-        ble_device._sesame_advertisement_data = mock_advertisement_data
-        assert ble_device.sesame_advertisement_data is mock_advertisement_data
+        """Returns the address from BleakClient."""
+        device, _, _, _ = _make_ble_device(mocker, is_connected=True)
 
-    def test_sesame_advertisement_data_when_not_connected(
-        self, disconnected_ble_device
+        assert device.mac_address == "AA:BB:CC:DD:EE:FF"
+
+    def test_is_connected_true(self, mocker: MockerFixture) -> None:
+        """Returns True when BleakClient is connected."""
+        device, _, _, _ = _make_ble_device(mocker, is_connected=True)
+
+        assert device.is_connected is True
+
+    def test_is_connected_false(self, mocker: MockerFixture) -> None:
+        """Returns False when BleakClient is disconnected."""
+        device, _, _, _ = _make_ble_device(mocker, is_connected=False)
+
+        assert device.is_connected is False
+
+    def test_sesame_advertisement_data_available(
+        self, mocker: MockerFixture
     ) -> None:
-        ble_device, _ = disconnected_ble_device
+        """Returns advertisement data when available."""
+        device, _, _, _ = _make_ble_device(mocker, is_connected=True)
+        mock_adv = mocker.Mock()
+        device._sesame_advertisement_data = mock_adv
+
+        assert device.sesame_advertisement_data is mock_adv
+
+    def test_sesame_advertisement_data_unavailable(
+        self, mocker: MockerFixture
+    ) -> None:
+        """Raises SesameConnectionError when not available."""
+        device, _, _, _ = _make_ble_device(mocker, is_connected=False)
+
         with pytest.raises(exc.SesameConnectionError):
-            _ = ble_device.sesame_advertisement_data
+            _ = device.sesame_advertisement_data
