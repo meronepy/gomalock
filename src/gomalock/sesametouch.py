@@ -64,7 +64,7 @@ class SesameTouchMechStatus:
             raw_battery,
             cards_number,
             fingerprints_number,
-            password_number,
+            passwords_number,
             status_flags,
         ) = struct.unpack("<HhhhB", payload)
         return cls(
@@ -72,7 +72,7 @@ class SesameTouchMechStatus:
             status_flags,
             cards_number,
             fingerprints_number,
-            password_number,
+            passwords_number,
         )
 
     @property
