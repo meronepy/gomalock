@@ -80,10 +80,14 @@ class SesameBleDevice:
             client: The BleakClient instance that was disconnected.
         """
         del client  # Unused in this callback.
+        logger.debug(
+            "BLE diconnected callback invoked [address=%s, is_expected=%s]",
+            self.mac_address,
+            self._is_expectedly_disconnected,
+        )
         if self._is_expectedly_disconnected:
             self._is_expectedly_disconnected = False
             return
-        logger.debug("Unexpected BLE disconnection [address=%s]", self.mac_address)
         if self._clean_disconnect_task is None:
             self._clean_disconnect_task = asyncio.create_task(
                 self._bleak_client.disconnect()
@@ -134,21 +138,11 @@ class SesameBleDevice:
             SesameConnectionError: If the scan times out or the device is not found.
         """
 
-        logger.debug(
-            "Scanning for Sesame device [address=%s, timeout=%ds]",
-            self.mac_address,
-            SCAN_TIMEOUT,
-        )
         found_device = await SesameScanner.find_device_by_address(
             self.mac_address, timeout=SCAN_TIMEOUT
         )
         if found_device is None:
             raise SesameConnectionError(f"Device not found: {self.mac_address}")
-        logger.debug(
-            "Retrieved advertisement data [address=%s, model=%s]",
-            self.mac_address,
-            found_device[1].product_model.name,
-        )
         return found_device[1]
 
     def _cleanup(self) -> None:
@@ -165,19 +159,27 @@ class SesameBleDevice:
         """
         if self._bleak_client.is_connected:
             raise SesameConnectionError("Already connected")
-        logger.debug("Initiating BLE connection [address=%s]", self.mac_address)
+        logger.debug(
+            "Initiating communication with Sesame device [address=%s]",
+            self.mac_address,
+        )
         self._sesame_advertisement_data = await self._get_sesame_advertisement_data()
+        logger.debug("Initiating BLE connection [address=%s]", self.mac_address)
         try:
             await self._bleak_client.connect()
         except BleakDeviceNotFoundError as e:
             raise SesameConnectionError(
                 f"Failed to connect to device: {self.mac_address}"
             ) from e
+        logger.debug(
+            "BLE connection established, starting BLE notification [address=%s]",
+            self.mac_address,
+        )
         await self._bleak_client.start_notify(
             UUID_NOTIFICATION, self.notification_handler
         )
         logger.debug(
-            "BLE connection established and notifications enabled [address=%s]",
+            "BLE notifications started, communication with Sesame device established [address=%s]",
             self.mac_address,
         )
 

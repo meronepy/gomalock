@@ -218,9 +218,6 @@ class OS3Device:
 
     def on_unexpected_disconnect(self) -> None:
         """Handles unexpected disconnection events."""
-        logger.debug(
-            "Unexpected OS3 device disconnection [address=%s]", self.mac_address
-        )
         self._cleanup()
         self._unexpected_disconnect_callback()
 
@@ -231,9 +228,6 @@ class OS3Device:
             data: The reassembled received data.
             is_encrypted: Whether `data` is encrypted.
         """
-        logger.debug(
-            "Processing received data [size=%d, encrypted=%s]", len(data), is_encrypted
-        )
         if is_encrypted:
             # after sending REGISTRATION command, for some reason sometimes receive
             # encrypted packets before login.
@@ -296,7 +290,6 @@ class OS3Device:
                     "Received initial publish data without a pending session token request"
                 )
                 return
-            logger.debug("Session token received")
             self._session_token_future.set_result(publish_data.payload)
         else:
             self._publish_data_callback(publish_data)
@@ -373,16 +366,12 @@ class OS3Device:
         """
         if self.is_connected:
             raise SesameConnectionError("Already connected")
-        logger.debug(
-            "Establishing OS3 protocol connection [address=%s]", self.mac_address
-        )
         self._session_token_future = asyncio.get_running_loop().create_future()
         await self._ble_device.connect_and_start_notification()
-        logger.debug("Waiting for session token [timeout=%ds]", PUBLISH_TIMEOUT)
-        await asyncio.wait_for(self._session_token_future, PUBLISH_TIMEOUT)
         logger.debug(
-            "OS3 protocol connection established [address=%s]", self.mac_address
+            "Waiting for INITIAL including session token [timeout=%ds]", PUBLISH_TIMEOUT
         )
+        await asyncio.wait_for(self._session_token_future, PUBLISH_TIMEOUT)
 
     async def register(self) -> bytes:
         """Register the Sesame OS3 device and derive a shared secret key.
@@ -432,7 +421,6 @@ class OS3Device:
             raise SesameLoginError("Already logged in")
         if self._session_token_future is None:
             raise SesameConnectionError("Connection has not been established")
-        logger.debug("Initiating login sequence [address=%s]", self.mac_address)
         session_key = generate_session_key(
             secret_key, self._session_token_future.result()
         )
@@ -442,9 +430,6 @@ class OS3Device:
             SesameCommand(ItemCodes.LOGIN, session_key[:4]), False
         )
         timestamp = int.from_bytes(response.payload, "little")
-        logger.debug(
-            "Login completed [address=%s, timestamp=%d]", self.mac_address, timestamp
-        )
         return timestamp
 
     async def disconnect(self) -> None:
@@ -453,21 +438,10 @@ class OS3Device:
         This method is idempotent and does nothing if already disconnected.
         """
         if self.is_connected:
-            logger.debug(
-                "Closing OS3 protocol connection [address=%s]", self.mac_address
-            )
             try:
                 await self._ble_device.disconnect()
             finally:
                 self._cleanup()
-            logger.debug(
-                "OS3 protocol connection closed [address=%s]", self.mac_address
-            )
-        else:
-            logger.debug(
-                "Skipping disconnect, device not connected [address=%s]",
-                self.mac_address,
-            )
 
     @property
     def mac_address(self) -> str:

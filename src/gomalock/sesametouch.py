@@ -162,11 +162,6 @@ class SesameTouch:
         if self._auto_reconnection_limit > 0 and (
             self._reconnect_task is None or self._reconnect_task.done()
         ):
-            logger.info(
-                "Starting auto-reconnection [address=%s, limit=%d]",
-                self.mac_address,
-                self._auto_reconnection_limit,
-            )
             self._reconnect_task = asyncio.create_task(self._auto_reconnect())
 
     async def _auto_reconnect(self) -> None:
@@ -219,7 +214,6 @@ class SesameTouch:
                 self._mech_status = SesameTouchMechStatus.from_payload(
                     publish_data.payload
                 )
-                logger.debug("Mechanical status updated [address=%s]", self.mac_address)
                 for callback in self._mech_status_callbacks.values():
                     callback(self, self._mech_status)
             case _:

@@ -197,11 +197,6 @@ class Sesame5:
         if self._auto_reconnection_limit > 0 and (
             self._reconnect_task is None or self._reconnect_task.done()
         ):
-            logger.info(
-                "Starting auto-reconnection [address=%s, limit=%d]",
-                self.mac_address,
-                self._auto_reconnection_limit,
-            )
             self._reconnect_task = asyncio.create_task(self._auto_reconnect())
 
     async def _auto_reconnect(self) -> None:
@@ -252,15 +247,11 @@ class Sesame5:
         match publish_data.item_code:
             case ItemCodes.MECH_STATUS:
                 self._mech_status = Sesame5MechStatus.from_payload(publish_data.payload)
-                logger.debug("Mechanical status updated [address=%s]", self.mac_address)
                 for callback in self._mech_status_callbacks.values():
                     callback(self, self._mech_status)
             case ItemCodes.MECH_SETTING:
                 self._mech_setting = Sesame5MechSetting.from_payload(
                     publish_data.payload
-                )
-                logger.debug(
-                    "Mechanical setting updated [address=%s]", self.mac_address
                 )
             case _:
                 logger.debug(

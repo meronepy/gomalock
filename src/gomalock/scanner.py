@@ -171,7 +171,7 @@ class SesameScanner:
                     sesame_adv_data,
                 ) in scanner.detected_devices_generator():
                     if filter_func(address, sesame_adv_data):
-                        logger.debug(
+                        logger.info(
                             "Found matching device [address=%s, model=%s]",
                             address,
                             sesame_adv_data.product_model.name,
@@ -179,10 +179,10 @@ class SesameScanner:
                         return address, sesame_adv_data
 
         try:
-            logger.debug("Searching for device with filter [timeout=%.1fs]", timeout)
+            logger.info("Searching for device with filter [timeout=%.1fs]", timeout)
             return await asyncio.wait_for(find_task(), timeout)
         except asyncio.TimeoutError:
-            logger.debug("Device search timed out [timeout=%.1fs]", timeout)
+            logger.info("Device search timed out")
             return None
 
     @classmethod
@@ -234,10 +234,10 @@ class SesameScanner:
         Returns:
             A dictionary mapping device addresses to their parsed advertisement data.
         """
-        logger.debug("Starting discovery (timeout=%s)", timeout)
+        logger.info("Starting discovery [timeout=%s]", timeout)
         async with cls() as scanner:
             await asyncio.sleep(timeout)
-        logger.debug(
-            "Discovery completed (found devices=%d)", len(scanner.detected_devices)
+        logger.info(
+            "Discovery completed [found devices=%d]", len(scanner.detected_devices)
         )
         return scanner.detected_devices
