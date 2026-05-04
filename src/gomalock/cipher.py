@@ -11,10 +11,12 @@ from Crypto.PublicKey import ECC
 
 
 def generate_app_keys() -> tuple[bytes, ECC.EccKey]:
-    """Generates a new application private key and its corresponding public key.
+    """Generates a new application key pair for Sesame OS3.
 
     Returns:
-        A tuple containing the application's public key and private key.
+        A tuple of `(public_key, private_key)` where `public_key` is the
+        64-byte uncompressed point without the 0x04 prefix, and `private_key`
+        is the application's ECC private key.
     """
     app_private_key = ECC.generate(curve="NIST P-256")
     app_uncompressed_public_key = app_private_key.public_key().export_key(format="raw")
@@ -35,6 +37,9 @@ def generate_device_secret_key(
 
     Returns:
         The 16-byte device secret key.
+
+    Raises:
+        ValueError: If the device public key cannot be parsed or is invalid.
     """
     # add the uncompressed flag
     device_uncompressed_public_key = b"\x04" + device_protocol_public_key
@@ -56,6 +61,9 @@ def generate_session_key(secret_key: bytes, session_token: bytes) -> bytes:
 
     Returns:
         The generated 16-byte session key.
+
+    Raises:
+        ValueError: If `secret_key` is an invalid length for CMAC-AES.
     """
     cobj = CMAC.new(secret_key, ciphermod=AES)
     cobj.update(session_token)
@@ -72,12 +80,12 @@ class OS3Cipher:
     _MAX_COUNTER = 2**64 - 1
 
     def __init__(self, session_token: bytes, session_key: bytes) -> None:
-        """Initializes the BleCipher with session and application keys.
+        """Initializes the cipher with the session token and derived key.
 
         Args:
             session_token: The session token (nonce part) for this session.
             session_key: The session key, which is the session token
-                signed with CMAC using the secret key
+                signed with CMAC using the secret key.
         """
         self._session_token = session_token
         self._session_key = session_key
@@ -85,7 +93,14 @@ class OS3Cipher:
         self._decrypt_counter = 0
 
     def _generate_nonce(self, counter: int) -> bytes:
-        """Generates a nonce for AES-CCM encryption/decryption."""
+        """Generates a nonce for AES-CCM encryption/decryption.
+
+        Args:
+            counter: The 64-bit message counter.
+
+        Returns:
+            The 13-byte nonce used for AES-CCM.
+        """
         return counter.to_bytes(8, "little") + b"\x00" + self._session_token
 
     def encrypt(self, plaintext: bytes) -> bytes:

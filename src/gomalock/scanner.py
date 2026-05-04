@@ -67,10 +67,16 @@ class SesameScanner:
             callback(device.address, sesame_adv_data)
 
     async def __aenter__(self) -> Self:
+        """Enter the async context manager and start scanning.
+
+        Returns:
+            The active SesameScanner instance.
+        """
         await self.start()
         return self
 
     async def __aexit__(self, exc_type, exc, tb) -> None:
+        """Exit the async context manager and stop scanning."""
         await self.stop()
 
     async def start(self) -> None:

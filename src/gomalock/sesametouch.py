@@ -54,6 +54,9 @@ class SesameTouchMechStatus:
             payload: The byte payload received from the Sesame Touch device
                 with item code mech_status.
 
+        Returns:
+            A parsed mechanical status instance.
+
         Raises:
             struct.error: If payload has an invalid format or length.
         """
@@ -74,7 +77,7 @@ class SesameTouchMechStatus:
 
     @property
     def is_battery_critical(self) -> bool:
-        """Whether the Sesame Touch battery voltage is below 5V"""
+        """Whether the Sesame Touch battery voltage is below 5V."""
         return bool(self._status_flags & MechStatusBitFlags.IS_BATTERY_CRITICAL)
 
     @property
@@ -108,7 +111,8 @@ class SesameTouch:
         Args:
             mac_address: The MAC address of the Sesame Touch device.
             secret_key: The secret key for login.
-            mech_status_callback: A callable that is called when the mechanical status is updated.
+            mech_status_callback: A callable invoked on mechanical status updates.
+                It receives the SesameTouch instance and a SesameTouchMechStatus value.
             auto_reconnection_limit: Maximum number of auto-reconnection attempts.
                 Defaults to 0 (disabled).
         """
@@ -128,12 +132,23 @@ class SesameTouch:
             self.register_mech_status_callback(mech_status_callback)
 
     async def __aenter__(self) -> Self:
+        """Enter the async context manager and connect (and login if configured).
+
+        Returns:
+            The connected SesameTouch instance.
+
+        Raises:
+            asyncio.TimeoutError: If connection or login timeouts occur.
+            SesameConnectionError: If connection fails.
+            SesameLoginError: If login is required but a secret key is missing.
+        """
         await self.connect()
         if self._secret_key is not None:
             await self.login()
         return self
 
     async def __aexit__(self, exc_type, exc_value, traceback) -> None:
+        """Exit the async context manager and disconnect from the device."""
         await self.disconnect()
 
     def on_unexpected_disconnect(self) -> None:
@@ -358,12 +373,19 @@ class SesameTouch:
 
     @property
     def mac_address(self) -> str:
-        """The MAC address of the Sesame Touch device."""
+        """The MAC address of the Sesame Touch device.
+
+        Returns:
+            The BLE MAC address string.
+        """
         return self._os3_device.mac_address
 
     @property
     def mech_status(self) -> SesameTouchMechStatus:
         """The latest mechanical status of the device.
+
+        Returns:
+            The most recently received mechanical status.
 
         Raises:
             SesameLoginError: If not logged in.
@@ -374,22 +396,37 @@ class SesameTouch:
 
     @property
     def is_connected(self) -> bool:
-        """True if the device is currently connected."""
+        """True if the device is currently connected.
+
+        Returns:
+            True when a BLE connection is active, otherwise False.
+        """
         return self._os3_device.is_connected
 
     @property
     def is_logged_in(self) -> bool:
-        """True if the device is currently logged in."""
+        """True if the device is currently logged in.
+
+        Returns:
+            True when login has completed successfully, otherwise False.
+        """
         return self._device_status in DeviceStatus.AUTHENTICATED
 
     @property
     def device_status(self) -> DeviceStatus:
-        """The current device status."""
+        """The current device status.
+
+        Returns:
+            The current connection/login status value.
+        """
         return self._device_status
 
     @property
     def sesame_advertisement_data(self) -> SesameAdvertisementData:
         """The latest advertisement data from the Sesame device.
+
+        Returns:
+            Parsed advertisement data from the last successful scan.
 
         Raises:
             SesameConnectionError: If not connected.

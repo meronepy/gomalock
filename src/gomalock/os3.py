@@ -61,7 +61,8 @@ def calculate_battery_percentage(battery_voltage: float) -> int:
         battery_voltage: The battery voltage to convert.
 
     Returns:
-        The calculated battery percentage.
+        The calculated battery percentage, clamped to the configured
+        voltage range.
 
     Raises:
         AssertionError: If the code reaches an unreachable state.
@@ -90,7 +91,7 @@ def create_history_tag(history_name: str) -> bytes:
         history_name: The name to use for the history tag.
 
     Returns:
-        History tag for Sesame OS3.
+        A history tag payload for Sesame OS3.
     """
     payload = history_name.encode("utf-8")[:HISTORY_TAG_MAX_LEN]
     return len(payload).to_bytes(1, byteorder="little") + payload
@@ -124,13 +125,17 @@ class OS3QRCode:
 
     @classmethod
     def from_qr_url(cls, qr_url: str) -> Self:
-        """Creates an OS3DeviceInfo instance from a official app QR code URL.
+        """Creates an OS3QRCode instance from an official app QR code URL.
 
         Args:
             qr_url: The QR code URL containing device information.
 
         Returns:
             An instance of OS3DeviceInfo.
+
+        Raises:
+            SesameError: If the key level is not supported.
+            ValueError: If the QR URL or embedded data is malformed.
         """
         query = parse.parse_qs(parse.urlparse(qr_url).query)
         key_level_value = int(query.get("l", ["0"])[0])
@@ -153,7 +158,11 @@ class OS3QRCode:
 
     @property
     def qr_url(self) -> str:
-        """Generates a QR code for the official app."""
+        """Generates a QR code URL for the official app.
+
+        Returns:
+            The encoded URL string that can be converted to a QR code.
+        """
         shared_key = struct.pack(
             ">B16s4s2s16s",
             self.product_model.value,
@@ -360,8 +369,7 @@ class OS3Device:
 
         Raises:
             asyncio.TimeoutError: If the session token retrieval times out.
-            SesameConnectionError: If already connected.
-            SesameError: If the device cannot be found during scanning.
+            SesameConnectionError: If already connected or the device cannot be found.
         """
         if self.is_connected:
             raise SesameConnectionError("Already connected")
@@ -440,7 +448,10 @@ class OS3Device:
         return timestamp
 
     async def disconnect(self) -> None:
-        """Disconnects from the device."""
+        """Disconnects from the device.
+
+        This method is idempotent and does nothing if already disconnected.
+        """
         if self.is_connected:
             logger.debug(
                 "Closing OS3 protocol connection [address=%s]", self.mac_address
@@ -460,17 +471,28 @@ class OS3Device:
 
     @property
     def mac_address(self) -> str:
-        """The MAC address of the Sesame device."""
+        """The MAC address of the Sesame device.
+
+        Returns:
+            The BLE MAC address string.
+        """
         return self._ble_device.mac_address
 
     @property
     def is_connected(self) -> bool:
-        """Whether the BLE device is currently connected."""
+        """Whether the BLE device is currently connected.
+
+        Returns:
+            True if a BLE connection is active, otherwise False.
+        """
         return self._ble_device.is_connected
 
     @property
     def sesame_advertisement_data(self) -> SesameAdvertisementData:
         """The latest advertisement data from the Sesame device.
+
+        Returns:
+            Parsed advertisement data from the last successful scan.
 
         Raises:
             SesameConnectionError: If not connected.

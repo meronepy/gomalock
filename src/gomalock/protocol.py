@@ -33,6 +33,9 @@ class SesameAdvertisementData:
         Args:
             manufacturer_data: CANDYHOUSE, Inc-specific data.
 
+        Returns:
+            A parsed advertisement data instance.
+
         Raises:
             struct.error: If manufacturer_data has an invalid format or length.
             ValueError: If the product model or UUID data is invalid.

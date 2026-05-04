@@ -131,7 +131,7 @@ class SesameBleDevice:
             The advertisement data from the Sesame device.
 
         Raises:
-            SesameConnectionError: If the scan times out.
+            SesameConnectionError: If the scan times out or the device is not found.
         """
 
         logger.debug(
@@ -160,7 +160,8 @@ class SesameBleDevice:
         """Connect to the Sesame BLE device.
 
         Raises:
-            SesameConnectionError: If already connected or connection fails.
+            SesameConnectionError: If already connected, the device cannot be found,
+                or the BLE connection fails.
         """
         if self._bleak_client.is_connected:
             raise SesameConnectionError("Already connected")
@@ -217,7 +218,11 @@ class SesameBleDevice:
             await self._bleak_client.write_gatt_char(UUID_WRITE, packet, response=False)
 
     async def disconnect(self) -> None:
-        """Disconnect from Sesame device if connected."""
+        """Disconnect from Sesame device if connected.
+
+        This is a best-effort cleanup and does not raise if the device is already
+        disconnected.
+        """
         if self._bleak_client.is_connected:
             logger.debug("Closing BLE connection [address=%s]", self.mac_address)
             self._is_expectedly_disconnected = True
@@ -234,12 +239,19 @@ class SesameBleDevice:
 
     @property
     def mac_address(self) -> str:
-        """The MAC address of the Sesame device."""
+        """The MAC address of the Sesame device.
+
+        Returns:
+            The BLE MAC address string.
+        """
         return self._bleak_client.address
 
     @property
     def sesame_advertisement_data(self) -> SesameAdvertisementData:
         """The latest advertisement data from the Sesame device.
+
+        Returns:
+            Parsed advertisement data from the last successful scan.
 
         Raises:
             SesameConnectionError: If not connected.
@@ -250,5 +262,9 @@ class SesameBleDevice:
 
     @property
     def is_connected(self) -> bool:
-        """Whether the BLE device is currently connected."""
+        """Whether the BLE device is currently connected.
+
+        Returns:
+            True if a BLE connection is active, otherwise False.
+        """
         return self._bleak_client.is_connected
