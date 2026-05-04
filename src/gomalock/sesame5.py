@@ -8,12 +8,14 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import random
 import struct
 from dataclasses import dataclass
 from typing import Callable, Self
 
 from .const import (
     PUBLISH_TIMEOUT,
+    RECONNECT_MAX_BACKOFF,
     DeviceStatus,
     ItemCodes,
     KeyLevels,
@@ -205,32 +207,32 @@ class Sesame5:
     async def _auto_reconnect(self) -> None:
         """Automatically attempts to reconnect and login to the device."""
         for attempt in range(self._auto_reconnection_limit):
-            if attempt > 0:
-                await asyncio.sleep(5)
+            delay = min(2**attempt + random.random(), RECONNECT_MAX_BACKOFF)
+            logger.info(
+                "Auto-reconnection will be attempted after delay "
+                "[address=%s, attempt=%d/%d, delay=%.1fs]",
+                self.mac_address,
+                attempt + 1,
+                self._auto_reconnection_limit,
+                delay,
+            )
+            await asyncio.sleep(delay)
             try:
                 await self.connect()
                 if self._secret_key is not None:
                     await self.login()
             except (SesameConnectionError, asyncio.TimeoutError) as e:
                 logger.warning(
-                    "Auto-reconnection attempt failed [address=%s, attempt=%d/%d, error=%s]",
+                    "Auto-reconnection attempt failed [address=%s, error=%s]",
                     self.mac_address,
-                    attempt + 1,
-                    self._auto_reconnection_limit,
                     e,
                 )
                 self._cleanup()
                 continue
-            logger.info(
-                "Auto-reconnection successful [address=%s, attempts=%d]",
-                self.mac_address,
-                attempt + 1,
-            )
             return
         logger.error(
-            "Auto-reconnection failed [address=%s, attempts=%d]",
+            "Auto-reconnection failed [address=%s]",
             self.mac_address,
-            self._auto_reconnection_limit,
         )
 
     async def _wait_for_reconnection(self) -> None:

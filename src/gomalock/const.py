@@ -234,26 +234,6 @@ class ResultCodes(Enum):
     INVALID_ACTION = 9
 
 
-COMPANY_ID = 0x055A
-"""The company ID for CANDYHOUSE, Inc."""
-UUID_SERVICE = "0000fd81-0000-1000-8000-00805f9b34fb"
-"""The UUID for the primary Sesame BLE service."""
-UUID_WRITE = "16860002-a5ae-9856-b6d3-dbb4c676993e"
-"""The UUID for the GATT characteristic used to write commands."""
-UUID_NOTIFICATION = "16860003-a5ae-9856-b6d3-dbb4c676993e"
-"""The UUID for the GATT characteristic used to receive notifications."""
-
-HISTORY_TAG_MAX_LEN = 20
-"""Max history tag length."""
-MTU_SIZE = 20
-"""The MTU for BLE communication."""
-SCAN_TIMEOUT = 10
-"""Timeout for BLE scanning."""
-PUBLISH_TIMEOUT = 5
-"""Timeout for waiting for a expected publish message."""
-RESPONSE_TIMEOUT = 2
-"""Timeout for waiting for a response from the device."""
-
 VOLTAGE_LEVELS = (
     5.85,
     5.82,
@@ -273,6 +253,7 @@ VOLTAGE_LEVELS = (
     4.6,
 )
 """Voltage levels for battery percentage calculation."""
+
 BATTERY_PERCENTAGES = (
     100.0,
     95.0,
@@ -292,3 +273,25 @@ BATTERY_PERCENTAGES = (
     0.0,
 )
 """Battery percentage corresponding to the voltage levels."""
+
+COMPANY_ID = 0x055A
+"""The company ID for CANDYHOUSE, Inc."""
+UUID_SERVICE = "0000fd81-0000-1000-8000-00805f9b34fb"
+"""The UUID for the primary Sesame BLE service."""
+UUID_WRITE = "16860002-a5ae-9856-b6d3-dbb4c676993e"
+"""The UUID for the GATT characteristic used to write commands."""
+UUID_NOTIFICATION = "16860003-a5ae-9856-b6d3-dbb4c676993e"
+"""The UUID for the GATT characteristic used to receive notifications."""
+HISTORY_TAG_MAX_LEN = 20
+"""Max history tag length."""
+MTU_SIZE = 20
+"""The MTU for BLE communication."""
+
+SCAN_TIMEOUT = 10
+"""Timeout for BLE scanning."""
+PUBLISH_TIMEOUT = 5
+"""Timeout for waiting for a expected publish message."""
+RESPONSE_TIMEOUT = 2
+"""Timeout for waiting for a response from the device."""
+RECONNECT_MAX_BACKOFF = 32
+"""Maximum backoff time in seconds for auto-reconnection attempts."""
