@@ -335,15 +335,15 @@ class TestSesame5ContextManager:
     ) -> None:
         """Context manager connects, logs in, and disconnects."""
         device, _ = _make_sesame5(mocker)
-        device.connect = mocker.AsyncMock()
-        device.login = mocker.AsyncMock()
-        device.disconnect = mocker.AsyncMock()
+        mock_connect = mocker.patch.object(device, "connect")
+        mock_login = mocker.patch.object(device, "login")
+        mock_disconnect = mocker.patch.object(device, "disconnect")
 
         async with device:
-            device.connect.assert_awaited_once()
-            device.login.assert_awaited_once()
+            mock_connect.assert_awaited_once()
+            mock_login.assert_awaited_once()
 
-        device.disconnect.assert_awaited_once()
+        mock_disconnect.assert_awaited_once()
 
     @pytest.mark.asyncio
     async def test_context_manager_skips_login_without_secret(
@@ -353,15 +353,15 @@ class TestSesame5ContextManager:
         mock_os3 = mocker.Mock()
         mocker.patch("gomalock.sesame5.OS3Device", return_value=mock_os3)
         device = sesame5.Sesame5("AA:BB:CC:DD:EE:FF")
-        device.connect = mocker.AsyncMock()
-        device.login = mocker.AsyncMock()
-        device.disconnect = mocker.AsyncMock()
+        mock_connect = mocker.patch.object(device, "connect")
+        mock_login = mocker.patch.object(device, "login")
+        mock_disconnect = mocker.patch.object(device, "disconnect")
 
         async with device:
-            device.connect.assert_awaited_once()
-            device.login.assert_not_awaited()
+            mock_connect.assert_awaited_once()
+            mock_login.assert_not_awaited()
 
-        device.disconnect.assert_awaited_once()
+        mock_disconnect.assert_awaited_once()
 
 
 class TestSesame5LockUnlockToggle:
