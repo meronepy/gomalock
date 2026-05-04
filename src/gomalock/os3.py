@@ -429,8 +429,7 @@ class OS3Device:
         response = await self.send_command(
             SesameCommand(ItemCodes.LOGIN, session_key[:4]), False
         )
-        timestamp = int.from_bytes(response.payload, "little")
-        return timestamp
+        return int.from_bytes(response.payload, "little")
 
     async def disconnect(self) -> None:
         """Disconnects from the device.
