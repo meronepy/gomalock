@@ -7,7 +7,7 @@
 
 ---
 
-## `class gomalock.sesametouch.SesameTouch(mac_address: str, secret_key: str | None = None, mech_status_callback: Callable[[SesameTouch, SesameTouchMechStatus], None] | None = None)`
+## `class gomalock.sesametouch.SesameTouch(mac_address: str, secret_key: str | None = None, mech_status_callback: Callable[[SesameTouch, SesameTouchMechStatus], None] | None = None, auto_reconnection_limit: int = 0)`
 
 - Sesame Touchとの接続、ログイン、操作などを行うクラスです
 - 引数`secret_key`が与えられた場合は非同期コンテキストマネージャー(`async with`)はログインを自動的に行います
@@ -17,6 +17,7 @@
   - mac_address: 接続するSesame TouchのMACアドレス
   - secret_key: 接続するSesame Touchのシークレットキー
   - mech_status_callback: 器械状態の変化時に呼び出されるコールバック関数
+  - auto_reconnection_limit: 再接続の試行回数の上限 (デフォルトは`0`で無効)
 
 > `v1.0.0`以降では`SesameTouch`インスタンスと`SesameTouchMechStatus`インスタンスの両方をコールバックします
 
@@ -113,7 +114,7 @@
   - LOGGED_IN
   - DISCONNECTING
 
-#### `property SesameTouch.mech_status: SesameTouch.SesameTouchMechStatus`
+#### `property SesameTouch.mech_status: SesameTouchMechStatus`
 
 - キャッシュされた最新の[Sesame Touchの器械状態](#sesametouchmechstatusクラス)
 - ログイン前に参照しようとすると、`SesameLoginError`を送出します
