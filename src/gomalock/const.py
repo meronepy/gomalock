@@ -247,7 +247,7 @@ HISTORY_TAG_MAX_LEN = 20
 """Max history tag length."""
 MTU_SIZE = 20
 """The MTU for BLE communication."""
-SCAN_TIMEOUT = 5
+SCAN_TIMEOUT = 10
 """Timeout for BLE scanning."""
 PUBLISH_TIMEOUT = 5
 """Timeout for waiting for a expected publish message."""
