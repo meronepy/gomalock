@@ -124,22 +124,6 @@ class SesameBleDevice:
         )
         self._received_data_callback(self._rx_buffer, packet.is_encrypted)
 
-    def _on_cleanup_disconnect_task_done(self, task: asyncio.Task) -> None:
-        """Handles completion of the cleanup task after an unexpected disconnection.
-
-        Args:
-            task: The completed asyncio Task.
-        """
-        if task.cancelled():
-            logger.debug("Cleanup task was cancelled [address=%s]", self.mac_address)
-        exception = task.exception()
-        if exception is not None:
-            logger.exception(
-                "Unexpected disconnection cleanup failed [address=%s]",
-                self.mac_address,
-                exc_info=exception,
-            )
-
     async def _cleanup_disconnected_state(self) -> None:
         """Performs cleanup after an unexpected BLE disconnection.
 
@@ -160,6 +144,22 @@ class SesameBleDevice:
         finally:
             self._cleanup()
             self._unexpected_disconnect_callback()
+
+    def _on_cleanup_disconnect_task_done(self, task: asyncio.Task) -> None:
+        """Handles completion of the cleanup task after an unexpected disconnection.
+
+        Args:
+            task: The completed asyncio Task.
+        """
+        if task.cancelled():
+            logger.debug("Cleanup task was cancelled [address=%s]", self.mac_address)
+        exception = task.exception()
+        if exception is not None:
+            logger.exception(
+                "Unexpected disconnection cleanup failed [address=%s]",
+                self.mac_address,
+                exc_info=exception,
+            )
 
     async def _get_sesame_advertisement_data(self) -> SesameAdvertisementData:
         """Scan and retrieve Sesame advertisement data.
