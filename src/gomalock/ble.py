@@ -88,22 +88,14 @@ class SesameBleDevice:
         if self._is_expectedly_disconnected:
             self._is_expectedly_disconnected = False
             return
-        if self._cleanup_disconnect_task is None:
-            self._cleanup_disconnect_task = asyncio.create_task(
-                self._cleanup_disconnected_state()
-            )
-
-            def on_task_done(task: asyncio.Task) -> None:
-                try:
-                    task.result()
-                except (RuntimeError, asyncio.TimeoutError, BleakDBusError):
-                    logger.exception(
-                        "Unexpected disconnection cleanup failed [address=%s]",
-                        self.mac_address,
-                    )
-                self._cleanup_disconnect_task = None
-
-            self._cleanup_disconnect_task.add_done_callback(on_task_done)
+        if self._cleanup_disconnect_task is not None:
+            return
+        self._cleanup_disconnect_task = asyncio.create_task(
+            self._cleanup_disconnected_state()
+        )
+        self._cleanup_disconnect_task.add_done_callback(
+            self._on_cleanup_disconnect_task_done
+        )
 
     def notification_handler(
         self, characteristic: BleakGATTCharacteristic, data: bytearray
@@ -132,6 +124,22 @@ class SesameBleDevice:
         )
         self._received_data_callback(self._rx_buffer, packet.is_encrypted)
 
+    def _on_cleanup_disconnect_task_done(self, task: asyncio.Task) -> None:
+        """Handles completion of the cleanup task after an unexpected disconnection.
+
+        Args:
+            task: The completed asyncio Task.
+        """
+        if task.cancelled():
+            logger.debug("Cleanup task was cancelled [address=%s]", self.mac_address)
+        exception = task.exception()
+        if exception is not None:
+            logger.exception(
+                "Unexpected disconnection cleanup failed [address=%s]",
+                self.mac_address,
+                exc_info=exception,
+            )
+
     async def _cleanup_disconnected_state(self) -> None:
         """Performs cleanup after an unexpected BLE disconnection.
 
@@ -147,9 +155,11 @@ class SesameBleDevice:
             asyncio.TimeoutError: If the device was not disconnected within
                 10 seconds (typically on Linux).
         """
-        await self._bleak_client.disconnect()
-        self._cleanup()
-        asyncio.get_running_loop().call_soon(self._unexpected_disconnect_callback)
+        try:
+            await self._bleak_client.disconnect()
+        finally:
+            self._cleanup()
+            self._unexpected_disconnect_callback()
 
     async def _get_sesame_advertisement_data(self) -> SesameAdvertisementData:
         """Scan and retrieve Sesame advertisement data.
