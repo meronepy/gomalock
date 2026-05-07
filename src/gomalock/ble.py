@@ -11,7 +11,7 @@ from typing import Callable
 
 from bleak import BleakClient
 from bleak.backends.characteristic import BleakGATTCharacteristic
-from bleak.exc import BleakDBusError, BleakDeviceNotFoundError
+from bleak.exc import BleakDeviceNotFoundError
 
 from .const import MTU_SIZE, SCAN_TIMEOUT, UUID_NOTIFICATION, UUID_WRITE, PacketTypes
 from .exc import SesameConnectionError
