@@ -79,7 +79,7 @@ class TestNotificationHandler:
             ),
         )
 
-        device.notification_handler(mocker.Mock(), bytearray())
+        device.on_notification(mocker.Mock(), bytearray())
 
         received_cb.assert_not_called()
 
@@ -97,7 +97,7 @@ class TestNotificationHandler:
             ),
         )
 
-        device.notification_handler(mocker.Mock(), bytearray())
+        device.on_notification(mocker.Mock(), bytearray())
 
         received_cb.assert_called_once_with(b"plaintext", False)
 
@@ -116,9 +116,9 @@ class TestNotificationHandler:
             ],
         )
 
-        device.notification_handler(mocker.Mock(), bytearray())
-        device.notification_handler(mocker.Mock(), bytearray())
-        device.notification_handler(mocker.Mock(), bytearray())
+        device.on_notification(mocker.Mock(), bytearray())
+        device.on_notification(mocker.Mock(), bytearray())
+        device.on_notification(mocker.Mock(), bytearray())
 
         received_cb.assert_called_once_with(b"part1-part2-part3", True)
 
@@ -143,7 +143,7 @@ class TestConnectAndStartNotification:
 
         mock_client.connect.assert_awaited_once()
         mock_client.start_notify.assert_awaited_once_with(
-            const.UUID_NOTIFICATION, device.notification_handler
+            const.UUID_NOTIFICATION, device.on_notification
         )
         assert device.sesame_advertisement_data is mock_adv
 

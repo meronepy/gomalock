@@ -69,7 +69,7 @@ class SesameBleDevice:
         self._received_data_callback = received_data_callback
         self._unexpected_disconnect_callback = unexpected_disconnect_callback
         self._is_expectedly_disconnected = False
-        self._cleanup_disconnect_task: asyncio.Task | None = None
+        self._unexpected_disconnect_task: asyncio.Task | None = None
         self._rx_buffer = b""
         self._sesame_advertisement_data: SesameAdvertisementData | None = None
 
@@ -88,16 +88,56 @@ class SesameBleDevice:
         if self._is_expectedly_disconnected:
             self._is_expectedly_disconnected = False
             return
-        if self._cleanup_disconnect_task is not None:
+        if self._unexpected_disconnect_task is not None:
             return
-        self._cleanup_disconnect_task = asyncio.create_task(
-            self._cleanup_disconnected_state()
+        self._unexpected_disconnect_task = asyncio.create_task(
+            self._handle_unexpected_disconnect()
         )
-        self._cleanup_disconnect_task.add_done_callback(
-            self._on_cleanup_disconnect_task_done
+        self._unexpected_disconnect_task.add_done_callback(
+            self._on_unexpected_disconnect_task_done
         )
 
-    def notification_handler(
+    async def _handle_unexpected_disconnect(self) -> None:
+        """Performs cleanup and calls callback after an unexpected BLE disconnection.
+
+        Explicitly calling `disconnect()` after an unexpected disconnection is
+        necessary to clear the internal state of the Bleak client (especially
+        on Windows). This prevents an 'unhandled services changed event'
+        error when `connect()` is called again.
+        Also resets internal buffers and triggers the `unexpected_disconnect_callback`.
+
+        Raises:
+            RuntimeError: If getting the running loop fails.
+            BleakDBusError: If there was a D-Bus error (typically on Linux).
+            asyncio.TimeoutError: If the device was not disconnected within
+                10 seconds (typically on Linux).
+        """
+        try:
+            await self._bleak_client.disconnect()
+        finally:
+            self._cleanup()
+            self._unexpected_disconnect_callback()
+
+    def _on_unexpected_disconnect_task_done(self, task: asyncio.Task) -> None:
+        """Handles completion of the unexpected disconnect handling task.
+
+        Args:
+            task: The completed asyncio Task.
+        """
+        if task.cancelled():
+            logger.debug(
+                "Unexpected disconnection handling task was cancelled [address=%s]",
+                self.mac_address,
+            )
+        exception = task.exception()
+        if exception is not None:
+            logger.exception(
+                "Unexpected disconnection handling failed [address=%s]",
+                self.mac_address,
+                exc_info=exception,
+            )
+
+    def on_notification(
         self, characteristic: BleakGATTCharacteristic, data: bytearray
     ) -> None:
         """Parses an incoming BLE packet and reassembles fragmented messages.
@@ -123,43 +163,6 @@ class SesameBleDevice:
             packet.is_encrypted,
         )
         self._received_data_callback(self._rx_buffer, packet.is_encrypted)
-
-    async def _cleanup_disconnected_state(self) -> None:
-        """Performs cleanup after an unexpected BLE disconnection.
-
-        Explicitly calling `disconnect()` after an unexpected disconnection is
-        necessary to clear the internal state of the Bleak client (especially
-        on Windows). This prevents an 'unhandled services changed event'
-        error when `connect()` is called again.
-        Also resets internal buffers and triggers the `unexpected_disconnect_callback`.
-
-        Raises:
-            RuntimeError: If getting the running loop fails.
-            BleakDBusError: If there was a D-Bus error (typically on Linux).
-            asyncio.TimeoutError: If the device was not disconnected within
-                10 seconds (typically on Linux).
-        """
-        try:
-            await self._bleak_client.disconnect()
-        finally:
-            self._cleanup()
-            self._unexpected_disconnect_callback()
-
-    def _on_cleanup_disconnect_task_done(self, task: asyncio.Task) -> None:
-        """Handles completion of the cleanup task after an unexpected disconnection.
-
-        Args:
-            task: The completed asyncio Task.
-        """
-        if task.cancelled():
-            logger.debug("Cleanup task was cancelled [address=%s]", self.mac_address)
-        exception = task.exception()
-        if exception is not None:
-            logger.exception(
-                "Unexpected disconnection cleanup failed [address=%s]",
-                self.mac_address,
-                exc_info=exception,
-            )
 
     async def _get_sesame_advertisement_data(self) -> SesameAdvertisementData:
         """Scan and retrieve Sesame advertisement data.
@@ -208,9 +211,7 @@ class SesameBleDevice:
             "BLE connection established, starting BLE notification [address=%s]",
             self.mac_address,
         )
-        await self._bleak_client.start_notify(
-            UUID_NOTIFICATION, self.notification_handler
-        )
+        await self._bleak_client.start_notify(UUID_NOTIFICATION, self.on_notification)
         logger.debug(
             "BLE notifications started, communication with Sesame device established [address=%s]",
             self.mac_address,
