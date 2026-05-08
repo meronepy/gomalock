@@ -28,6 +28,7 @@
 - 自動再接続は、ログイン後の予期せぬ切断の場合に実行されます
 - 一部のメソッドを除き、再接続中に`async Sesame5.lock()`や`async Sesame5.unlock()`などの非同期メソッドが実行されると、再接続を待ってから実行されます
 - `async Sesame5.disconnect()`を実行すると自動再接続を終了します
+- 自動再接続中に`async Sesame5.connect()`または`async Sesame5.login()`を手動で呼び出すと例外を送出します
 - `Sesame5.generate_qr_url()`や`property Sesame5.sesame_advertisement_data`のような、接続を必要とする通常のメソッド、プロパティは再接続を待たずに例外を送出します
 
 ### 操作
