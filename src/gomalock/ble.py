@@ -124,11 +124,13 @@ class SesameBleDevice:
         Args:
             task: The completed asyncio Task.
         """
+        self._unexpected_disconnect_task = None
         if task.cancelled():
             logger.debug(
                 "Unexpected disconnection handling task was cancelled [address=%s]",
                 self.mac_address,
             )
+            return
         exception = task.exception()
         if exception is not None:
             logger.exception(
@@ -136,7 +138,6 @@ class SesameBleDevice:
                 self.mac_address,
                 exc_info=exception,
             )
-        self._unexpected_disconnect_task = None
 
     def on_notification(
         self, characteristic: BleakGATTCharacteristic, data: bytearray
