@@ -258,6 +258,14 @@ class SesameTouch:
             SesameConnectionError: If already connected.
             SesameError: If the device cannot be found during scanning.
         """
+        if (
+            self._reconnect_task is not None
+            and not self._reconnect_task.done()
+            and asyncio.current_task() is not self._reconnect_task
+        ):
+            raise SesameConnectionError(
+                "Cannot connect while auto-reconnection is in progress"
+            )
         if self.is_connected:
             raise SesameConnectionError("Already connected")
         logger.info("Connecting to Sesame Touch [address=%s]", self.mac_address)
@@ -294,10 +302,19 @@ class SesameTouch:
 
         Raises:
             asyncio.TimeoutError: If the response times out.
-            SesameConnectionError: If not connected to the device.
+            SesameConnectionError: If not connected to the device or if
+                auto-reconnection is in progress.
             SesameLoginError: If already logged in or secret key is missing.
             SesameOperationError: If the login operation fails.
         """
+        if (
+            self._reconnect_task is not None
+            and not self._reconnect_task.done()
+            and asyncio.current_task() is not self._reconnect_task
+        ):
+            raise SesameConnectionError(
+                "Cannot login while auto-reconnection is in progress"
+            )
         if self.is_logged_in:
             raise SesameLoginError("Already logged in")
         secret_key = secret_key or self._secret_key
