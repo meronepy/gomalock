@@ -376,7 +376,12 @@ class OS3Device:
         logger.debug(
             "Waiting for INITIAL including session token [timeout=%ds]", PUBLISH_TIMEOUT
         )
-        await asyncio.wait_for(self._session_token_future, PUBLISH_TIMEOUT)
+        try:
+            await asyncio.wait_for(self._session_token_future, PUBLISH_TIMEOUT)
+        except asyncio.TimeoutError:
+            self._session_token_future.cancel()
+            self._session_token_future = None
+            raise
 
     async def register(self) -> bytes:
         """Register the Sesame OS3 device and derive a shared secret key.
