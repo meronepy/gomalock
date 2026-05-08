@@ -5,12 +5,6 @@
 - Sesame Touchの電池残量、電圧のリアルタイム取得
 - 登録済みの指紋、カード、パスワードの数の取得
 
-## 自動再接続について
-
-- 自動再接続は、ログイン後の予期せぬ切断の場合に実行されます
-- `async SesameTouch.disconnect()`を実行すると自動再接続を終了します
-- `SesameTouch.generate_qr_url()`や`property SesameTouch.sesame_advertisement_data`のような、接続を必要とする通常のメソッド、プロパティは再接続を待たずに例外を送出します
-
 ---
 
 ## `class gomalock.sesametouch.SesameTouch(mac_address: str, secret_key: str | None = None, mech_status_callback: Callable[[SesameTouch, SesameTouchMechStatus], None] | None = None, auto_reconnection_limit: int = 0)`
@@ -26,6 +20,14 @@
   - auto_reconnection_limit: 再接続の試行回数の上限 (デフォルトは`0`で無効)
 
 > `v1.0.0`以降では`SesameTouch`インスタンスと`SesameTouchMechStatus`インスタンスの両方をコールバックします
+
+---
+
+## 自動再接続について
+
+- 自動再接続は、ログイン後の予期せぬ切断の場合に実行されます
+- `async SesameTouch.disconnect()`を実行すると自動再接続を終了します
+- `SesameTouch.generate_qr_url()`や`property SesameTouch.sesame_advertisement_data`のような、接続を必要とする通常のメソッド、プロパティは再接続を待たずに例外を送出します
 
 ### 操作
 

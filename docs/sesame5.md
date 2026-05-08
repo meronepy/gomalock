@@ -5,13 +5,6 @@
 - Sesame 5の施錠、開錠、トグル操作
 - Sesame 5の状態のリアルタイム取得
 
-## 自動再接続について
-
-- 自動再接続は、ログイン後の予期せぬ切断の場合に実行されます
-- 一部のメソッドを除き、再接続中に`async Sesame5.lock()`や`async Sesame5.unlock()`などの非同期メソッドが実行されると、再接続を待ってから実行されます
-- `async Sesame5.disconnect()`を実行すると自動再接続を終了します
-- `Sesame5.generate_qr_url()`や`property Sesame5.sesame_advertisement_data`のような、接続を必要とする通常のメソッド、プロパティは再接続を待たずに例外を送出します
-
 ---
 
 ## `class gomalock.sesame5.Sesame5(mac_address: str, secret_key: str | None = None, mech_status_callback: Callable[[Sesame5, Sesame5MechStatus], None] | None = None, auto_reconnection_limit: int = 0)`
@@ -29,6 +22,13 @@
 > `v1.0.0`以降では`Sesame5`インスタンスと`Sesame5MechStatus`インスタンスの両方をコールバックします
 
 ---
+
+### 自動再接続について
+
+- 自動再接続は、ログイン後の予期せぬ切断の場合に実行されます
+- 一部のメソッドを除き、再接続中に`async Sesame5.lock()`や`async Sesame5.unlock()`などの非同期メソッドが実行されると、再接続を待ってから実行されます
+- `async Sesame5.disconnect()`を実行すると自動再接続を終了します
+- `Sesame5.generate_qr_url()`や`property Sesame5.sesame_advertisement_data`のような、接続を必要とする通常のメソッド、プロパティは再接続を待たずに例外を送出します
 
 ### 操作
 
