@@ -136,6 +136,7 @@ class SesameBleDevice:
                 self.mac_address,
                 exc_info=exception,
             )
+        self._unexpected_disconnect_task = None
 
     def on_notification(
         self, characteristic: BleakGATTCharacteristic, data: bytearray
