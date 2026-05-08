@@ -346,7 +346,12 @@ class OS3Device:
                 command.item_code.name,
                 RESPONSE_TIMEOUT,
             )
-            response = await asyncio.wait_for(response_future, RESPONSE_TIMEOUT)
+            try:
+                response = await asyncio.wait_for(response_future, RESPONSE_TIMEOUT)
+            except asyncio.TimeoutError:
+                response_future.cancel()
+                self._response_futures.pop(command.item_code, None)
+                raise
             if response.result_code != ResultCodes.SUCCESS:
                 raise SesameOperationError(
                     f"Operation failed: {response.result_code.name}",
