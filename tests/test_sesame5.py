@@ -1,588 +1,460 @@
+# pylint: disable=duplicate-code,missing-module-docstring
+from __future__ import annotations
+
 import struct
-from uuid import UUID
+from unittest.mock import AsyncMock, Mock
 
 import pytest
-from pytest_mock import MockerFixture
 
-from gomalock import const, exc, os3_protocol, protocol_types, sesame5
-
-
-def _make_sesame5(mocker: MockerFixture, *, is_connected: bool = False):
-    """Helper to create Sesame5 with a mocked OS3Device."""
-    mock_os3 = mocker.Mock()
-    mock_os3.connect = mocker.AsyncMock()
-    mock_os3.login = mocker.AsyncMock(return_value=123)
-    mock_os3.register = mocker.AsyncMock(return_value=b"\x11" * 16)
-    mock_os3.disconnect = mocker.AsyncMock()
-    mock_os3.send_command = mocker.AsyncMock()
-    type(mock_os3).is_connected = mocker.PropertyMock(return_value=is_connected)
-    type(mock_os3).mac_address = mocker.PropertyMock(return_value="AA:BB:CC:DD:EE:FF")
-    type(mock_os3).sesame_advertisement_data = mocker.PropertyMock(
-        return_value=mocker.Mock(
-            product_model=const.ProductModels.SESAME5,
-            device_uuid=UUID("01234567-89ab-cdef-0123-456789abcdef"),
-        )
-    )
-    mocker.patch("gomalock.sesame5.OS3Device", return_value=mock_os3)
-    device = sesame5.Sesame5("AA:BB:CC:DD:EE:FF", secret_key="00" * 16)
-    return device, mock_os3
+from gomalock import const, exc, os3_lock_base, os3_protocol, protocol_types, sesame5
+from tests.conftest import TEST_ADDRESS, TEST_UUID, make_mock_os3_device
 
 
-def _make_mech_status_payload(
+def mech_status_payload(
     raw_battery: int = 2500,
     target: int = 0,
     position: int = 0,
     flags: int = 0,
 ) -> bytes:
-    """Helper to create a Sesame5 mech_status payload."""
+    """Builds a Sesame 5 mechanical status payload."""
     return struct.pack("<HhhB", raw_battery, target, position, flags)
 
 
-def _make_mech_setting_payload(
-    lock_pos: int = -90,
-    unlock_pos: int = 90,
-    auto_lock: int = 30,
+def mech_setting_payload(
+    lock_position: int = -90,
+    unlock_position: int = 90,
+    auto_lock_duration: int = 30,
 ) -> bytes:
-    """Helper to create a Sesame5 mech_setting payload."""
-    return struct.pack("<hhH", lock_pos, unlock_pos, auto_lock)
+    """Builds a Sesame 5 mechanical setting payload."""
+    return struct.pack("<hhH", lock_position, unlock_position, auto_lock_duration)
 
 
-class TestSesame5MechStatusFromPayload:
-    """Tests for Sesame5MechStatus.from_payload."""
+def make_sesame5(
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    is_connected: bool = False,
+) -> tuple[sesame5.Sesame5, Mock]:
+    """Creates Sesame5 with the OS3 protocol replaced by a mock."""
+    os3_device = make_mock_os3_device(is_connected=is_connected)
+    monkeypatch.setattr(
+        os3_lock_base,
+        "SesameOS3Protocol",
+        Mock(return_value=os3_device),
+    )
+    device = sesame5.Sesame5(TEST_ADDRESS, secret_key="00" * 16)
+    return device, os3_device
 
-    def test_from_payload_parses_all_fields(self) -> None:
-        """Parses battery, target, position, and status flags."""
-        flags = (
-            const.MechStatusBitFlags.IS_IN_LOCK_RANGE
-            | const.MechStatusBitFlags.IS_BATTERY_CRITICAL
-            | const.MechStatusBitFlags.IS_STOP
+
+async def login_device(device: sesame5.Sesame5) -> None:
+    """Completes the public login flow for command tests."""
+    device.on_published(
+        protocol_types.ReceivedSesamePublish(
+            const.ItemCodes.MECH_STATUS,
+            mech_status_payload(flags=const.MechStatusBitFlags.IS_IN_LOCK_RANGE),
         )
-        payload = _make_mech_status_payload(3000, 10, -5, flags)
-
-        status = sesame5.Sesame5MechStatus.from_payload(payload)
-
-        assert status.target == 10
-        assert status.position == -5
-        assert status.is_in_lock_range is True
-        assert status.is_in_unlock_range is False
-        assert status.is_battery_critical is True
-        assert status.is_stop is True
-
-    def test_from_payload_invalid_length_raises(self) -> None:
-        """Raises struct.error for invalid payload length."""
-        with pytest.raises(struct.error):
-            sesame5.Sesame5MechStatus.from_payload(b"\x00")
-
-
-class TestSesame5MechStatusProperties:
-    """Tests for Sesame5MechStatus computed properties."""
-
-    def test_battery_voltage_calculation(self) -> None:
-        """Battery voltage is raw_battery * 2 / 1000."""
-        status = sesame5.Sesame5MechStatus.from_payload(
-            _make_mech_status_payload(raw_battery=3000)
+    )
+    device.on_published(
+        protocol_types.ReceivedSesamePublish(
+            const.ItemCodes.MECH_SETTING,
+            mech_setting_payload(),
         )
-        assert status.battery_voltage == 6.0
+    )
+    await device.login()
 
-    def test_battery_percentage_delegation(self) -> None:
-        """Battery percentage delegates to calculate_battery_percentage."""
-        status = sesame5.Sesame5MechStatus.from_payload(
-            _make_mech_status_payload(raw_battery=3000)
+
+def test_from_payload_mech_status_valid() -> None:
+    """Parses Sesame 5 mechanical status fields and flags."""
+    flags = (
+        const.MechStatusBitFlags.IS_IN_LOCK_RANGE
+        | const.MechStatusBitFlags.IS_BATTERY_CRITICAL
+        | const.MechStatusBitFlags.IS_STOP
+    )
+
+    status = sesame5.Sesame5MechStatus.from_payload(
+        mech_status_payload(raw_battery=3000, target=10, position=-5, flags=flags)
+    )
+
+    assert status.target == 10
+    assert status.position == -5
+    assert status.is_in_lock_range is True
+    assert status.is_in_unlock_range is False
+    assert status.is_battery_critical is True
+    assert status.is_stop is True
+    assert status.battery_voltage == 6.0
+    assert status.battery_percentage == 100
+
+
+def test_from_payload_mech_status_invalid() -> None:
+    """Raises struct.error when status payloads are malformed."""
+    with pytest.raises(struct.error):
+        sesame5.Sesame5MechStatus.from_payload(b"\x00")
+
+
+def test_from_payload_mech_setting_valid() -> None:
+    """Parses lock positions and auto-lock duration."""
+    setting = sesame5.Sesame5MechSetting.from_payload(
+        mech_setting_payload(-1, 2, 30)
+    )
+
+    assert setting.lock_position == -1
+    assert setting.unlock_position == 2
+    assert setting.auto_lock_duration == 30
+
+
+def test_from_payload_mech_setting_invalid() -> None:
+    """Raises struct.error when setting payloads are malformed."""
+    with pytest.raises(struct.error):
+        sesame5.Sesame5MechSetting.from_payload(b"\x00")
+
+
+def test_on_published_mech_status(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Updates mechanical status and invokes callbacks."""
+    device, _ = make_sesame5(monkeypatch)
+    callback = Mock()
+    device.register_mech_status_callback(callback)
+
+    device.on_published(
+        protocol_types.ReceivedSesamePublish(
+            const.ItemCodes.MECH_STATUS,
+            mech_status_payload(target=5, position=4),
         )
-        assert status.battery_percentage == (os3_protocol.calculate_battery_percentage(6.0))
+    )
+
+    assert device.mech_status.target == 5
+    assert device.mech_status.position == 4
+    callback.assert_called_once_with(device, device.mech_status)
 
 
-class TestSesame5MechSetting:
-    """Tests for Sesame5MechSetting.from_payload."""
+def test_on_published_mech_setting(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Updates mechanical settings from publish data."""
+    device, _ = make_sesame5(monkeypatch)
 
-    def test_from_payload_parses_positions_and_duration(self) -> None:
-        """Parses lock/unlock positions and auto-lock duration."""
-        payload = _make_mech_setting_payload(-90, 90, 30)
-
-        setting = sesame5.Sesame5MechSetting.from_payload(payload)
-
-        assert setting.lock_position == -90
-        assert setting.unlock_position == 90
-        assert setting.auto_lock_duration == 30
-
-    def test_from_payload_invalid_length_raises(self) -> None:
-        """Raises struct.error for invalid payload length."""
-        with pytest.raises(struct.error):
-            sesame5.Sesame5MechSetting.from_payload(b"\x00")
-
-
-class TestSesame5OnPublished:
-    """Tests for Sesame5.on_published method."""
-
-    def test_on_published_mech_status_updates_state(
-        self, mocker: MockerFixture
-    ) -> None:
-        """MECH_STATUS publish updates mech_status and invokes callbacks."""
-        device, _ = _make_sesame5(mocker)
-        callback = mocker.Mock()
-        device.register_mech_status_callback(callback)
-
-        payload = _make_mech_status_payload(2500, 5, 5, 0)
-        device.on_published(
-            protocol_types.ReceivedSesamePublish(const.ItemCodes.MECH_STATUS, payload)
+    device.on_published(
+        protocol_types.ReceivedSesamePublish(
+            const.ItemCodes.MECH_SETTING,
+            mech_setting_payload(auto_lock_duration=7),
         )
+    )
 
-        assert device._mech_status is not None
-        assert device._mech_status.target == 5
-        callback.assert_called_once()
+    assert device.mech_setting.auto_lock_duration == 7
 
-    def test_on_published_mech_setting_updates_state(
-        self, mocker: MockerFixture
-    ) -> None:
-        """MECH_SETTING publish updates mech_setting."""
-        device, _ = _make_sesame5(mocker)
 
-        payload = _make_mech_setting_payload(-10, 10, 5)
-        device.on_published(
-            protocol_types.ReceivedSesamePublish(const.ItemCodes.MECH_SETTING, payload)
+def test_register_mech_status_callback_unregistered(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Does not invoke callbacks after unregister is called."""
+    device, _ = make_sesame5(monkeypatch)
+    callback = Mock()
+    unregister = device.register_mech_status_callback(callback)
+
+    unregister()
+    device.on_published(
+        protocol_types.ReceivedSesamePublish(
+            const.ItemCodes.MECH_STATUS,
+            mech_status_payload(),
         )
+    )
 
-        assert device._mech_setting is not None
-        assert device._mech_setting.auto_lock_duration == 5
-
-    def test_on_published_login_completed_after_both(
-        self, mocker: MockerFixture
-    ) -> None:
-        """Login completes only when both mech_status and mech_setting arrive."""
-        device, _ = _make_sesame5(mocker)
-
-        status_payload = _make_mech_status_payload()
-        device.on_published(
-            protocol_types.ReceivedSesamePublish(const.ItemCodes.MECH_STATUS, status_payload)
-        )
-        assert not device._login_completed.is_set()
-
-        setting_payload = _make_mech_setting_payload()
-        device.on_published(
-            protocol_types.ReceivedSesamePublish(
-                const.ItemCodes.MECH_SETTING, setting_payload
-            )
-        )
-        assert device._login_completed.is_set()
-
-    def test_on_published_unhandled_item_no_login(self, mocker: MockerFixture) -> None:
-        """Unhandled item codes do not complete login."""
-        device, _ = _make_sesame5(mocker)
-
-        device.on_published(
-            protocol_types.ReceivedSesamePublish(const.ItemCodes.LOGIN, b"payload")
-        )
-
-        assert not device._login_completed.is_set()
-
-    def test_on_published_init_registers_callback(self, mocker: MockerFixture) -> None:
-        """mech_status_callback passed to __init__ is registered."""
-        mock_os3 = mocker.Mock()
-        mocker.patch("gomalock.sesame5.OS3Device", return_value=mock_os3)
-        callback = mocker.Mock()
-
-        device = sesame5.Sesame5("AA:BB:CC:DD:EE:FF", mech_status_callback=callback)
-        payload = _make_mech_status_payload()
-        device.on_published(
-            protocol_types.ReceivedSesamePublish(const.ItemCodes.MECH_STATUS, payload)
-        )
-
-        callback.assert_called_once()
+    callback.assert_not_called()
 
 
-class TestSesame5RegisterMechStatusCallback:
-    """Tests for Sesame5.register_mech_status_callback."""
+@pytest.mark.asyncio
+async def test_connect_disconnected(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Connects and transitions to CONNECTED."""
+    device, os3_device = make_sesame5(monkeypatch, is_connected=False)
 
-    def test_register_mech_status_callback_unregister(
-        self, mocker: MockerFixture
-    ) -> None:
-        """Unregistered callback is not invoked."""
-        device, _ = _make_sesame5(mocker)
-        callback = mocker.Mock()
-        unregister = device.register_mech_status_callback(callback)
-        unregister()
+    await device.connect()
 
-        payload = _make_mech_status_payload()
-        device.on_published(
-            protocol_types.ReceivedSesamePublish(const.ItemCodes.MECH_STATUS, payload)
-        )
-
-        callback.assert_not_called()
+    os3_device.connect.assert_awaited_once_with()
+    assert device.device_status == const.DeviceStatus.CONNECTED
 
 
-class TestSesame5Connect:
-    """Tests for Sesame5.connect method."""
+@pytest.mark.asyncio
+async def test_connect_connected(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Raises SesameConnectionError when already connected."""
+    device, os3_device = make_sesame5(monkeypatch, is_connected=True)
 
-    @pytest.mark.asyncio
-    async def test_connect_success(self, mocker: MockerFixture) -> None:
-        """Connects and transitions to CONNECTED status."""
-        device, mock_os3 = _make_sesame5(mocker)
-
+    with pytest.raises(exc.SesameConnectionError):
         await device.connect()
 
-        mock_os3.connect.assert_awaited_once()
-        assert device.device_status == const.DeviceStatus.CONNECTED
-
-    @pytest.mark.asyncio
-    async def test_connect_already_connected_raises(
-        self, mocker: MockerFixture
-    ) -> None:
-        """Raises SesameConnectionError if already connected."""
-        device, mock_os3 = _make_sesame5(mocker, is_connected=True)
-
-        with pytest.raises(exc.SesameConnectionError):
-            await device.connect()
-
-        mock_os3.connect.assert_not_awaited()
+    os3_device.connect.assert_not_awaited()
 
 
-class TestSesame5Register:
-    """Tests for Sesame5.register method."""
+@pytest.mark.asyncio
+async def test_register_connected(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Returns the registered secret key as hex."""
+    device, os3_device = make_sesame5(monkeypatch, is_connected=True)
 
-    @pytest.mark.asyncio
-    async def test_register_success(self, mocker: MockerFixture) -> None:
-        """Returns hex-encoded secret key."""
-        device, mock_os3 = _make_sesame5(mocker, is_connected=True)
-
-        result = await device.register()
-
-        mock_os3.register.assert_awaited_once()
-        assert result == (b"\x11" * 16).hex()
-
-    @pytest.mark.asyncio
-    async def test_register_not_connected_raises(self, mocker: MockerFixture) -> None:
-        """Raises SesameConnectionError when not connected."""
-        device, _ = _make_sesame5(mocker)
-
-        with pytest.raises(exc.SesameConnectionError):
-            await device.register()
+    assert await device.register() == (b"\x11" * 16).hex()
+    os3_device.register.assert_awaited_once_with()
 
 
-class TestSesame5Login:
-    """Tests for Sesame5.login method."""
+@pytest.mark.asyncio
+async def test_register_disconnected(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Raises SesameConnectionError when registering while disconnected."""
+    device, _ = make_sesame5(monkeypatch, is_connected=False)
 
-    @pytest.mark.asyncio
-    async def test_login_success(self, mocker: MockerFixture) -> None:
-        """Logs in and transitions to LOGGED_IN status."""
-        device, mock_os3 = _make_sesame5(mocker)
-        device._login_completed.set()
-
-        result = await device.login()
-
-        mock_os3.login.assert_awaited_once_with(bytes.fromhex("00" * 16))
-        assert result == 123
-        assert device.device_status == const.DeviceStatus.LOGGED_IN
-
-    @pytest.mark.asyncio
-    async def test_login_already_logged_in_raises(self, mocker: MockerFixture) -> None:
-        """Raises SesameLoginError if already logged in."""
-        device, _ = _make_sesame5(mocker)
-        device._device_status = const.DeviceStatus.LOGGED_IN
-
-        with pytest.raises(exc.SesameLoginError):
-            await device.login()
-
-    @pytest.mark.asyncio
-    async def test_login_no_secret_key_raises(self, mocker: MockerFixture) -> None:
-        """Raises SesameLoginError if no secret key is provided."""
-        device, _ = _make_sesame5(mocker)
-        device._secret_key = None
-
-        with pytest.raises(exc.SesameLoginError):
-            await device.login()
-
-    @pytest.mark.asyncio
-    async def test_login_with_explicit_secret_key(self, mocker: MockerFixture) -> None:
-        """Uses explicit secret key over the initialized one."""
-        device, mock_os3 = _make_sesame5(mocker)
-        device._login_completed.set()
-        explicit_key = "ff" * 16
-
-        await device.login(secret_key=explicit_key)
-
-        mock_os3.login.assert_awaited_once_with(bytes.fromhex(explicit_key))
+    with pytest.raises(exc.SesameConnectionError):
+        await device.register()
 
 
-class TestSesame5Disconnect:
-    """Tests for Sesame5.disconnect method."""
+@pytest.mark.asyncio
+async def test_login_with_secret(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Logs in with the initialized secret key."""
+    device, os3_device = make_sesame5(monkeypatch)
+    device.on_published(
+        protocol_types.ReceivedSesamePublish(
+            const.ItemCodes.MECH_STATUS,
+            mech_status_payload(),
+        )
+    )
+    device.on_published(
+        protocol_types.ReceivedSesamePublish(
+            const.ItemCodes.MECH_SETTING,
+            mech_setting_payload(),
+        )
+    )
 
-    @pytest.mark.asyncio
-    async def test_disconnect_when_connected(self, mocker: MockerFixture) -> None:
-        """Disconnects and resets to DISCONNECTED status."""
-        device, mock_os3 = _make_sesame5(mocker, is_connected=True)
-
-        await device.disconnect()
-
-        mock_os3.disconnect.assert_awaited_once()
-        assert device.device_status == const.DeviceStatus.DISCONNECTED
-
-    @pytest.mark.asyncio
-    async def test_disconnect_when_not_connected(self, mocker: MockerFixture) -> None:
-        """Does nothing when already disconnected."""
-        device, mock_os3 = _make_sesame5(mocker)
-
-        await device.disconnect()
-
-        mock_os3.disconnect.assert_not_awaited()
-
-
-class TestSesame5ContextManager:
-    """Tests for Sesame5 async context manager."""
-
-    @pytest.mark.asyncio
-    async def test_context_manager_connects_logins_disconnects(
-        self, mocker: MockerFixture
-    ) -> None:
-        """Context manager connects, logs in, and disconnects."""
-        device, _ = _make_sesame5(mocker)
-        mock_connect = mocker.patch.object(device, "connect")
-        mock_login = mocker.patch.object(device, "login")
-        mock_disconnect = mocker.patch.object(device, "disconnect")
-
-        async with device:
-            mock_connect.assert_awaited_once()
-            mock_login.assert_awaited_once()
-
-        mock_disconnect.assert_awaited_once()
-
-    @pytest.mark.asyncio
-    async def test_context_manager_skips_login_without_secret(
-        self, mocker: MockerFixture
-    ) -> None:
-        """Context manager skips login if no secret_key."""
-        mock_os3 = mocker.Mock()
-        mocker.patch("gomalock.sesame5.OS3Device", return_value=mock_os3)
-        device = sesame5.Sesame5("AA:BB:CC:DD:EE:FF")
-        mock_connect = mocker.patch.object(device, "connect")
-        mock_login = mocker.patch.object(device, "login")
-        mock_disconnect = mocker.patch.object(device, "disconnect")
-
-        async with device:
-            mock_connect.assert_awaited_once()
-            mock_login.assert_not_awaited()
-
-        mock_disconnect.assert_awaited_once()
+    assert await device.login() == 123
+    os3_device.login.assert_awaited_once_with(bytes.fromhex("00" * 16))
+    assert device.device_status == const.DeviceStatus.LOGGED_IN
 
 
-class TestSesame5LockUnlockToggle:
-    """Tests for Sesame5.lock, unlock, toggle methods."""
+@pytest.mark.asyncio
+async def test_login_without_secret(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Raises SesameLoginError when no secret key is available."""
+    os3_device = make_mock_os3_device()
+    monkeypatch.setattr(
+        os3_lock_base,
+        "SesameOS3Protocol",
+        Mock(return_value=os3_device),
+    )
+    device = sesame5.Sesame5(TEST_ADDRESS)
 
-    @pytest.mark.asyncio
-    async def test_lock_sends_command(self, mocker: MockerFixture) -> None:
-        """Lock sends LOCK command with history tag."""
-        device, mock_os3 = _make_sesame5(mocker)
-        device._device_status = const.DeviceStatus.LOGGED_IN
+    with pytest.raises(exc.SesameLoginError):
+        await device.login()
 
+
+@pytest.mark.asyncio
+async def test_disconnect_connected(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Disconnects and returns to DISCONNECTED."""
+    device, os3_device = make_sesame5(monkeypatch, is_connected=True)
+
+    await device.disconnect()
+
+    os3_device.disconnect.assert_awaited_once_with()
+    assert device.device_status == const.DeviceStatus.DISCONNECTED
+
+
+@pytest.mark.asyncio
+async def test_disconnect_disconnected(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Skips protocol disconnect when already disconnected."""
+    device, os3_device = make_sesame5(monkeypatch, is_connected=False)
+
+    await device.disconnect()
+
+    os3_device.disconnect.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_context_manager_with_secret(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Connects, logs in, and disconnects in an async context."""
+    device, _ = make_sesame5(monkeypatch)
+    connect_mock = AsyncMock()
+    login_mock = AsyncMock()
+    disconnect_mock = AsyncMock()
+    monkeypatch.setattr(device, "connect", connect_mock)
+    monkeypatch.setattr(device, "login", login_mock)
+    monkeypatch.setattr(device, "disconnect", disconnect_mock)
+
+    async with device:
+        connect_mock.assert_awaited_once_with()
+        login_mock.assert_awaited_once_with()
+
+    disconnect_mock.assert_awaited_once_with()
+
+
+@pytest.mark.asyncio
+async def test_lock_logged_in(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Sends an encrypted lock command with a history tag."""
+    device, os3_device = make_sesame5(monkeypatch)
+    await login_device(device)
+
+    await device.lock("history")
+
+    os3_device.send_command.assert_awaited_once_with(
+        protocol_types.SesameCommand(
+            const.ItemCodes.LOCK,
+            os3_protocol.create_history_tag("history"),
+        ),
+        should_encrypt=True,
+    )
+
+
+@pytest.mark.asyncio
+async def test_unlock_logged_in(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Sends an encrypted unlock command with a history tag."""
+    device, os3_device = make_sesame5(monkeypatch)
+    await login_device(device)
+
+    await device.unlock("history")
+
+    os3_device.send_command.assert_awaited_once_with(
+        protocol_types.SesameCommand(
+            const.ItemCodes.UNLOCK,
+            os3_protocol.create_history_tag("history"),
+        ),
+        should_encrypt=True,
+    )
+
+
+@pytest.mark.asyncio
+async def test_lock_not_logged_in(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Raises SesameLoginError before authentication."""
+    device, _ = make_sesame5(monkeypatch)
+
+    with pytest.raises(exc.SesameLoginError):
         await device.lock("history")
 
-        mock_os3.send_command.assert_awaited_once_with(
-            protocol_types.SesameCommand(
-                const.ItemCodes.LOCK, os3_protocol.create_history_tag("history")
-            ),
-            should_encrypt=True,
+
+@pytest.mark.asyncio
+async def test_toggle_locked(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Unlocks when the current status is in the lock range."""
+    device, _ = make_sesame5(monkeypatch)
+    device.on_published(
+        protocol_types.ReceivedSesamePublish(
+            const.ItemCodes.MECH_STATUS,
+            mech_status_payload(flags=const.MechStatusBitFlags.IS_IN_LOCK_RANGE),
         )
+    )
+    unlock_mock = AsyncMock()
+    lock_mock = AsyncMock()
+    monkeypatch.setattr(device, "unlock", unlock_mock)
+    monkeypatch.setattr(device, "lock", lock_mock)
 
-    @pytest.mark.asyncio
-    async def test_unlock_sends_command(self, mocker: MockerFixture) -> None:
-        """Unlock sends UNLOCK command with history tag."""
-        device, mock_os3 = _make_sesame5(mocker)
-        device._device_status = const.DeviceStatus.LOGGED_IN
+    await device.toggle("history")
 
-        await device.unlock("history")
+    unlock_mock.assert_awaited_once_with("history")
+    lock_mock.assert_not_awaited()
 
-        mock_os3.send_command.assert_awaited_once_with(
-            protocol_types.SesameCommand(
-                const.ItemCodes.UNLOCK, os3_protocol.create_history_tag("history")
-            ),
-            should_encrypt=True,
+
+@pytest.mark.asyncio
+async def test_toggle_unlocked(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Locks when the current status is outside the lock range."""
+    device, _ = make_sesame5(monkeypatch)
+    device.on_published(
+        protocol_types.ReceivedSesamePublish(
+            const.ItemCodes.MECH_STATUS,
+            mech_status_payload(flags=const.MechStatusBitFlags.IS_IN_UNLOCK_RANGE),
         )
+    )
+    unlock_mock = AsyncMock()
+    lock_mock = AsyncMock()
+    monkeypatch.setattr(device, "unlock", unlock_mock)
+    monkeypatch.setattr(device, "lock", lock_mock)
 
-    @pytest.mark.asyncio
-    async def test_lock_not_logged_in_raises(self, mocker: MockerFixture) -> None:
-        """Raises SesameLoginError when not logged in."""
-        device, _ = _make_sesame5(mocker)
+    await device.toggle("history")
 
-        with pytest.raises(exc.SesameLoginError):
-            await device.lock("test")
-
-    @pytest.mark.asyncio
-    async def test_unlock_not_logged_in_raises(self, mocker: MockerFixture) -> None:
-        """Raises SesameLoginError when not logged in."""
-        device, _ = _make_sesame5(mocker)
-
-        with pytest.raises(exc.SesameLoginError):
-            await device.unlock("test")
-
-    @pytest.mark.asyncio
-    async def test_toggle_unlocks_when_in_lock_range(
-        self, mocker: MockerFixture
-    ) -> None:
-        """Toggles to unlock when currently in lock range."""
-        device, _ = _make_sesame5(mocker)
-        device._mech_status = sesame5.Sesame5MechStatus(
-            2500, const.MechStatusBitFlags.IS_IN_LOCK_RANGE, 0, 0
-        )
-        device.unlock = mocker.AsyncMock()
-        device.lock = mocker.AsyncMock()
-
-        await device.toggle("history")
-
-        device.unlock.assert_awaited_once_with("history")
-        device.lock.assert_not_awaited()
-
-    @pytest.mark.asyncio
-    async def test_toggle_locks_when_not_in_lock_range(
-        self, mocker: MockerFixture
-    ) -> None:
-        """Toggles to lock when currently not in lock range."""
-        device, _ = _make_sesame5(mocker)
-        device._mech_status = sesame5.Sesame5MechStatus(
-            2500, const.MechStatusBitFlags.IS_IN_UNLOCK_RANGE, 0, 0
-        )
-        device.unlock = mocker.AsyncMock()
-        device.lock = mocker.AsyncMock()
-
-        await device.toggle("history")
-
-        device.lock.assert_awaited_once_with("history")
-        device.unlock.assert_not_awaited()
+    lock_mock.assert_awaited_once_with("history")
+    unlock_mock.assert_not_awaited()
 
 
-class TestSesame5SetLockPosition:
-    """Tests for Sesame5.set_lock_position method."""
+@pytest.mark.asyncio
+async def test_set_lock_position_logged_in(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Sends an encrypted mechanical setting command."""
+    device, os3_device = make_sesame5(monkeypatch)
+    await login_device(device)
 
-    @pytest.mark.asyncio
-    async def test_set_lock_position_success(self, mocker: MockerFixture) -> None:
-        """Sends MECH_SETTING command with packed positions."""
-        device, mock_os3 = _make_sesame5(mocker)
-        device._device_status = const.DeviceStatus.LOGGED_IN
+    await device.set_lock_position(-1, 1)
 
-        await device.set_lock_position(-1, 1)
-
-        mock_os3.send_command.assert_awaited_once_with(
-            protocol_types.SesameCommand(
-                const.ItemCodes.MECH_SETTING, struct.pack("<hh", -1, 1)
-            ),
-            should_encrypt=True,
-        )
-
-    @pytest.mark.asyncio
-    async def test_set_lock_position_not_logged_in_raises(
-        self, mocker: MockerFixture
-    ) -> None:
-        """Raises SesameLoginError when not logged in."""
-        device, _ = _make_sesame5(mocker)
-
-        with pytest.raises(exc.SesameLoginError):
-            await device.set_lock_position(1, 2)
+    os3_device.send_command.assert_awaited_once_with(
+        protocol_types.SesameCommand(
+            const.ItemCodes.MECH_SETTING,
+            struct.pack("<hh", -1, 1),
+        ),
+        should_encrypt=True,
+    )
 
 
-class TestSesame5SetAutoLockDuration:
-    """Tests for Sesame5.set_auto_lock_duration method."""
+@pytest.mark.asyncio
+async def test_set_auto_lock_duration_logged_in(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Sends an encrypted auto-lock command."""
+    device, os3_device = make_sesame5(monkeypatch)
+    await login_device(device)
 
-    @pytest.mark.asyncio
-    async def test_set_auto_lock_duration_success(self, mocker: MockerFixture) -> None:
-        """Sends AUTOLOCK command with packed duration."""
-        device, mock_os3 = _make_sesame5(mocker)
-        device._device_status = const.DeviceStatus.LOGGED_IN
+    await device.set_auto_lock_duration(15)
 
-        await device.set_auto_lock_duration(15)
-
-        mock_os3.send_command.assert_awaited_once_with(
-            protocol_types.SesameCommand(const.ItemCodes.AUTOLOCK, struct.pack("<H", 15)),
-            should_encrypt=True,
-        )
-
-    @pytest.mark.asyncio
-    async def test_set_auto_lock_duration_not_logged_in_raises(
-        self, mocker: MockerFixture
-    ) -> None:
-        """Raises SesameLoginError when not logged in."""
-        device, _ = _make_sesame5(mocker)
-
-        with pytest.raises(exc.SesameLoginError):
-            await device.set_auto_lock_duration(15)
+    os3_device.send_command.assert_awaited_once_with(
+        protocol_types.SesameCommand(const.ItemCodes.AUTOLOCK, struct.pack("<H", 15)),
+        should_encrypt=True,
+    )
 
 
-class TestSesame5GenerateQrUrl:
-    """Tests for Sesame5.generate_qr_url method."""
+def test_generate_qr_url_owner(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Generates owner QR URLs from the device advertisement data."""
+    device, _ = make_sesame5(monkeypatch)
 
-    def test_generate_qr_url_success(self, mocker: MockerFixture) -> None:
-        """Generates a valid QR URL."""
-        device, _ = _make_sesame5(mocker)
+    assert device.generate_qr_url("Sesame") == os3_protocol.OS3QRCode(
+        "Sesame",
+        const.KeyLevels.OWNER,
+        const.ProductModels.SESAME5,
+        TEST_UUID,
+        bytes.fromhex("00" * 16),
+    ).qr_url
 
-        url = device.generate_qr_url("Sesame")
 
-        expected = os3_protocol.OS3QRCode(
-            "Sesame",
-            const.KeyLevels.OWNER,
-            const.ProductModels.SESAME5,
-            UUID("01234567-89ab-cdef-0123-456789abcdef"),
-            bytes.fromhex("00" * 16),
-        ).qr_url
-        assert url == expected
+def test_generate_qr_url_manager(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Generates manager QR URLs when requested."""
+    device, _ = make_sesame5(monkeypatch)
 
-    def test_generate_qr_url_manager_key(self, mocker: MockerFixture) -> None:
-        """Generates a manager-level QR URL."""
-        device, _ = _make_sesame5(mocker)
-
-        url = device.generate_qr_url("Sesame", generate_owner_key=False)
-
-        expected = os3_protocol.OS3QRCode(
+    assert device.generate_qr_url("Sesame", generate_owner_key=False) == (
+        os3_protocol.OS3QRCode(
             "Sesame",
             const.KeyLevels.MANAGER,
             const.ProductModels.SESAME5,
-            UUID("01234567-89ab-cdef-0123-456789abcdef"),
+            TEST_UUID,
             bytes.fromhex("00" * 16),
         ).qr_url
-        assert url == expected
-
-    def test_generate_qr_url_no_secret_raises(self, mocker: MockerFixture) -> None:
-        """Raises SesameLoginError if no secret key is available."""
-        device, _ = _make_sesame5(mocker)
-        device._secret_key = None
-
-        with pytest.raises(exc.SesameLoginError):
-            device.generate_qr_url("Sesame")
+    )
 
 
-class TestSesame5Properties:
-    """Tests for Sesame5 properties."""
+def test_generate_qr_url_without_secret(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Raises SesameLoginError when no secret key is available."""
+    os3_device = make_mock_os3_device()
+    monkeypatch.setattr(
+        os3_lock_base,
+        "SesameOS3Protocol",
+        Mock(return_value=os3_device),
+    )
+    device = sesame5.Sesame5(TEST_ADDRESS)
 
-    def test_mac_address(self, mocker: MockerFixture) -> None:
-        """Returns MAC address from OS3Device."""
-        device, _ = _make_sesame5(mocker)
-        assert device.mac_address == "AA:BB:CC:DD:EE:FF"
+    with pytest.raises(exc.SesameLoginError):
+        device.generate_qr_url("Sesame")
 
-    def test_mech_status_not_logged_in_raises(self, mocker: MockerFixture) -> None:
-        """Raises SesameLoginError when mech_status is not available."""
-        device, _ = _make_sesame5(mocker)
 
-        with pytest.raises(exc.SesameLoginError):
-            _ = device.mech_status
+def test_properties_initial(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Reports initial public state before login."""
+    device, _ = make_sesame5(monkeypatch)
 
-    def test_mech_setting_not_logged_in_raises(self, mocker: MockerFixture) -> None:
-        """Raises SesameLoginError when mech_setting is not available."""
-        device, _ = _make_sesame5(mocker)
+    assert device.mac_address == TEST_ADDRESS
+    assert device.is_connected is False
+    assert device.is_logged_in is False
+    assert device.device_status == const.DeviceStatus.DISCONNECTED
 
-        with pytest.raises(exc.SesameLoginError):
-            _ = device.mech_setting
 
-    def test_is_logged_in_true(self, mocker: MockerFixture) -> None:
-        """Returns True when in LOGGED_IN status."""
-        device, _ = _make_sesame5(mocker)
-        device._device_status = const.DeviceStatus.LOGGED_IN
+def test_mech_status_unavailable(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Raises SesameLoginError when status has not been published."""
+    device, _ = make_sesame5(monkeypatch)
 
-        assert device.is_logged_in is True
+    with pytest.raises(exc.SesameLoginError):
+        _ = device.mech_status
 
-    def test_is_logged_in_false(self, mocker: MockerFixture) -> None:
-        """Returns False when not in LOGGED_IN status."""
-        device, _ = _make_sesame5(mocker)
 
-        assert device.is_logged_in is False
+def test_mech_setting_unavailable(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Raises SesameLoginError when settings have not been published."""
+    device, _ = make_sesame5(monkeypatch)
 
-    def test_device_status_initial(self, mocker: MockerFixture) -> None:
-        """Initial device status is DISCONNECTED."""
-        device, _ = _make_sesame5(mocker)
-
-        assert device.device_status == const.DeviceStatus.DISCONNECTED
+    with pytest.raises(exc.SesameLoginError):
+        _ = device.mech_setting

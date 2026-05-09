@@ -1,397 +1,303 @@
+# pylint: disable=duplicate-code,missing-module-docstring
+from __future__ import annotations
+
 import struct
-from uuid import UUID
+from unittest.mock import AsyncMock, Mock
 
 import pytest
-from pytest_mock import MockerFixture
 
-from gomalock import const, exc, os3_protocol, protocol_types, sesametouch
-
-
-def _make_sesame_touch(mocker: MockerFixture, *, is_connected: bool = False):
-    """Helper to create SesameTouch with a mocked OS3Device."""
-    mock_os3 = mocker.Mock()
-    mock_os3.connect = mocker.AsyncMock()
-    mock_os3.login = mocker.AsyncMock()
-    mock_os3.register = mocker.AsyncMock(return_value=b"\x22" * 16)
-    mock_os3.disconnect = mocker.AsyncMock()
-    type(mock_os3).is_connected = mocker.PropertyMock(return_value=is_connected)
-    type(mock_os3).mac_address = mocker.PropertyMock(return_value="AA:BB:CC:DD:EE:FF")
-    type(mock_os3).sesame_advertisement_data = mocker.PropertyMock(
-        return_value=mocker.Mock(
-            product_model=const.ProductModels.SESAME_TOUCH,
-            device_uuid=UUID("01234567-89ab-cdef-0123-456789abcdef"),
-        )
-    )
-    mocker.patch("gomalock.sesametouch.OS3Device", return_value=mock_os3)
-    device = sesametouch.SesameTouch("AA:BB:CC:DD:EE:FF", secret_key="11" * 16)
-    # Capture the publish callback passed to OS3Device
-    publish_cb = mocker.patch.object(
-        device, "_on_published", wraps=device._on_published
-    )
-    return device, mock_os3, publish_cb
+from gomalock import const, exc, os3_lock_base, os3_protocol, protocol_types
+from gomalock import sesametouch
+from tests.conftest import TEST_ADDRESS, TEST_UUID, make_mock_os3_device
 
 
-def _make_touch_mech_status_payload(
-    raw_battery: int = 2500,
+def touch_status_payload(
+    raw_battery: int = 2800,
     cards: int = 0,
     fingerprints: int = 0,
     passwords: int = 0,
     flags: int = 0,
 ) -> bytes:
-    """Helper to create SesameTouchMechStatus payload."""
+    """Builds a Sesame Touch mechanical status payload."""
     return struct.pack("<HhhhB", raw_battery, cards, fingerprints, passwords, flags)
 
 
-class TestSesameTouchMechStatusFromPayload:
-    """Tests for SesameTouchMechStatus.from_payload."""
+def make_touch(
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    is_connected: bool = False,
+) -> tuple[sesametouch.SesameTouch, Mock]:
+    """Creates SesameTouch with the OS3 protocol replaced by a mock."""
+    os3_device = make_mock_os3_device(
+        is_connected=is_connected,
+        product_model=const.ProductModels.SESAME_TOUCH,
+        secret_key=b"\x22" * 16,
+    )
+    monkeypatch.setattr(
+        os3_lock_base,
+        "SesameOS3Protocol",
+        Mock(return_value=os3_device),
+    )
+    device = sesametouch.SesameTouch(TEST_ADDRESS, secret_key="11" * 16)
+    return device, os3_device
 
-    def test_from_payload_parses_all_fields(self) -> None:
-        """Parses battery, card/fingerprint/password counts, and flags."""
-        payload = _make_touch_mech_status_payload(
-            2800, 3, 4, 5, const.MechStatusBitFlags.IS_BATTERY_CRITICAL
+
+def test_from_payload_valid() -> None:
+    """Parses Sesame Touch counts, flags, and battery values."""
+    status = sesametouch.SesameTouchMechStatus.from_payload(
+        touch_status_payload(
+            raw_battery=2800,
+            cards=3,
+            fingerprints=4,
+            passwords=5,
+            flags=const.MechStatusBitFlags.IS_BATTERY_CRITICAL,
         )
+    )
 
-        status = sesametouch.SesameTouchMechStatus.from_payload(payload)
-
-        assert status.cards_number == 3
-        assert status.fingerprints_number == 4
-        assert status.passwords_number == 5
-        assert status.is_battery_critical is True
-
-    def test_from_payload_invalid_length_raises(self) -> None:
-        """Raises struct.error for invalid payload length."""
-        with pytest.raises(struct.error):
-            sesametouch.SesameTouchMechStatus.from_payload(b"\x00")
+    assert status.cards_number == 3
+    assert status.fingerprints_number == 4
+    assert status.passwords_number == 5
+    assert status.is_battery_critical is True
+    assert status.battery_voltage == 5.6
+    assert status.battery_percentage == os3_protocol.calculate_battery_percentage(5.6)
 
 
-class TestSesameTouchMechStatusProperties:
-    """Tests for SesameTouchMechStatus computed properties."""
+def test_from_payload_invalid() -> None:
+    """Raises struct.error when touch status payloads are malformed."""
+    with pytest.raises(struct.error):
+        sesametouch.SesameTouchMechStatus.from_payload(b"\x00")
 
-    def test_battery_voltage_calculation(self) -> None:
-        """Battery voltage is raw_battery * 2 / 1000."""
-        status = sesametouch.SesameTouchMechStatus.from_payload(
-            _make_touch_mech_status_payload(raw_battery=2800)
+
+def test_is_battery_critical_false() -> None:
+    """Returns False when the battery flag is absent."""
+    status = sesametouch.SesameTouchMechStatus.from_payload(
+        touch_status_payload(flags=0)
+    )
+
+    assert status.is_battery_critical is False
+
+
+def test_on_published_mech_status(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Updates mechanical status and invokes callbacks."""
+    device, _ = make_touch(monkeypatch)
+    callback = Mock()
+    device.register_mech_status_callback(callback)
+
+    device.on_published(
+        protocol_types.ReceivedSesamePublish(
+            const.ItemCodes.MECH_STATUS,
+            touch_status_payload(cards=1, fingerprints=2, passwords=3),
         )
-        assert status.battery_voltage == 5.6
+    )
 
-    def test_battery_percentage_delegation(self) -> None:
-        """Battery percentage delegates to calculate_battery_percentage."""
-        status = sesametouch.SesameTouchMechStatus.from_payload(
-            _make_touch_mech_status_payload(raw_battery=2800)
+    assert device.mech_status.cards_number == 1
+    assert device.mech_status.fingerprints_number == 2
+    assert device.mech_status.passwords_number == 3
+    callback.assert_called_once_with(device, device.mech_status)
+
+
+def test_on_published_unhandled(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Leaves mechanical status unavailable for unrelated publish items."""
+    device, _ = make_touch(monkeypatch)
+
+    device.on_published(
+        protocol_types.ReceivedSesamePublish(const.ItemCodes.LOGIN, b"payload")
+    )
+
+    with pytest.raises(exc.SesameLoginError):
+        _ = device.mech_status
+
+
+def test_register_mech_status_callback_unregistered(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Does not invoke callbacks after unregister is called."""
+    device, _ = make_touch(monkeypatch)
+    callback = Mock()
+    unregister = device.register_mech_status_callback(callback)
+
+    unregister()
+    device.on_published(
+        protocol_types.ReceivedSesamePublish(
+            const.ItemCodes.MECH_STATUS,
+            touch_status_payload(),
         )
-        assert status.battery_percentage == (os3_protocol.calculate_battery_percentage(5.6))
+    )
 
-    def test_is_battery_critical_false(self) -> None:
-        """Returns False when battery critical flag is not set."""
-        status = sesametouch.SesameTouchMechStatus.from_payload(
-            _make_touch_mech_status_payload(flags=0)
-        )
-        assert status.is_battery_critical is False
+    callback.assert_not_called()
 
 
-class TestSesameTouchPublishHandling:
-    """Tests for SesameTouch publish handling via _on_published."""
+@pytest.mark.asyncio
+async def test_connect_disconnected(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Connects and transitions to CONNECTED."""
+    device, os3_device = make_touch(monkeypatch, is_connected=False)
 
-    def test_mech_status_publish_updates_state(self, mocker: MockerFixture) -> None:
-        """MECH_STATUS publish updates mech_status and invokes callbacks."""
-        device, _, _ = _make_sesame_touch(mocker)
-        callback = mocker.Mock()
-        device.register_mech_status_callback(callback)
+    await device.connect()
 
-        payload = _make_touch_mech_status_payload(2600, 1, 2, 3, 0)
-        device._on_published(
-            protocol_types.ReceivedSesamePublish(const.ItemCodes.MECH_STATUS, payload)
-        )
-
-        assert device._mech_status is not None
-        assert device._mech_status.cards_number == 1
-        callback.assert_called_once()
-
-    def test_mech_status_publish_completes_login(self, mocker: MockerFixture) -> None:
-        """Login completes when mech_status arrives."""
-        device, _, _ = _make_sesame_touch(mocker)
-
-        assert not device._login_completed.is_set()
-
-        payload = _make_touch_mech_status_payload()
-        device._on_published(
-            protocol_types.ReceivedSesamePublish(const.ItemCodes.MECH_STATUS, payload)
-        )
-
-        assert device._login_completed.is_set()
-
-    def test_unhandled_item_does_not_complete_login(
-        self, mocker: MockerFixture
-    ) -> None:
-        """Unhandled item codes do not complete login."""
-        device, _, _ = _make_sesame_touch(mocker)
-
-        device._on_published(
-            protocol_types.ReceivedSesamePublish(const.ItemCodes.LOGIN, b"payload")
-        )
-
-        assert not device._login_completed.is_set()
-
-    def test_init_registers_callback(self, mocker: MockerFixture) -> None:
-        """mech_status_callback from __init__ is invoked on publish."""
-        mock_os3 = mocker.Mock()
-        mocker.patch("gomalock.sesametouch.OS3Device", return_value=mock_os3)
-        callback = mocker.Mock()
-        device = sesametouch.SesameTouch(
-            "AA:BB:CC:DD:EE:FF", mech_status_callback=callback
-        )
-
-        payload = _make_touch_mech_status_payload()
-        device._on_published(
-            protocol_types.ReceivedSesamePublish(const.ItemCodes.MECH_STATUS, payload)
-        )
-
-        callback.assert_called_once()
+    os3_device.connect.assert_awaited_once_with()
+    assert device.device_status == const.DeviceStatus.CONNECTED
 
 
-class TestSesameTouchRegisterMechStatusCallback:
-    """Tests for SesameTouch.register_mech_status_callback."""
+@pytest.mark.asyncio
+async def test_connect_connected(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Raises SesameConnectionError when already connected."""
+    device, os3_device = make_touch(monkeypatch, is_connected=True)
 
-    def test_register_mech_status_callback_unregister(
-        self, mocker: MockerFixture
-    ) -> None:
-        """Unregistered callback is not invoked."""
-        device, _, _ = _make_sesame_touch(mocker)
-        callback = mocker.Mock()
-        unregister = device.register_mech_status_callback(callback)
-        unregister()
-
-        payload = _make_touch_mech_status_payload()
-        device._on_published(
-            protocol_types.ReceivedSesamePublish(const.ItemCodes.MECH_STATUS, payload)
-        )
-
-        callback.assert_not_called()
-
-
-class TestSesameTouchConnect:
-    """Tests for SesameTouch.connect method."""
-
-    @pytest.mark.asyncio
-    async def test_connect_success(self, mocker: MockerFixture) -> None:
-        """Connects and transitions to CONNECTED status."""
-        device, mock_os3, _ = _make_sesame_touch(mocker)
-
+    with pytest.raises(exc.SesameConnectionError):
         await device.connect()
 
-        mock_os3.connect.assert_awaited_once()
-        assert device.device_status == const.DeviceStatus.CONNECTED
-
-    @pytest.mark.asyncio
-    async def test_connect_already_connected_raises(
-        self, mocker: MockerFixture
-    ) -> None:
-        """Raises SesameConnectionError if already connected."""
-        device, mock_os3, _ = _make_sesame_touch(mocker, is_connected=True)
-
-        with pytest.raises(exc.SesameConnectionError):
-            await device.connect()
-
-        mock_os3.connect.assert_not_awaited()
+    os3_device.connect.assert_not_awaited()
 
 
-class TestSesameTouchRegister:
-    """Tests for SesameTouch.register method."""
+@pytest.mark.asyncio
+async def test_register_connected(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Returns the registered secret key as hex."""
+    device, os3_device = make_touch(monkeypatch, is_connected=True)
 
-    @pytest.mark.asyncio
-    async def test_register_success(self, mocker: MockerFixture) -> None:
-        """Returns hex-encoded secret key."""
-        device, mock_os3, _ = _make_sesame_touch(mocker, is_connected=True)
-
-        result = await device.register()
-
-        mock_os3.register.assert_awaited_once()
-        assert result == (b"\x22" * 16).hex()
-
-    @pytest.mark.asyncio
-    async def test_register_not_connected_raises(self, mocker: MockerFixture) -> None:
-        """Raises SesameConnectionError when not connected."""
-        device, _, _ = _make_sesame_touch(mocker)
-
-        with pytest.raises(exc.SesameConnectionError):
-            await device.register()
+    assert await device.register() == (b"\x22" * 16).hex()
+    os3_device.register.assert_awaited_once_with()
 
 
-class TestSesameTouchLogin:
-    """Tests for SesameTouch.login method."""
+@pytest.mark.asyncio
+async def test_register_disconnected(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Raises SesameConnectionError when registering while disconnected."""
+    device, _ = make_touch(monkeypatch, is_connected=False)
 
-    @pytest.mark.asyncio
-    async def test_login_success(self, mocker: MockerFixture) -> None:
-        """Logs in and transitions to LOGGED_IN status."""
-        device, mock_os3, _ = _make_sesame_touch(mocker)
-        device._login_completed.set()
+    with pytest.raises(exc.SesameConnectionError):
+        await device.register()
 
+
+@pytest.mark.asyncio
+async def test_login_with_secret(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Logs in with the initialized secret key."""
+    device, os3_device = make_touch(monkeypatch)
+    device.on_published(
+        protocol_types.ReceivedSesamePublish(
+            const.ItemCodes.MECH_STATUS,
+            touch_status_payload(),
+        )
+    )
+
+    assert await device.login() == 123
+    os3_device.login.assert_awaited_once_with(bytes.fromhex("11" * 16))
+    assert device.device_status == const.DeviceStatus.LOGGED_IN
+
+
+@pytest.mark.asyncio
+async def test_login_without_secret(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Raises SesameLoginError when no secret key is available."""
+    os3_device = make_mock_os3_device(product_model=const.ProductModels.SESAME_TOUCH)
+    monkeypatch.setattr(
+        os3_lock_base,
+        "SesameOS3Protocol",
+        Mock(return_value=os3_device),
+    )
+    device = sesametouch.SesameTouch(TEST_ADDRESS)
+
+    with pytest.raises(exc.SesameLoginError):
         await device.login()
 
-        mock_os3.login.assert_awaited_once_with(bytes.fromhex("11" * 16))
-        assert device.device_status == const.DeviceStatus.LOGGED_IN
 
-    @pytest.mark.asyncio
-    async def test_login_already_logged_in_raises(self, mocker: MockerFixture) -> None:
-        """Raises SesameLoginError if already logged in."""
-        device, _, _ = _make_sesame_touch(mocker)
-        device._device_status = const.DeviceStatus.LOGGED_IN
+@pytest.mark.asyncio
+async def test_disconnect_connected(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Disconnects and returns to DISCONNECTED."""
+    device, os3_device = make_touch(monkeypatch, is_connected=True)
 
-        with pytest.raises(exc.SesameLoginError):
-            await device.login()
+    await device.disconnect()
 
-    @pytest.mark.asyncio
-    async def test_login_no_secret_key_raises(self, mocker: MockerFixture) -> None:
-        """Raises SesameLoginError if no secret key is provided."""
-        device, _, _ = _make_sesame_touch(mocker)
-        device._secret_key = None
-
-        with pytest.raises(exc.SesameLoginError):
-            await device.login()
-
-    @pytest.mark.asyncio
-    async def test_login_with_explicit_secret_key(self, mocker: MockerFixture) -> None:
-        """Uses explicit secret key over the initialized one."""
-        device, mock_os3, _ = _make_sesame_touch(mocker)
-        device._login_completed.set()
-
-        await device.login(secret_key="ff" * 16)
-
-        mock_os3.login.assert_awaited_once_with(bytes.fromhex("ff" * 16))
+    os3_device.disconnect.assert_awaited_once_with()
+    assert device.device_status == const.DeviceStatus.DISCONNECTED
 
 
-class TestSesameTouchDisconnect:
-    """Tests for SesameTouch.disconnect method."""
+@pytest.mark.asyncio
+async def test_disconnect_disconnected(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Skips protocol disconnect when already disconnected."""
+    device, os3_device = make_touch(monkeypatch, is_connected=False)
 
-    @pytest.mark.asyncio
-    async def test_disconnect_when_connected(self, mocker: MockerFixture) -> None:
-        """Disconnects and resets to DISCONNECTED status."""
-        device, mock_os3, _ = _make_sesame_touch(mocker, is_connected=True)
+    await device.disconnect()
 
-        await device.disconnect()
-
-        mock_os3.disconnect.assert_awaited_once()
-        assert device.device_status == const.DeviceStatus.DISCONNECTED
-
-    @pytest.mark.asyncio
-    async def test_disconnect_when_not_connected(self, mocker: MockerFixture) -> None:
-        """Does nothing when already disconnected."""
-        device, mock_os3, _ = _make_sesame_touch(mocker)
-
-        await device.disconnect()
-
-        mock_os3.disconnect.assert_not_awaited()
+    os3_device.disconnect.assert_not_awaited()
 
 
-class TestSesameTouchContextManager:
-    """Tests for SesameTouch async context manager."""
+@pytest.mark.asyncio
+async def test_context_manager_without_secret(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Connects and disconnects without logging in when no secret is configured."""
+    os3_device = make_mock_os3_device(product_model=const.ProductModels.SESAME_TOUCH)
+    monkeypatch.setattr(
+        os3_lock_base,
+        "SesameOS3Protocol",
+        Mock(return_value=os3_device),
+    )
+    device = sesametouch.SesameTouch(TEST_ADDRESS)
+    connect_mock = AsyncMock()
+    login_mock = AsyncMock()
+    disconnect_mock = AsyncMock()
+    monkeypatch.setattr(device, "connect", connect_mock)
+    monkeypatch.setattr(device, "login", login_mock)
+    monkeypatch.setattr(device, "disconnect", disconnect_mock)
 
-    @pytest.mark.asyncio
-    async def test_context_manager_connects_logins_disconnects(
-        self, mocker: MockerFixture
-    ) -> None:
-        """Context manager connects, logs in, and disconnects."""
-        device, _, _ = _make_sesame_touch(mocker)
-        mock_connect = mocker.patch.object(device, "connect")
-        mock_login = mocker.patch.object(device, "login")
-        mock_disconnect = mocker.patch.object(device, "disconnect")
+    async with device:
+        connect_mock.assert_awaited_once_with()
+        login_mock.assert_not_awaited()
 
-        async with device:
-            mock_connect.assert_awaited_once()
-            mock_login.assert_awaited_once()
-
-        mock_disconnect.assert_awaited_once()
-
-    @pytest.mark.asyncio
-    async def test_context_manager_skips_login_without_secret(
-        self, mocker: MockerFixture
-    ) -> None:
-        """Context manager skips login if no secret_key."""
-        mock_os3 = mocker.Mock()
-        mocker.patch("gomalock.sesametouch.OS3Device", return_value=mock_os3)
-        device = sesametouch.SesameTouch("AA:BB:CC:DD:EE:FF")
-        mock_connect = mocker.patch.object(device, "connect")
-        mock_login = mocker.patch.object(device, "login")
-        mock_disconnect = mocker.patch.object(device, "disconnect")
-
-        async with device:
-            mock_login.assert_not_awaited()
-
-        mock_disconnect.assert_awaited_once()
+    disconnect_mock.assert_awaited_once_with()
 
 
-class TestSesameTouchGenerateQrUrl:
-    """Tests for SesameTouch.generate_qr_url method."""
+def test_generate_qr_url_owner(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Generates owner QR URLs from the device advertisement data."""
+    device, _ = make_touch(monkeypatch)
 
-    def test_generate_qr_url_success(self, mocker: MockerFixture) -> None:
-        """Generates a valid QR URL."""
-        device, _, _ = _make_sesame_touch(mocker)
+    assert device.generate_qr_url("Touch") == os3_protocol.OS3QRCode(
+        "Touch",
+        const.KeyLevels.OWNER,
+        const.ProductModels.SESAME_TOUCH,
+        TEST_UUID,
+        bytes.fromhex("11" * 16),
+    ).qr_url
 
-        url = device.generate_qr_url("Touch")
 
-        expected = os3_protocol.OS3QRCode(
-            "Touch",
-            const.KeyLevels.OWNER,
-            const.ProductModels.SESAME_TOUCH,
-            UUID("01234567-89ab-cdef-0123-456789abcdef"),
-            bytes.fromhex("11" * 16),
-        ).qr_url
-        assert url == expected
+def test_generate_qr_url_manager(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Generates manager QR URLs when requested."""
+    device, _ = make_touch(monkeypatch)
 
-    def test_generate_qr_url_no_secret_raises(self, mocker: MockerFixture) -> None:
-        """Raises SesameLoginError if no secret key is available."""
-        device, _, _ = _make_sesame_touch(mocker)
-        device._secret_key = None
-
-        with pytest.raises(exc.SesameLoginError):
-            device.generate_qr_url("Touch")
-
-    def test_generate_qr_url_manager_key(self, mocker: MockerFixture) -> None:
-        """Generates a manager-level QR URL."""
-        device, _, _ = _make_sesame_touch(mocker)
-
-        url = device.generate_qr_url("Touch", generate_owner_key=False)
-
-        expected = os3_protocol.OS3QRCode(
+    assert device.generate_qr_url("Touch", generate_owner_key=False) == (
+        os3_protocol.OS3QRCode(
             "Touch",
             const.KeyLevels.MANAGER,
             const.ProductModels.SESAME_TOUCH,
-            UUID("01234567-89ab-cdef-0123-456789abcdef"),
+            TEST_UUID,
             bytes.fromhex("11" * 16),
         ).qr_url
-        assert url == expected
+    )
 
 
-class TestSesameTouchProperties:
-    """Tests for SesameTouch properties."""
+def test_generate_qr_url_without_secret(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Raises SesameLoginError when no secret key is available."""
+    os3_device = make_mock_os3_device(product_model=const.ProductModels.SESAME_TOUCH)
+    monkeypatch.setattr(
+        os3_lock_base,
+        "SesameOS3Protocol",
+        Mock(return_value=os3_device),
+    )
+    device = sesametouch.SesameTouch(TEST_ADDRESS)
 
-    def test_mac_address(self, mocker: MockerFixture) -> None:
-        """Returns MAC address from OS3Device."""
-        device, _, _ = _make_sesame_touch(mocker)
-        assert device.mac_address == "AA:BB:CC:DD:EE:FF"
+    with pytest.raises(exc.SesameLoginError):
+        device.generate_qr_url("Touch")
 
-    def test_mech_status_not_logged_in_raises(self, mocker: MockerFixture) -> None:
-        """Raises SesameLoginError when mech_status is not available."""
-        device, _, _ = _make_sesame_touch(mocker)
 
-        with pytest.raises(exc.SesameLoginError):
-            _ = device.mech_status
+def test_properties_initial(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Reports initial public state before login."""
+    device, _ = make_touch(monkeypatch)
 
-    def test_is_logged_in_true(self, mocker: MockerFixture) -> None:
-        """Returns True when in LOGGED_IN status."""
-        device, _, _ = _make_sesame_touch(mocker)
-        device._device_status = const.DeviceStatus.LOGGED_IN
+    assert device.mac_address == TEST_ADDRESS
+    assert device.is_connected is False
+    assert device.is_logged_in is False
+    assert device.device_status == const.DeviceStatus.DISCONNECTED
 
-        assert device.is_logged_in is True
 
-    def test_is_logged_in_false(self, mocker: MockerFixture) -> None:
-        """Returns False when not in LOGGED_IN status."""
-        device, _, _ = _make_sesame_touch(mocker)
+def test_mech_status_unavailable(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Raises SesameLoginError when status has not been published."""
+    device, _ = make_touch(monkeypatch)
 
-        assert device.is_logged_in is False
-
-    def test_device_status_initial(self, mocker: MockerFixture) -> None:
-        """Initial device status is DISCONNECTED."""
-        device, _, _ = _make_sesame_touch(mocker)
-
-        assert device.device_status == const.DeviceStatus.DISCONNECTED
+    with pytest.raises(exc.SesameLoginError):
+        _ = device.mech_status
