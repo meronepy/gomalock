@@ -7,7 +7,7 @@ from uuid import UUID
 import pytest
 from pytest_mock import MockerFixture
 
-from gomalock import const, exc, os3, protocol
+from gomalock import const, exc, os3_protocol, protocol_types
 
 
 def _make_os3_device(mocker: MockerFixture, *, is_connected: bool = False):
@@ -24,7 +24,7 @@ def _make_os3_device(mocker: MockerFixture, *, is_connected: bool = False):
         return_value=mocker.Mock(is_registered=False)
     )
     mocker.patch("gomalock.os3.SesameBleDevice", return_value=mock_ble)
-    device = os3.OS3Device("AA:BB:CC:DD:EE:FF", publish_cb, disconnect_cb)
+    device = os3_protocol.SesameOS3Protocol("AA:BB:CC:DD:EE:FF", publish_cb, disconnect_cb)
     return device, mock_ble, publish_cb, disconnect_cb
 
 
@@ -33,22 +33,22 @@ class TestCalculateBatteryPercentage:
 
     def test_calculate_battery_percentage_above_max(self) -> None:
         """Voltage above max returns highest percentage."""
-        result = os3.calculate_battery_percentage(const.VOLTAGE_LEVELS[0] + 1.0)
+        result = os3_protocol.calculate_battery_percentage(const.VOLTAGE_LEVELS[0] + 1.0)
         assert result == int(const.BATTERY_PERCENTAGES[0])
 
     def test_calculate_battery_percentage_at_max(self) -> None:
         """Voltage at max returns highest percentage."""
-        result = os3.calculate_battery_percentage(const.VOLTAGE_LEVELS[0])
+        result = os3_protocol.calculate_battery_percentage(const.VOLTAGE_LEVELS[0])
         assert result == int(const.BATTERY_PERCENTAGES[0])
 
     def test_calculate_battery_percentage_at_min(self) -> None:
         """Voltage at min returns lowest percentage."""
-        result = os3.calculate_battery_percentage(const.VOLTAGE_LEVELS[-1])
+        result = os3_protocol.calculate_battery_percentage(const.VOLTAGE_LEVELS[-1])
         assert result == int(const.BATTERY_PERCENTAGES[-1])
 
     def test_calculate_battery_percentage_below_min(self) -> None:
         """Voltage below min returns lowest percentage."""
-        result = os3.calculate_battery_percentage(const.VOLTAGE_LEVELS[-1] - 1.0)
+        result = os3_protocol.calculate_battery_percentage(const.VOLTAGE_LEVELS[-1] - 1.0)
         assert result == int(const.BATTERY_PERCENTAGES[-1])
 
     def test_calculate_battery_percentage_interpolates(self) -> None:
@@ -59,12 +59,12 @@ class TestCalculateBatteryPercentage:
         expected = int(
             (const.BATTERY_PERCENTAGES[0] + const.BATTERY_PERCENTAGES[1]) / 2
         )
-        assert os3.calculate_battery_percentage(mid) == expected
+        assert os3_protocol.calculate_battery_percentage(mid) == expected
 
     def test_calculate_battery_percentage_nan_raises(self) -> None:
         """NaN voltage triggers AssertionError."""
         with pytest.raises(AssertionError):
-            os3.calculate_battery_percentage(float("nan"))
+            os3_protocol.calculate_battery_percentage(float("nan"))
 
 
 class TestCreateHistoryTag:
@@ -72,26 +72,26 @@ class TestCreateHistoryTag:
 
     def test_create_history_tag_normal(self) -> None:
         """Creates length-prefixed UTF-8 tag."""
-        tag = os3.create_history_tag("test")
+        tag = os3_protocol.create_history_tag("test")
         assert tag[0] == 4
         assert tag[1:] == b"test"
 
     def test_create_history_tag_truncates_long_name(self) -> None:
         """Truncates names exceeding HISTORY_TAG_MAX_LEN."""
         long_name = "a" * (const.HISTORY_TAG_MAX_LEN + 10)
-        tag = os3.create_history_tag(long_name)
+        tag = os3_protocol.create_history_tag(long_name)
         assert tag[0] == const.HISTORY_TAG_MAX_LEN
         assert tag[1:] == b"a" * const.HISTORY_TAG_MAX_LEN
 
     def test_create_history_tag_empty(self) -> None:
         """Empty name produces zero-length tag."""
-        tag = os3.create_history_tag("")
+        tag = os3_protocol.create_history_tag("")
         assert tag[0] == 0
         assert tag[1:] == b""
 
     def test_create_history_tag_multibyte_utf8(self) -> None:
         """Multi-byte characters are truncated at byte boundary."""
-        tag = os3.create_history_tag("あ" * 20)
+        tag = os3_protocol.create_history_tag("あ" * 20)
         assert tag[0] <= const.HISTORY_TAG_MAX_LEN
 
 
@@ -101,7 +101,7 @@ class TestOS3QRCode:
     def test_from_qr_url_roundtrip(self) -> None:
         """QR URL can be generated and parsed back to identical data."""
         device_uuid = UUID("01234567-89ab-cdef-0123-456789abcdef")
-        info = os3.OS3QRCode(
+        info = os3_protocol.OS3QRCode(
             device_name="Sesame",
             key_level=const.KeyLevels.OWNER,
             product_model=const.ProductModels.SESAME5,
@@ -111,7 +111,7 @@ class TestOS3QRCode:
             key_index=b"\x03\x04",
         )
 
-        parsed = os3.OS3QRCode.from_qr_url(info.qr_url)
+        parsed = os3_protocol.OS3QRCode.from_qr_url(info.qr_url)
 
         assert parsed.device_name == info.device_name
         assert parsed.key_level == info.key_level
@@ -135,11 +135,11 @@ class TestOS3QRCode:
         qr_url = f"ssm://UI?t=sk&sk={sk_b64}&l=9&n=Sesame"
 
         with pytest.raises(exc.SesameError):
-            os3.OS3QRCode.from_qr_url(qr_url)
+            os3_protocol.OS3QRCode.from_qr_url(qr_url)
 
     def test_qr_url_format(self) -> None:
         """Generated QR URL starts with expected scheme."""
-        info = os3.OS3QRCode(
+        info = os3_protocol.OS3QRCode(
             device_name="Test",
             key_level=const.KeyLevels.OWNER,
             product_model=const.ProductModels.SESAME5,
@@ -159,7 +159,7 @@ class TestOS3DeviceOnReceived:
         """Encrypted data before login is silently ignored."""
         device, _, _, _ = _make_os3_device(mocker)
         mock_from = mocker.patch.object(
-            os3.ReceivedSesameMessage, "from_reassembled_data"
+            os3_protocol.ReceivedSesameMessage, "from_reassembled_data"
         )
 
         device.on_received(b"encrypted", True)
@@ -175,7 +175,7 @@ class TestOS3DeviceOnReceived:
 
         mock_msg = mocker.Mock(op_code=const.OpCodes.RESPONSE, payload=b"resp_payload")
         mocker.patch.object(
-            os3.ReceivedSesameMessage,
+            os3_protocol.ReceivedSesameMessage,
             "from_reassembled_data",
             return_value=mock_msg,
         )
@@ -184,7 +184,7 @@ class TestOS3DeviceOnReceived:
             result_code=const.ResultCodes.SUCCESS,
         )
         mocker.patch.object(
-            os3.ReceivedSesameResponse,
+            os3_protocol.ReceivedSesameResponse,
             "from_sesame_message",
             return_value=mock_response,
         )
@@ -202,13 +202,13 @@ class TestOS3DeviceOnReceived:
 
         mock_msg = mocker.Mock(op_code=const.OpCodes.PUBLISH, payload=b"pub_payload")
         mocker.patch.object(
-            os3.ReceivedSesameMessage,
+            os3_protocol.ReceivedSesameMessage,
             "from_reassembled_data",
             return_value=mock_msg,
         )
         mock_publish = mocker.Mock(item_code=const.ItemCodes.MECH_STATUS)
         mocker.patch.object(
-            os3.ReceivedSesamePublish,
+            os3_protocol.ReceivedSesamePublish,
             "from_sesame_message",
             return_value=mock_publish,
         )
@@ -227,15 +227,15 @@ class TestOS3DeviceOnReceived:
 
         mock_msg = mocker.Mock(op_code=const.OpCodes.PUBLISH, payload=b"pub_payload")
         mocker.patch.object(
-            os3.ReceivedSesameMessage,
+            os3_protocol.ReceivedSesameMessage,
             "from_reassembled_data",
             return_value=mock_msg,
         )
-        mock_publish = protocol.ReceivedSesamePublish(
+        mock_publish = protocol_types.ReceivedSesamePublish(
             const.ItemCodes.INITIAL, b"\x01\x02\x03\x04"
         )
         mocker.patch.object(
-            os3.ReceivedSesamePublish,
+            os3_protocol.ReceivedSesamePublish,
             "from_sesame_message",
             return_value=mock_publish,
         )
@@ -252,13 +252,13 @@ class TestOS3DeviceOnReceived:
 
         mock_msg = mocker.Mock(op_code=const.OpCodes.PUBLISH, payload=b"pub_payload")
         mocker.patch.object(
-            os3.ReceivedSesameMessage,
+            os3_protocol.ReceivedSesameMessage,
             "from_reassembled_data",
             return_value=mock_msg,
         )
-        mock_publish = protocol.ReceivedSesamePublish(const.ItemCodes.INITIAL, b"token")
+        mock_publish = protocol_types.ReceivedSesamePublish(const.ItemCodes.INITIAL, b"token")
         mocker.patch.object(
-            os3.ReceivedSesamePublish,
+            os3_protocol.ReceivedSesamePublish,
             "from_sesame_message",
             return_value=mock_publish,
         )
@@ -275,7 +275,7 @@ class TestOS3DeviceOnReceived:
 
         mock_msg = mocker.Mock(op_code=const.OpCodes.CREATE, payload=b"payload")
         mocker.patch.object(
-            os3.ReceivedSesameMessage,
+            os3_protocol.ReceivedSesameMessage,
             "from_reassembled_data",
             return_value=mock_msg,
         )
@@ -308,8 +308,8 @@ class TestOS3DeviceSendCommand:
     async def test_send_command_success(self, mocker: MockerFixture) -> None:
         """Sends command and returns successful response."""
         device, mock_ble, _, _ = _make_os3_device(mocker)
-        command = protocol.SesameCommand(const.ItemCodes.LOGIN, b"data")
-        response = protocol.ReceivedSesameResponse(
+        command = protocol_types.SesameCommand(const.ItemCodes.LOGIN, b"data")
+        response = protocol_types.ReceivedSesameResponse(
             const.ItemCodes.LOGIN, const.ResultCodes.SUCCESS, b"ok"
         )
 
@@ -331,8 +331,8 @@ class TestOS3DeviceSendCommand:
         device, mock_ble, _, _ = _make_os3_device(mocker)
         device._cipher = mocker.Mock()
         device._cipher.encrypt.return_value = b"encrypted_data"
-        command = protocol.SesameCommand(const.ItemCodes.USER, b"payload")
-        response = protocol.ReceivedSesameResponse(
+        command = protocol_types.SesameCommand(const.ItemCodes.USER, b"payload")
+        response = protocol_types.ReceivedSesameResponse(
             const.ItemCodes.USER, const.ResultCodes.SUCCESS, b"ok"
         )
 
@@ -352,7 +352,7 @@ class TestOS3DeviceSendCommand:
     ) -> None:
         """Raises SesameLoginError when encrypting without cipher."""
         device, _, _, _ = _make_os3_device(mocker)
-        command = protocol.SesameCommand(const.ItemCodes.USER, b"payload")
+        command = protocol_types.SesameCommand(const.ItemCodes.USER, b"payload")
 
         with pytest.raises(exc.SesameLoginError):
             await device.send_command(command, True)
@@ -363,8 +363,8 @@ class TestOS3DeviceSendCommand:
     ) -> None:
         """Raises SesameOperationError on non-SUCCESS result code."""
         device, _, _, _ = _make_os3_device(mocker)
-        command = protocol.SesameCommand(const.ItemCodes.LOGIN, b"data")
-        error_response = protocol.ReceivedSesameResponse(
+        command = protocol_types.SesameCommand(const.ItemCodes.LOGIN, b"data")
+        error_response = protocol_types.ReceivedSesameResponse(
             const.ItemCodes.LOGIN, const.ResultCodes.INVALID_ACTION, b"err"
         )
 
@@ -422,17 +422,17 @@ class TestOS3DeviceRegister:
         )
         mock_pub_key = b"\x11" * 64
         mocker.patch.object(
-            os3,
+            os3_protocol,
             "generate_app_keys",
             return_value=(mock_pub_key, mocker.Mock()),
         )
         mocker.patch.object(
-            os3, "generate_device_secret_key", return_value=b"secretkey_16byt"
+            os3_protocol, "generate_device_secret_key", return_value=b"secretkey_16byt"
         )
         mocker.patch.object(time, "time", return_value=123456789)
 
         response_payload = b"\x00" * 13 + b"\x22" * 64 + b"tail"
-        mock_response = protocol.ReceivedSesameResponse(
+        mock_response = protocol_types.ReceivedSesameResponse(
             const.ItemCodes.REGISTRATION,
             const.ResultCodes.SUCCESS,
             response_payload,
@@ -444,7 +444,7 @@ class TestOS3DeviceRegister:
         assert result == b"secretkey_16byt"
         expected_ts = int(123456789).to_bytes(4, "little")
         device.send_command.assert_awaited_once_with(
-            protocol.SesameCommand(
+            protocol_types.SesameCommand(
                 const.ItemCodes.REGISTRATION, mock_pub_key + expected_ts
             ),
             False,
@@ -476,11 +476,11 @@ class TestOS3DeviceLogin:
         device._session_token_future.set_result(session_token)
 
         mock_session_key = b"\x11" * 16
-        mocker.patch.object(os3, "generate_session_key", return_value=mock_session_key)
+        mocker.patch.object(os3_protocol, "generate_session_key", return_value=mock_session_key)
         mock_cipher = mocker.Mock()
-        mocker.patch.object(os3, "OS3Cipher", return_value=mock_cipher)
+        mocker.patch.object(os3_protocol, "OS3Cipher", return_value=mock_cipher)
 
-        response = protocol.ReceivedSesameResponse(
+        response = protocol_types.ReceivedSesameResponse(
             const.ItemCodes.LOGIN,
             const.ResultCodes.SUCCESS,
             (987654321).to_bytes(4, "little"),
@@ -492,7 +492,7 @@ class TestOS3DeviceLogin:
         assert result == 987654321
         assert device._cipher is mock_cipher
         device.send_command.assert_awaited_once_with(
-            protocol.SesameCommand(const.ItemCodes.LOGIN, mock_session_key[:4]),
+            protocol_types.SesameCommand(const.ItemCodes.LOGIN, mock_session_key[:4]),
             False,
         )
 

@@ -11,11 +11,11 @@ import struct
 from dataclasses import dataclass
 from typing import Callable, Self
 
-from .basesesamelock import BaseSesameLock
+from .os3_lock_base import BaseSesameOS3Lock
 from .const import ItemCodes, MechStatusBitFlags
 from .exc import SesameLoginError
-from .os3 import calculate_battery_percentage, create_history_tag
-from .protocol import ReceivedSesamePublish, SesameCommand
+from .os3_protocol import calculate_battery_percentage, create_history_tag
+from .protocol_types import ReceivedSesamePublish, SesameCommand
 
 logger = logging.getLogger(__name__)
 
@@ -116,7 +116,7 @@ class Sesame5MechSetting:
         return cls(lock_position, unlock_position, auto_lock_duration)
 
 
-class Sesame5(BaseSesameLock[Sesame5MechStatus]):
+class Sesame5(BaseSesameOS3Lock[Sesame5MechStatus]):
     """Main interface for controlling and monitoring a Sesame 5 device.
 
     Handles BLE connection, login, lock/unlock/toggle commands, and status callbacks.

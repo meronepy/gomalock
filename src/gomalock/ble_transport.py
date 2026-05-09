@@ -15,7 +15,7 @@ from bleak.exc import BleakDeviceNotFoundError
 
 from .const import MTU_SIZE, SCAN_TIMEOUT, UUID_NOTIFICATION, UUID_WRITE, PacketTypes
 from .exc import SesameConnectionError
-from .protocol import ReceivedSesamePacket, SesameAdvertisementData
+from .protocol_types import ReceivedSesamePacket, SesameAdvertisementData
 from .scanner import SesameScanner
 
 logger = logging.getLogger(__name__)
@@ -45,7 +45,7 @@ def generate_header(is_beginning: bool, is_end: bool, is_encrypted: bool) -> byt
     return header.to_bytes(1, byteorder="little")
 
 
-class SesameBLEDevice:
+class SesameBLETransport:
     """A BLE device handler for Sesame device using the Bleak library.
 
     This class manages BLE communication, including connection, service discovery,

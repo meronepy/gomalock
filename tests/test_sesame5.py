@@ -4,7 +4,7 @@ from uuid import UUID
 import pytest
 from pytest_mock import MockerFixture
 
-from gomalock import const, exc, os3, protocol, sesame5
+from gomalock import const, exc, os3_protocol, protocol_types, sesame5
 
 
 def _make_sesame5(mocker: MockerFixture, *, is_connected: bool = False):
@@ -89,7 +89,7 @@ class TestSesame5MechStatusProperties:
         status = sesame5.Sesame5MechStatus.from_payload(
             _make_mech_status_payload(raw_battery=3000)
         )
-        assert status.battery_percentage == (os3.calculate_battery_percentage(6.0))
+        assert status.battery_percentage == (os3_protocol.calculate_battery_percentage(6.0))
 
 
 class TestSesame5MechSetting:
@@ -124,7 +124,7 @@ class TestSesame5OnPublished:
 
         payload = _make_mech_status_payload(2500, 5, 5, 0)
         device.on_published(
-            protocol.ReceivedSesamePublish(const.ItemCodes.MECH_STATUS, payload)
+            protocol_types.ReceivedSesamePublish(const.ItemCodes.MECH_STATUS, payload)
         )
 
         assert device._mech_status is not None
@@ -139,7 +139,7 @@ class TestSesame5OnPublished:
 
         payload = _make_mech_setting_payload(-10, 10, 5)
         device.on_published(
-            protocol.ReceivedSesamePublish(const.ItemCodes.MECH_SETTING, payload)
+            protocol_types.ReceivedSesamePublish(const.ItemCodes.MECH_SETTING, payload)
         )
 
         assert device._mech_setting is not None
@@ -153,13 +153,13 @@ class TestSesame5OnPublished:
 
         status_payload = _make_mech_status_payload()
         device.on_published(
-            protocol.ReceivedSesamePublish(const.ItemCodes.MECH_STATUS, status_payload)
+            protocol_types.ReceivedSesamePublish(const.ItemCodes.MECH_STATUS, status_payload)
         )
         assert not device._login_completed.is_set()
 
         setting_payload = _make_mech_setting_payload()
         device.on_published(
-            protocol.ReceivedSesamePublish(
+            protocol_types.ReceivedSesamePublish(
                 const.ItemCodes.MECH_SETTING, setting_payload
             )
         )
@@ -170,7 +170,7 @@ class TestSesame5OnPublished:
         device, _ = _make_sesame5(mocker)
 
         device.on_published(
-            protocol.ReceivedSesamePublish(const.ItemCodes.LOGIN, b"payload")
+            protocol_types.ReceivedSesamePublish(const.ItemCodes.LOGIN, b"payload")
         )
 
         assert not device._login_completed.is_set()
@@ -184,7 +184,7 @@ class TestSesame5OnPublished:
         device = sesame5.Sesame5("AA:BB:CC:DD:EE:FF", mech_status_callback=callback)
         payload = _make_mech_status_payload()
         device.on_published(
-            protocol.ReceivedSesamePublish(const.ItemCodes.MECH_STATUS, payload)
+            protocol_types.ReceivedSesamePublish(const.ItemCodes.MECH_STATUS, payload)
         )
 
         callback.assert_called_once()
@@ -204,7 +204,7 @@ class TestSesame5RegisterMechStatusCallback:
 
         payload = _make_mech_status_payload()
         device.on_published(
-            protocol.ReceivedSesamePublish(const.ItemCodes.MECH_STATUS, payload)
+            protocol_types.ReceivedSesamePublish(const.ItemCodes.MECH_STATUS, payload)
         )
 
         callback.assert_not_called()
@@ -376,8 +376,8 @@ class TestSesame5LockUnlockToggle:
         await device.lock("history")
 
         mock_os3.send_command.assert_awaited_once_with(
-            protocol.SesameCommand(
-                const.ItemCodes.LOCK, os3.create_history_tag("history")
+            protocol_types.SesameCommand(
+                const.ItemCodes.LOCK, os3_protocol.create_history_tag("history")
             ),
             should_encrypt=True,
         )
@@ -391,8 +391,8 @@ class TestSesame5LockUnlockToggle:
         await device.unlock("history")
 
         mock_os3.send_command.assert_awaited_once_with(
-            protocol.SesameCommand(
-                const.ItemCodes.UNLOCK, os3.create_history_tag("history")
+            protocol_types.SesameCommand(
+                const.ItemCodes.UNLOCK, os3_protocol.create_history_tag("history")
             ),
             should_encrypt=True,
         )
@@ -460,7 +460,7 @@ class TestSesame5SetLockPosition:
         await device.set_lock_position(-1, 1)
 
         mock_os3.send_command.assert_awaited_once_with(
-            protocol.SesameCommand(
+            protocol_types.SesameCommand(
                 const.ItemCodes.MECH_SETTING, struct.pack("<hh", -1, 1)
             ),
             should_encrypt=True,
@@ -489,7 +489,7 @@ class TestSesame5SetAutoLockDuration:
         await device.set_auto_lock_duration(15)
 
         mock_os3.send_command.assert_awaited_once_with(
-            protocol.SesameCommand(const.ItemCodes.AUTOLOCK, struct.pack("<H", 15)),
+            protocol_types.SesameCommand(const.ItemCodes.AUTOLOCK, struct.pack("<H", 15)),
             should_encrypt=True,
         )
 
@@ -513,7 +513,7 @@ class TestSesame5GenerateQrUrl:
 
         url = device.generate_qr_url("Sesame")
 
-        expected = os3.OS3QRCode(
+        expected = os3_protocol.OS3QRCode(
             "Sesame",
             const.KeyLevels.OWNER,
             const.ProductModels.SESAME5,
@@ -528,7 +528,7 @@ class TestSesame5GenerateQrUrl:
 
         url = device.generate_qr_url("Sesame", generate_owner_key=False)
 
-        expected = os3.OS3QRCode(
+        expected = os3_protocol.OS3QRCode(
             "Sesame",
             const.KeyLevels.MANAGER,
             const.ProductModels.SESAME5,

@@ -1,7 +1,7 @@
 import pytest
 from pytest_mock import MockerFixture
 
-from gomalock import cipher
+from gomalock import os3_cipher
 
 
 class TestGenerateAppKeys:
@@ -14,9 +14,9 @@ class TestGenerateAppKeys:
         raw_public = b"\x04" + bytes(64)
         mock_public_key.export_key.return_value = raw_public
         mock_private_key.public_key.return_value = mock_public_key
-        mocker.patch.object(cipher.ECC, "generate", return_value=mock_private_key)
+        mocker.patch.object(os3_cipher.ECC, "generate", return_value=mock_private_key)
 
-        pub, priv = cipher.generate_app_keys()
+        pub, priv = os3_cipher.generate_app_keys()
 
         assert pub == bytes(64)
         assert priv is mock_private_key
@@ -34,12 +34,12 @@ class TestGenerateDeviceSecretKey:
         app_private_key = mocker.Mock()
         mock_device_pub = mocker.Mock()
         mock_import_key = mocker.patch.object(
-            cipher.ECC, "import_key", return_value=mock_device_pub
+            os3_cipher.ECC, "import_key", return_value=mock_device_pub
         )
         shared_secret = bytes(range(32))
-        mocker.patch.object(cipher, "key_agreement", return_value=shared_secret)
+        mocker.patch.object(os3_cipher, "key_agreement", return_value=shared_secret)
 
-        result = cipher.generate_device_secret_key(device_protocol_pub, app_private_key)
+        result = os3_cipher.generate_device_secret_key(device_protocol_pub, app_private_key)
 
         assert result == shared_secret[:16]
         mock_import_key.assert_called_once_with(
@@ -48,9 +48,9 @@ class TestGenerateDeviceSecretKey:
 
     def test_generate_device_secret_key_invalid_key_raises(self) -> None:
         """Raises ValueError for an invalid device public key."""
-        app_private_key = cipher.ECC.generate(curve="NIST P-256")
+        app_private_key = os3_cipher.ECC.generate(curve="NIST P-256")
         with pytest.raises(ValueError):
-            cipher.generate_device_secret_key(b"short", app_private_key)
+            os3_cipher.generate_device_secret_key(b"short", app_private_key)
 
 
 class TestGenerateSessionKey:
@@ -64,19 +64,19 @@ class TestGenerateSessionKey:
         expected_digest = bytes(16)
         mock_cmac.digest.return_value = expected_digest
         mock_cmac_new = mocker.patch.object(
-            cipher.CMAC, "new", return_value=mock_cmac
+            os3_cipher.CMAC, "new", return_value=mock_cmac
         )
 
-        result = cipher.generate_session_key(secret_key, session_token)
+        result = os3_cipher.generate_session_key(secret_key, session_token)
 
-        mock_cmac_new.assert_called_once_with(secret_key, ciphermod=cipher.AES)
+        mock_cmac_new.assert_called_once_with(secret_key, ciphermod=os3_cipher.AES)
         mock_cmac.update.assert_called_once_with(session_token)
         assert result == expected_digest
 
     def test_generate_session_key_invalid_key_length(self) -> None:
         """Raises ValueError if secret_key has invalid length for AES."""
         with pytest.raises(ValueError):
-            cipher.generate_session_key(b"short", bytes(4))
+            os3_cipher.generate_session_key(b"short", bytes(4))
 
 
 class TestOS3CipherEncrypt:
@@ -86,12 +86,12 @@ class TestOS3CipherEncrypt:
         """Returns ciphertext + 4-byte tag and increments counter."""
         session_token = bytes(4)
         session_key = bytes(16)
-        os3_cipher = cipher.OS3Cipher(session_token, session_key)
+        os3_cipher = os3_cipher.OS3Cipher(session_token, session_key)
 
         mock_aes = mocker.Mock()
         mock_aes.encrypt_and_digest.return_value = (b"ciphertext", b"tag!")
         mock_aes_new = mocker.patch.object(
-            cipher.AES, "new", return_value=mock_aes
+            os3_cipher.AES, "new", return_value=mock_aes
         )
 
         result = os3_cipher.encrypt(b"plaintext")
@@ -99,7 +99,7 @@ class TestOS3CipherEncrypt:
         expected_nonce = (0).to_bytes(8, "little") + b"\x00" + session_token
         mock_aes_new.assert_called_once_with(
             session_key,
-            cipher.AES.MODE_CCM,
+            os3_cipher.AES.MODE_CCM,
             nonce=expected_nonce,
             mac_len=4,
         )
@@ -109,11 +109,11 @@ class TestOS3CipherEncrypt:
 
     def test_encrypt_increments_counter(self, mocker: MockerFixture) -> None:
         """Counter increments after each encryption."""
-        os3_cipher = cipher.OS3Cipher(bytes(4), bytes(16))
+        os3_cipher = os3_cipher.OS3Cipher(bytes(4), bytes(16))
         mock_aes = mocker.Mock()
         mock_aes.encrypt_and_digest.return_value = (b"ct", b"tg!!")
         mock_aes_new = mocker.patch.object(
-            cipher.AES, "new", return_value=mock_aes
+            os3_cipher.AES, "new", return_value=mock_aes
         )
 
         os3_cipher.encrypt(b"a")
@@ -126,8 +126,8 @@ class TestOS3CipherEncrypt:
 
     def test_encrypt_counter_overflow(self) -> None:
         """Raises OverflowError when counter reaches maximum."""
-        os3_cipher = cipher.OS3Cipher(bytes(4), bytes(16))
-        os3_cipher._encrypt_counter = cipher.OS3Cipher._MAX_COUNTER
+        os3_cipher = os3_cipher.OS3Cipher(bytes(4), bytes(16))
+        os3_cipher._encrypt_counter = os3_cipher.OS3Cipher._MAX_COUNTER
 
         with pytest.raises(OverflowError):
             os3_cipher.encrypt(b"data")
@@ -140,12 +140,12 @@ class TestOS3CipherDecrypt:
         """Returns verified plaintext and increments counter."""
         session_token = bytes(4)
         session_key = bytes(16)
-        os3_cipher = cipher.OS3Cipher(session_token, session_key)
+        os3_cipher = os3_cipher.OS3Cipher(session_token, session_key)
 
         mock_aes = mocker.Mock()
         mock_aes.decrypt_and_verify.return_value = b"plaintext"
         mock_aes_new = mocker.patch.object(
-            cipher.AES, "new", return_value=mock_aes
+            os3_cipher.AES, "new", return_value=mock_aes
         )
 
         ciphertext_with_tag = b"ciphertext" + b"tag!"
@@ -154,7 +154,7 @@ class TestOS3CipherDecrypt:
         expected_nonce = (0).to_bytes(8, "little") + b"\x00" + session_token
         mock_aes_new.assert_called_once_with(
             session_key,
-            cipher.AES.MODE_CCM,
+            os3_cipher.AES.MODE_CCM,
             nonce=expected_nonce,
             mac_len=4,
         )
@@ -163,8 +163,8 @@ class TestOS3CipherDecrypt:
 
     def test_decrypt_counter_overflow(self) -> None:
         """Raises OverflowError when counter reaches maximum."""
-        os3_cipher = cipher.OS3Cipher(bytes(4), bytes(16))
-        os3_cipher._decrypt_counter = cipher.OS3Cipher._MAX_COUNTER
+        os3_cipher = os3_cipher.OS3Cipher(bytes(4), bytes(16))
+        os3_cipher._decrypt_counter = os3_cipher.OS3Cipher._MAX_COUNTER
 
         with pytest.raises(OverflowError):
             os3_cipher.decrypt(b"data" + bytes(4))
@@ -177,8 +177,8 @@ class TestOS3CipherRoundTrip:
         """Encrypted data can be decrypted back to plaintext."""
         session_token = b"\x01\x02\x03\x04"
         session_key = bytes(range(16))
-        encryptor = cipher.OS3Cipher(session_token, session_key)
-        decryptor = cipher.OS3Cipher(session_token, session_key)
+        encryptor = os3_cipher.OS3Cipher(session_token, session_key)
+        decryptor = os3_cipher.OS3Cipher(session_token, session_key)
 
         plaintext = b"Hello, Sesame!"
         ciphertext = encryptor.encrypt(plaintext)
@@ -190,8 +190,8 @@ class TestOS3CipherRoundTrip:
         """Raises ValueError for tampered ciphertext."""
         session_token = b"\x01\x02\x03\x04"
         session_key = bytes(range(16))
-        encryptor = cipher.OS3Cipher(session_token, session_key)
-        decryptor = cipher.OS3Cipher(session_token, session_key)
+        encryptor = os3_cipher.OS3Cipher(session_token, session_key)
+        decryptor = os3_cipher.OS3Cipher(session_token, session_key)
 
         ciphertext = encryptor.encrypt(b"data")
         tampered = ciphertext[:-1] + bytes([ciphertext[-1] ^ 0xFF])

@@ -14,7 +14,7 @@ from bleak.backends.device import BLEDevice
 from bleak.backends.scanner import AdvertisementData
 
 from .const import COMPANY_ID, SCAN_TIMEOUT, UUID_SERVICE, ProductModels
-from .protocol import SesameAdvertisementData
+from .protocol_types import SesameAdvertisementData
 
 logger = logging.getLogger(__name__)
 

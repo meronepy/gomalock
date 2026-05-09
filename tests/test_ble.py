@@ -1,7 +1,7 @@
 import pytest
 from pytest_mock import MockerFixture
 
-from gomalock import ble, const, exc
+from gomalock import ble_transport, const, exc
 
 
 class TestGenerateHeader:
@@ -9,7 +9,7 @@ class TestGenerateHeader:
 
     def test_generate_header_beginning_only(self) -> None:
         """Sets only the BEGINNING flag."""
-        header = int.from_bytes(ble.generate_header(True, False, False), "little")
+        header = int.from_bytes(ble_transport.generate_header(True, False, False), "little")
         assert header & const.PacketTypes.BEGINNING
         assert not header & (
             const.PacketTypes.PLAINTEXT_END | const.PacketTypes.ENCRYPTED_END
@@ -17,7 +17,7 @@ class TestGenerateHeader:
 
     def test_generate_header_plaintext_end_only(self) -> None:
         """Sets only the PLAINTEXT_END flag."""
-        header = int.from_bytes(ble.generate_header(False, True, False), "little")
+        header = int.from_bytes(ble_transport.generate_header(False, True, False), "little")
         assert header & const.PacketTypes.PLAINTEXT_END
         assert not header & (
             const.PacketTypes.BEGINNING | const.PacketTypes.ENCRYPTED_END
@@ -25,7 +25,7 @@ class TestGenerateHeader:
 
     def test_generate_header_encrypted_end_only(self) -> None:
         """Sets only the ENCRYPTED_END flag."""
-        header = int.from_bytes(ble.generate_header(False, True, True), "little")
+        header = int.from_bytes(ble_transport.generate_header(False, True, True), "little")
         assert header & const.PacketTypes.ENCRYPTED_END
         assert not header & (
             const.PacketTypes.BEGINNING | const.PacketTypes.PLAINTEXT_END
@@ -33,21 +33,21 @@ class TestGenerateHeader:
 
     def test_generate_header_beginning_and_plaintext_end(self) -> None:
         """Sets BEGINNING and PLAINTEXT_END flags."""
-        header = int.from_bytes(ble.generate_header(True, True, False), "little")
+        header = int.from_bytes(ble_transport.generate_header(True, True, False), "little")
         assert header & const.PacketTypes.BEGINNING
         assert header & const.PacketTypes.PLAINTEXT_END
         assert not header & const.PacketTypes.ENCRYPTED_END
 
     def test_generate_header_beginning_and_encrypted_end(self) -> None:
         """Sets BEGINNING and ENCRYPTED_END flags."""
-        header = int.from_bytes(ble.generate_header(True, True, True), "little")
+        header = int.from_bytes(ble_transport.generate_header(True, True, True), "little")
         assert header & const.PacketTypes.BEGINNING
         assert header & const.PacketTypes.ENCRYPTED_END
         assert not header & const.PacketTypes.PLAINTEXT_END
 
     def test_generate_header_no_flags(self) -> None:
         """Returns zero when no flags are set."""
-        header = int.from_bytes(ble.generate_header(False, False, False), "little")
+        header = int.from_bytes(ble_transport.generate_header(False, False, False), "little")
         assert header == 0
 
 
@@ -55,7 +55,7 @@ def _make_ble_device(mocker: MockerFixture, *, is_connected: bool):
     """Helper to create a SesameBleDevice with a mocked BleakClient."""
     received_cb = mocker.Mock()
     disconnect_cb = mocker.Mock()
-    device = ble.SesameBLEDevice("AA:BB:CC:DD:EE:FF", received_cb, disconnect_cb)
+    device = ble_transport.SesameBLETransport("AA:BB:CC:DD:EE:FF", received_cb, disconnect_cb)
     mock_client = mocker.AsyncMock()
     type(mock_client).is_connected = mocker.PropertyMock(return_value=is_connected)
     type(mock_client).address = mocker.PropertyMock(return_value="AA:BB:CC:DD:EE:FF")
@@ -72,9 +72,9 @@ class TestNotificationHandler:
         """Fragment packet is buffered without invoking callback."""
         device, _, received_cb, _ = _make_ble_device(mocker, is_connected=True)
         mocker.patch.object(
-            ble.ReceivedSesamePacket,
+            ble_transport.ReceivedSesamePacket,
             "from_ble_data",
-            return_value=ble.ReceivedSesamePacket(
+            return_value=ble_transport.ReceivedSesamePacket(
                 const.PacketTypes.BEGINNING, b"fragment"
             ),
         )
@@ -89,9 +89,9 @@ class TestNotificationHandler:
         """Complete plaintext message invokes callback with is_encrypted=False."""
         device, _, received_cb, _ = _make_ble_device(mocker, is_connected=True)
         mocker.patch.object(
-            ble.ReceivedSesamePacket,
+            ble_transport.ReceivedSesamePacket,
             "from_ble_data",
-            return_value=ble.ReceivedSesamePacket(
+            return_value=ble_transport.ReceivedSesamePacket(
                 const.PacketTypes.BEGINNING | const.PacketTypes.PLAINTEXT_END,
                 b"plaintext",
             ),
@@ -107,12 +107,12 @@ class TestNotificationHandler:
         """Multi-packet message is reassembled before invoking callback."""
         device, _, received_cb, _ = _make_ble_device(mocker, is_connected=True)
         mocker.patch.object(
-            ble.ReceivedSesamePacket,
+            ble_transport.ReceivedSesamePacket,
             "from_ble_data",
             side_effect=[
-                ble.ReceivedSesamePacket(const.PacketTypes.BEGINNING, b"part1-"),
-                ble.ReceivedSesamePacket(0, b"part2-"),
-                ble.ReceivedSesamePacket(const.PacketTypes.ENCRYPTED_END, b"part3"),
+                ble_transport.ReceivedSesamePacket(const.PacketTypes.BEGINNING, b"part1-"),
+                ble_transport.ReceivedSesamePacket(0, b"part2-"),
+                ble_transport.ReceivedSesamePacket(const.PacketTypes.ENCRYPTED_END, b"part3"),
             ],
         )
 
@@ -134,7 +134,7 @@ class TestConnectAndStartNotification:
         device, mock_client, _, _ = _make_ble_device(mocker, is_connected=False)
         mock_adv = mocker.Mock(product_model=mocker.Mock(name="SESAME5"))
         mocker.patch.object(
-            ble.SesameScanner,
+            ble_transport.SesameScanner,
             "find_device_by_address",
             new=mocker.AsyncMock(return_value=("AA:BB:CC:DD:EE:FF", mock_adv)),
         )
@@ -166,7 +166,7 @@ class TestConnectAndStartNotification:
         """Raises SesameConnectionError when scan finds nothing."""
         device, _, _, _ = _make_ble_device(mocker, is_connected=False)
         mocker.patch.object(
-            ble.SesameScanner,
+            ble_transport.SesameScanner,
             "find_device_by_address",
             new=mocker.AsyncMock(return_value=None),
         )

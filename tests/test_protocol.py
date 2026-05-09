@@ -3,7 +3,7 @@ from uuid import UUID
 
 import pytest
 
-from gomalock import const, protocol
+from gomalock import const, protocol_types
 
 
 class TestSesameAdvertisementData:
@@ -19,7 +19,7 @@ class TestSesameAdvertisementData:
             device_uuid.bytes,
         )
 
-        result = protocol.SesameAdvertisementData.from_manufacturer_data(data)
+        result = protocol_types.SesameAdvertisementData.from_manufacturer_data(data)
 
         assert result.product_model == const.ProductModels.SESAME5
         assert result.is_registered is True
@@ -35,7 +35,7 @@ class TestSesameAdvertisementData:
             device_uuid.bytes,
         )
 
-        result = protocol.SesameAdvertisementData.from_manufacturer_data(data)
+        result = protocol_types.SesameAdvertisementData.from_manufacturer_data(data)
 
         assert result.is_registered is False
         assert result.product_model == const.ProductModels.SESAME5_PRO
@@ -43,7 +43,7 @@ class TestSesameAdvertisementData:
     def test_from_manufacturer_data_invalid_length(self) -> None:
         """Raises struct.error for too-short data."""
         with pytest.raises(struct.error):
-            protocol.SesameAdvertisementData.from_manufacturer_data(b"\x00")
+            protocol_types.SesameAdvertisementData.from_manufacturer_data(b"\x00")
 
     def test_from_manufacturer_data_invalid_model(self) -> None:
         """Raises ValueError for unknown product model."""
@@ -51,7 +51,7 @@ class TestSesameAdvertisementData:
         data = struct.pack("<HB16s", 999, 1, device_uuid.bytes)
 
         with pytest.raises(ValueError):
-            protocol.SesameAdvertisementData.from_manufacturer_data(data)
+            protocol_types.SesameAdvertisementData.from_manufacturer_data(data)
 
 
 class TestReceivedSesamePacketFromBleData:
@@ -62,7 +62,7 @@ class TestReceivedSesamePacketFromBleData:
         header_byte = const.PacketTypes.BEGINNING
         raw = header_byte.to_bytes(1, "little") + b"payload"
 
-        result = protocol.ReceivedSesamePacket.from_ble_data(raw)
+        result = protocol_types.ReceivedSesamePacket.from_ble_data(raw)
 
         assert result.header == header_byte
         assert result.payload == b"payload"
@@ -71,7 +71,7 @@ class TestReceivedSesamePacketFromBleData:
         """Handles single-byte data with empty payload."""
         raw = b"\x01"
 
-        result = protocol.ReceivedSesamePacket.from_ble_data(raw)
+        result = protocol_types.ReceivedSesamePacket.from_ble_data(raw)
 
         assert result.header == 1
         assert result.payload == b""
@@ -79,7 +79,7 @@ class TestReceivedSesamePacketFromBleData:
     def test_from_ble_data_empty_raises(self) -> None:
         """Raises IndexError for empty data."""
         with pytest.raises(IndexError):
-            protocol.ReceivedSesamePacket.from_ble_data(b"")
+            protocol_types.ReceivedSesamePacket.from_ble_data(b"")
 
 
 class TestReceivedSesamePacketProperties:
@@ -87,42 +87,42 @@ class TestReceivedSesamePacketProperties:
 
     def test_is_beginning_true(self) -> None:
         """Returns True when BEGINNING flag is set."""
-        packet = protocol.ReceivedSesamePacket(const.PacketTypes.BEGINNING, b"")
+        packet = protocol_types.ReceivedSesamePacket(const.PacketTypes.BEGINNING, b"")
         assert packet.is_beginning is True
 
     def test_is_beginning_false(self) -> None:
         """Returns False when BEGINNING flag is not set."""
-        packet = protocol.ReceivedSesamePacket(const.PacketTypes.PLAINTEXT_END, b"")
+        packet = protocol_types.ReceivedSesamePacket(const.PacketTypes.PLAINTEXT_END, b"")
         assert packet.is_beginning is False
 
     def test_is_end_plaintext(self) -> None:
         """Returns True when PLAINTEXT_END flag is set."""
-        packet = protocol.ReceivedSesamePacket(const.PacketTypes.PLAINTEXT_END, b"")
+        packet = protocol_types.ReceivedSesamePacket(const.PacketTypes.PLAINTEXT_END, b"")
         assert packet.is_end is True
 
     def test_is_end_encrypted(self) -> None:
         """Returns True when ENCRYPTED_END flag is set."""
-        packet = protocol.ReceivedSesamePacket(const.PacketTypes.ENCRYPTED_END, b"")
+        packet = protocol_types.ReceivedSesamePacket(const.PacketTypes.ENCRYPTED_END, b"")
         assert packet.is_end is True
 
     def test_is_end_false(self) -> None:
         """Returns False when neither end flag is set."""
-        packet = protocol.ReceivedSesamePacket(const.PacketTypes.BEGINNING, b"")
+        packet = protocol_types.ReceivedSesamePacket(const.PacketTypes.BEGINNING, b"")
         assert packet.is_end is False
 
     def test_is_encrypted_true(self) -> None:
         """Returns True when ENCRYPTED_END flag is set."""
-        packet = protocol.ReceivedSesamePacket(const.PacketTypes.ENCRYPTED_END, b"")
+        packet = protocol_types.ReceivedSesamePacket(const.PacketTypes.ENCRYPTED_END, b"")
         assert packet.is_encrypted is True
 
     def test_is_encrypted_false_plaintext(self) -> None:
         """Returns False when only PLAINTEXT_END flag is set."""
-        packet = protocol.ReceivedSesamePacket(const.PacketTypes.PLAINTEXT_END, b"")
+        packet = protocol_types.ReceivedSesamePacket(const.PacketTypes.PLAINTEXT_END, b"")
         assert packet.is_encrypted is False
 
     def test_is_encrypted_false_beginning(self) -> None:
         """Returns False when only BEGINNING flag is set."""
-        packet = protocol.ReceivedSesamePacket(const.PacketTypes.BEGINNING, b"")
+        packet = protocol_types.ReceivedSesamePacket(const.PacketTypes.BEGINNING, b"")
         assert packet.is_encrypted is False
 
 
@@ -133,7 +133,7 @@ class TestReceivedSesameMessage:
         """Parses opcode and payload from reassembled data."""
         raw = const.OpCodes.PUBLISH.value.to_bytes(1, "little") + b"payload"
 
-        result = protocol.ReceivedSesameMessage.from_reassembled_data(raw)
+        result = protocol_types.ReceivedSesameMessage.from_reassembled_data(raw)
 
         assert result.op_code == const.OpCodes.PUBLISH
         assert result.payload == b"payload"
@@ -141,12 +141,12 @@ class TestReceivedSesameMessage:
     def test_from_reassembled_data_empty_raises(self) -> None:
         """Raises IndexError for empty data."""
         with pytest.raises(IndexError):
-            protocol.ReceivedSesameMessage.from_reassembled_data(b"")
+            protocol_types.ReceivedSesameMessage.from_reassembled_data(b"")
 
     def test_from_reassembled_data_invalid_opcode_raises(self) -> None:
         """Raises ValueError for invalid opcode."""
         with pytest.raises(ValueError):
-            protocol.ReceivedSesameMessage.from_reassembled_data(b"\xff")
+            protocol_types.ReceivedSesameMessage.from_reassembled_data(b"\xff")
 
 
 class TestReceivedSesameResponse:
@@ -160,7 +160,7 @@ class TestReceivedSesameResponse:
             + b"payload"
         )
 
-        result = protocol.ReceivedSesameResponse.from_sesame_message(data)
+        result = protocol_types.ReceivedSesameResponse.from_sesame_message(data)
 
         assert result.item_code == const.ItemCodes.LOGIN
         assert result.result_code == const.ResultCodes.SUCCESS
@@ -169,12 +169,12 @@ class TestReceivedSesameResponse:
     def test_from_sesame_message_short_payload_raises(self) -> None:
         """Raises IndexError for data shorter than 2 bytes."""
         with pytest.raises(IndexError):
-            protocol.ReceivedSesameResponse.from_sesame_message(b"\x02")
+            protocol_types.ReceivedSesameResponse.from_sesame_message(b"\x02")
 
     def test_from_sesame_message_invalid_item_code_raises(self) -> None:
         """Raises ValueError for unknown item code."""
         with pytest.raises(ValueError):
-            protocol.ReceivedSesameResponse.from_sesame_message(b"\xff\x00")
+            protocol_types.ReceivedSesameResponse.from_sesame_message(b"\xff\x00")
 
 
 class TestReceivedSesamePublish:
@@ -184,7 +184,7 @@ class TestReceivedSesamePublish:
         """Parses item code and payload."""
         data = const.ItemCodes.MECH_STATUS.value.to_bytes(1, "little") + b"payload"
 
-        result = protocol.ReceivedSesamePublish.from_sesame_message(data)
+        result = protocol_types.ReceivedSesamePublish.from_sesame_message(data)
 
         assert result.item_code == const.ItemCodes.MECH_STATUS
         assert result.payload == b"payload"
@@ -192,12 +192,12 @@ class TestReceivedSesamePublish:
     def test_from_sesame_message_empty_raises(self) -> None:
         """Raises IndexError for empty data."""
         with pytest.raises(IndexError):
-            protocol.ReceivedSesamePublish.from_sesame_message(b"")
+            protocol_types.ReceivedSesamePublish.from_sesame_message(b"")
 
     def test_from_sesame_message_invalid_item_code_raises(self) -> None:
         """Raises ValueError for unknown item code."""
         with pytest.raises(ValueError):
-            protocol.ReceivedSesamePublish.from_sesame_message(b"\xff")
+            protocol_types.ReceivedSesamePublish.from_sesame_message(b"\xff")
 
 
 class TestSesameCommand:
@@ -205,7 +205,7 @@ class TestSesameCommand:
 
     def test_transmission_data_format(self) -> None:
         """Returns item code byte followed by payload."""
-        command = protocol.SesameCommand(const.ItemCodes.LOGIN, b"payload")
+        command = protocol_types.SesameCommand(const.ItemCodes.LOGIN, b"payload")
 
         result = command.transmission_data
 
@@ -214,7 +214,7 @@ class TestSesameCommand:
 
     def test_transmission_data_empty_payload(self) -> None:
         """Returns single byte for empty payload."""
-        command = protocol.SesameCommand(const.ItemCodes.LOCK, b"")
+        command = protocol_types.SesameCommand(const.ItemCodes.LOCK, b"")
 
         result = command.transmission_data
 

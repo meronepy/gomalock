@@ -20,13 +20,13 @@ from .const import (
     KeyLevels,
 )
 from .exc import SesameConnectionError, SesameLoginError
-from .os3 import OS3Device, OS3QRCode
-from .protocol import ReceivedSesamePublish, SesameAdvertisementData
+from .os3_protocol import SesameOS3Protocol, OS3QRCode
+from .protocol_types import ReceivedSesamePublish, SesameAdvertisementData
 
 logger = logging.getLogger(__name__)
 
 
-class BaseSesameLock[MechStatusT](ABC):
+class BaseSesameOS3Lock[MechStatusT](ABC):
     """Foundational implementation for interacting with Sesame smart locks."""
 
     def __init__(
@@ -46,7 +46,7 @@ class BaseSesameLock[MechStatusT](ABC):
             auto_reconnection_limit: Maximum number of auto-reconnection attempts.
                 Defaults to 0 (disabled).
         """
-        self._os3_device = OS3Device(
+        self._os3_device = SesameOS3Protocol(
             mac_address, self.on_published, self.on_unexpected_disconnect
         )
         self._secret_key = secret_key

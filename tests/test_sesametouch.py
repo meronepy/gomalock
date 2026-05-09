@@ -4,7 +4,7 @@ from uuid import UUID
 import pytest
 from pytest_mock import MockerFixture
 
-from gomalock import const, exc, os3, protocol, sesametouch
+from gomalock import const, exc, os3_protocol, protocol_types, sesametouch
 
 
 def _make_sesame_touch(mocker: MockerFixture, *, is_connected: bool = False):
@@ -79,7 +79,7 @@ class TestSesameTouchMechStatusProperties:
         status = sesametouch.SesameTouchMechStatus.from_payload(
             _make_touch_mech_status_payload(raw_battery=2800)
         )
-        assert status.battery_percentage == (os3.calculate_battery_percentage(5.6))
+        assert status.battery_percentage == (os3_protocol.calculate_battery_percentage(5.6))
 
     def test_is_battery_critical_false(self) -> None:
         """Returns False when battery critical flag is not set."""
@@ -100,7 +100,7 @@ class TestSesameTouchPublishHandling:
 
         payload = _make_touch_mech_status_payload(2600, 1, 2, 3, 0)
         device._on_published(
-            protocol.ReceivedSesamePublish(const.ItemCodes.MECH_STATUS, payload)
+            protocol_types.ReceivedSesamePublish(const.ItemCodes.MECH_STATUS, payload)
         )
 
         assert device._mech_status is not None
@@ -115,7 +115,7 @@ class TestSesameTouchPublishHandling:
 
         payload = _make_touch_mech_status_payload()
         device._on_published(
-            protocol.ReceivedSesamePublish(const.ItemCodes.MECH_STATUS, payload)
+            protocol_types.ReceivedSesamePublish(const.ItemCodes.MECH_STATUS, payload)
         )
 
         assert device._login_completed.is_set()
@@ -127,7 +127,7 @@ class TestSesameTouchPublishHandling:
         device, _, _ = _make_sesame_touch(mocker)
 
         device._on_published(
-            protocol.ReceivedSesamePublish(const.ItemCodes.LOGIN, b"payload")
+            protocol_types.ReceivedSesamePublish(const.ItemCodes.LOGIN, b"payload")
         )
 
         assert not device._login_completed.is_set()
@@ -143,7 +143,7 @@ class TestSesameTouchPublishHandling:
 
         payload = _make_touch_mech_status_payload()
         device._on_published(
-            protocol.ReceivedSesamePublish(const.ItemCodes.MECH_STATUS, payload)
+            protocol_types.ReceivedSesamePublish(const.ItemCodes.MECH_STATUS, payload)
         )
 
         callback.assert_called_once()
@@ -163,7 +163,7 @@ class TestSesameTouchRegisterMechStatusCallback:
 
         payload = _make_touch_mech_status_payload()
         device._on_published(
-            protocol.ReceivedSesamePublish(const.ItemCodes.MECH_STATUS, payload)
+            protocol_types.ReceivedSesamePublish(const.ItemCodes.MECH_STATUS, payload)
         )
 
         callback.assert_not_called()
@@ -329,7 +329,7 @@ class TestSesameTouchGenerateQrUrl:
 
         url = device.generate_qr_url("Touch")
 
-        expected = os3.OS3QRCode(
+        expected = os3_protocol.OS3QRCode(
             "Touch",
             const.KeyLevels.OWNER,
             const.ProductModels.SESAME_TOUCH,
@@ -352,7 +352,7 @@ class TestSesameTouchGenerateQrUrl:
 
         url = device.generate_qr_url("Touch", generate_owner_key=False)
 
-        expected = os3.OS3QRCode(
+        expected = os3_protocol.OS3QRCode(
             "Touch",
             const.KeyLevels.MANAGER,
             const.ProductModels.SESAME_TOUCH,

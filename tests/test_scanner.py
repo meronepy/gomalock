@@ -5,7 +5,7 @@ from uuid import UUID
 import pytest
 from pytest_mock import MockerFixture
 
-from gomalock import const, protocol, scanner
+from gomalock import const, protocol_types, scanner
 
 
 def _make_manufacturer_data(
@@ -19,9 +19,9 @@ def _make_manufacturer_data(
 
 def _make_sesame_adv_data(
     model: const.ProductModels, device_uuid: UUID
-) -> protocol.SesameAdvertisementData:
+) -> protocol_types.SesameAdvertisementData:
     """Helper to create SesameAdvertisementData from model and UUID."""
-    return protocol.SesameAdvertisementData.from_manufacturer_data(
+    return protocol_types.SesameAdvertisementData.from_manufacturer_data(
         _make_manufacturer_data(model, device_uuid)
     )
 
@@ -71,7 +71,7 @@ class TestSesameScannerDetection:
         sesame_scanner = scanner.SesameScanner(callback)
         sesame_scanner._bleak_detection_callback(ble_device, adv_data)
 
-        expected_adv = protocol.SesameAdvertisementData.from_manufacturer_data(mfr_data)
+        expected_adv = protocol_types.SesameAdvertisementData.from_manufacturer_data(mfr_data)
         callback.assert_called_once_with("AA:BB:CC:DD:EE:FF", expected_adv)
 
 

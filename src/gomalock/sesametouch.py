@@ -11,10 +11,10 @@ import struct
 from dataclasses import dataclass
 from typing import Self
 
-from .basesesamelock import BaseSesameLock
+from .os3_lock_base import BaseSesameOS3Lock
 from .const import ItemCodes, MechStatusBitFlags
-from .os3 import calculate_battery_percentage
-from .protocol import ReceivedSesamePublish
+from .os3_protocol import calculate_battery_percentage
+from .protocol_types import ReceivedSesamePublish
 
 logger = logging.getLogger(__name__)
 
@@ -80,7 +80,7 @@ class SesameTouchMechStatus:
         return calculate_battery_percentage(self.battery_voltage)
 
 
-class SesameTouch(BaseSesameLock[SesameTouchMechStatus]):
+class SesameTouch(BaseSesameOS3Lock[SesameTouchMechStatus]):
     """Main interface for monitoring a Sesame Touch device.
 
     Handles BLE connection and status callbacks.
