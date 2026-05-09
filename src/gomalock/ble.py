@@ -45,7 +45,7 @@ def generate_header(is_beginning: bool, is_end: bool, is_encrypted: bool) -> byt
     return header.to_bytes(1, byteorder="little")
 
 
-class SesameBleDevice:
+class SesameBLEDevice:
     """A BLE device handler for Sesame device using the Bleak library.
 
     This class manages BLE communication, including connection, service discovery,
@@ -58,7 +58,7 @@ class SesameBleDevice:
         received_data_callback: Callable[[bytes, bool], None],
         unexpected_disconnect_callback: Callable[[], None],
     ) -> None:
-        """Initialize the SesameBleDevice.
+        """Initialize the SesameBLEDevice.
 
         Args:
             mac_address: The MAC address of the Sesame device.

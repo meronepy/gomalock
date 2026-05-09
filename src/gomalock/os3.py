@@ -15,7 +15,7 @@ from typing import Callable, Self
 from urllib import parse
 from uuid import UUID
 
-from .ble import SesameBleDevice
+from .ble import SesameBLEDevice
 from .cipher import (
     OS3Cipher,
     generate_app_keys,
@@ -185,7 +185,7 @@ class OS3QRCode:
 
 
 class OS3Device:
-    """A class to manage communication and authentication with a Sesame OS3 BLE device.
+    """A class to manage communication and authentication with a Sesame OS3 device.
 
     This class handles BLE connection, login, command transmission, and notification
     processing for a Sesame OS3 device.
@@ -204,7 +204,7 @@ class OS3Device:
             publish_data_callback: Callback for publish data notifications.
             unexpected_disconnect_callback: Callback for unexpected disconnections.
         """
-        self._ble_device = SesameBleDevice(
+        self._ble_device = SesameBLEDevice(
             mac_address, self.on_received, self.on_unexpected_disconnect
         )
         self._publish_data_callback = publish_data_callback

@@ -55,7 +55,7 @@ def _make_ble_device(mocker: MockerFixture, *, is_connected: bool):
     """Helper to create a SesameBleDevice with a mocked BleakClient."""
     received_cb = mocker.Mock()
     disconnect_cb = mocker.Mock()
-    device = ble.SesameBleDevice("AA:BB:CC:DD:EE:FF", received_cb, disconnect_cb)
+    device = ble.SesameBLEDevice("AA:BB:CC:DD:EE:FF", received_cb, disconnect_cb)
     mock_client = mocker.AsyncMock()
     type(mock_client).is_connected = mocker.PropertyMock(return_value=is_connected)
     type(mock_client).address = mocker.PropertyMock(return_value="AA:BB:CC:DD:EE:FF")
