@@ -5,28 +5,21 @@ connections, auto-reconnection, authentication, and mechanical status for
 Sesame OS3 devices.
 """
 
-from __future__ import annotations
-
 import asyncio
 import logging
 import random
 from abc import ABC, abstractmethod
 from typing import Callable, Self
 
-from .const import (
-    PUBLISH_TIMEOUT,
-    RECONNECT_MAX_BACKOFF,
-    DeviceStatus,
-    KeyLevels,
-)
+from .const import PUBLISH_TIMEOUT, RECONNECT_MAX_BACKOFF, DeviceStatus, KeyLevels
 from .exc import SesameConnectionError, SesameLoginError
-from .os3_protocol import SesameOS3Protocol, OS3QRCode
+from .os3_protocol import OS3QRCode, SesameOS3Protocol
 from .protocol_types import ReceivedSesamePublish, SesameAdvertisementData
 
 logger = logging.getLogger(__name__)
 
 
-class BaseSesameOS3Lock[MechStatusT](ABC):
+class BaseSesameOS3Lock[LockSelfT, MechStatusT](ABC):
     """Abstract base class for interacting with Sesame OS3 devices.
 
     Provides common functionality such as connecting, logging in, handling
@@ -37,7 +30,7 @@ class BaseSesameOS3Lock[MechStatusT](ABC):
         self,
         mac_address: str,
         secret_key: str | None = None,
-        mech_status_callback: Callable[[Self, MechStatusT], None] | None = None,
+        mech_status_callback: Callable[[LockSelfT, MechStatusT], None] | None = None,
         auto_reconnection_limit: int = 0,
     ) -> None:
         """Initializes the base lock interface.
@@ -60,7 +53,7 @@ class BaseSesameOS3Lock[MechStatusT](ABC):
         self._login_completed = asyncio.Event()
         self._device_status = DeviceStatus.DISCONNECTED
         self._mech_status_callbacks: dict[
-            object, Callable[[Self, MechStatusT], None]
+            object, Callable[[LockSelfT, MechStatusT], None]
         ] = {}
         if mech_status_callback is not None:
             self.register_mech_status_callback(mech_status_callback)
@@ -146,7 +139,7 @@ class BaseSesameOS3Lock[MechStatusT](ABC):
         self._mech_status = None
 
     def register_mech_status_callback(
-        self, callback: Callable[[Self, MechStatusT], None]
+        self, callback: Callable[[LockSelfT, MechStatusT], None]
     ) -> Callable[[], None]:
         """Registers a function to be called upon mechanical status updates.
 

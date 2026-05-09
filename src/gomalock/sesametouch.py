@@ -5,15 +5,13 @@ functionality to handle the specific mechanical status parsing for Sesame Touch,
 Touch Pro, and Bike 2 devices.
 """
 
-from __future__ import annotations
-
 import logging
 import struct
 from dataclasses import dataclass
 from typing import Self
 
-from .os3_lock_base import BaseSesameOS3Lock
 from .const import ItemCodes, MechStatusBitFlags
+from .os3_lock_base import BaseSesameOS3Lock
 from .os3_protocol import calculate_battery_percentage
 from .protocol_types import ReceivedSesamePublish
 
@@ -80,7 +78,7 @@ class SesameTouchMechStatus:
         return calculate_battery_percentage(self.battery_voltage)
 
 
-class SesameTouch(BaseSesameOS3Lock[SesameTouchMechStatus]):
+class SesameTouch(BaseSesameOS3Lock["SesameTouch", SesameTouchMechStatus]):
     """Controls and monitors a Sesame Touch device.
 
     Handles connection, authentication, and the tracking of the device's

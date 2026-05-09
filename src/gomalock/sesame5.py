@@ -5,16 +5,14 @@ functionality to provide specific commands (lock, unlock, toggle) and parse
 the mechanical status and settings for Sesame 5 locks.
 """
 
-from __future__ import annotations
-
 import logging
 import struct
 from dataclasses import dataclass
 from typing import Callable, Self
 
-from .os3_lock_base import BaseSesameOS3Lock
 from .const import ItemCodes, MechStatusBitFlags
 from .exc import SesameLoginError
+from .os3_lock_base import BaseSesameOS3Lock
 from .os3_protocol import calculate_battery_percentage, create_history_tag
 from .protocol_types import ReceivedSesamePublish, SesameCommand
 
@@ -115,7 +113,7 @@ class Sesame5MechSetting:
         return cls(lock_position, unlock_position, auto_lock_duration)
 
 
-class Sesame5(BaseSesameOS3Lock[Sesame5MechStatus]):
+class Sesame5(BaseSesameOS3Lock["Sesame5", Sesame5MechStatus]):
     """Controls and monitors a Sesame 5 device.
 
     Provides methods to lock, unlock, toggle, and configure the device, while
