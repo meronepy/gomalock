@@ -1,6 +1,4 @@
 # pylint: disable=missing-module-docstring
-from __future__ import annotations
-
 from gomalock import (
     Sesame5,
     Sesame5MechSetting,

@@ -1,6 +1,4 @@
 # pylint: disable=missing-module-docstring
-from __future__ import annotations
-
 import struct
 from types import SimpleNamespace
 from typing import Any
@@ -10,7 +8,6 @@ from uuid import UUID
 import pytest
 
 from gomalock import const, protocol_types
-
 
 TEST_ADDRESS = "AA:BB:CC:DD:EE:FF"
 TEST_UUID = UUID("01234567-89ab-cdef-0123-456789abcdef")
@@ -74,6 +71,8 @@ def mock_ble_device(
     type(mock_ble).mac_address = property(lambda _: TEST_ADDRESS)
     type(mock_ble).sesame_advertisement_data = property(
         lambda _: advertisement
-        or SimpleNamespace(is_registered=False, product_model=const.ProductModels.SESAME5)
+        or SimpleNamespace(
+            is_registered=False, product_model=const.ProductModels.SESAME5
+        )
     )
     return mock_ble

@@ -1,6 +1,4 @@
 # pylint: disable=missing-module-docstring
-from __future__ import annotations
-
 import struct
 
 import pytest
@@ -151,7 +149,9 @@ def test_transmission_data_with_payload() -> None:
     """Prefixes command payloads with the item code."""
     command = protocol_types.SesameCommand(const.ItemCodes.LOGIN, b"payload")
 
-    assert command.transmission_data == bytes([const.ItemCodes.LOGIN.value]) + b"payload"
+    assert (
+        command.transmission_data == bytes([const.ItemCodes.LOGIN.value]) + b"payload"
+    )
 
 
 def test_transmission_data_empty_payload() -> None:

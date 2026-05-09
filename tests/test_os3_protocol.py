@@ -1,6 +1,4 @@
 # pylint: disable=missing-module-docstring
-from __future__ import annotations
-
 import asyncio
 import base64
 import math
@@ -208,7 +206,9 @@ async def test_send_command_success(monkeypatch: pytest.MonkeyPatch) -> None:
     async def write_gatt(send_data: bytes, is_encrypted: bool) -> None:
         assert send_data == command.transmission_data
         assert is_encrypted is False
-        protocol.on_received(response_message(const.ItemCodes.LOGIN, payload=b"ok"), False)
+        protocol.on_received(
+            response_message(const.ItemCodes.LOGIN, payload=b"ok"), False
+        )
 
     ble_device.write_gatt.side_effect = write_gatt
 
@@ -280,7 +280,9 @@ async def test_connect_success(monkeypatch: pytest.MonkeyPatch) -> None:
             False,
         )
 
-    ble_device.connect_and_start_notification.side_effect = connect_and_start_notification
+    ble_device.connect_and_start_notification.side_effect = (
+        connect_and_start_notification
+    )
 
     await protocol.connect()
 
@@ -356,9 +358,13 @@ async def test_login_success(monkeypatch: pytest.MonkeyPatch) -> None:
             False,
         )
 
-    ble_device.connect_and_start_notification.side_effect = connect_and_start_notification
+    ble_device.connect_and_start_notification.side_effect = (
+        connect_and_start_notification
+    )
     ble_device.write_gatt.side_effect = write_gatt
-    monkeypatch.setattr(os3_protocol, "generate_session_key", Mock(return_value=b"k" * 16))
+    monkeypatch.setattr(
+        os3_protocol, "generate_session_key", Mock(return_value=b"k" * 16)
+    )
 
     await protocol.connect()
     timestamp = await protocol.login(b"s" * 16)

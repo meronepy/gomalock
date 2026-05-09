@@ -1,6 +1,4 @@
 # pylint: disable=duplicate-code,missing-module-docstring
-from __future__ import annotations
-
 import struct
 from unittest.mock import AsyncMock, Mock
 
@@ -92,9 +90,7 @@ def test_from_payload_mech_status_invalid() -> None:
 
 def test_from_payload_mech_setting_valid() -> None:
     """Parses lock positions and auto-lock duration."""
-    setting = sesame5.Sesame5MechSetting.from_payload(
-        mech_setting_payload(-1, 2, 30)
-    )
+    setting = sesame5.Sesame5MechSetting.from_payload(mech_setting_payload(-1, 2, 30))
 
     assert setting.lock_position == -1
     assert setting.unlock_position == 2
@@ -396,13 +392,16 @@ def test_generate_qr_url_owner(monkeypatch: pytest.MonkeyPatch) -> None:
     """Generates owner QR URLs from the device advertisement data."""
     device, _ = make_sesame5(monkeypatch)
 
-    assert device.generate_qr_url("Sesame") == os3_protocol.OS3QRCode(
-        "Sesame",
-        const.KeyLevels.OWNER,
-        const.ProductModels.SESAME5,
-        TEST_UUID,
-        bytes.fromhex("00" * 16),
-    ).qr_url
+    assert (
+        device.generate_qr_url("Sesame")
+        == os3_protocol.OS3QRCode(
+            "Sesame",
+            const.KeyLevels.OWNER,
+            const.ProductModels.SESAME5,
+            TEST_UUID,
+            bytes.fromhex("00" * 16),
+        ).qr_url
+    )
 
 
 def test_generate_qr_url_manager(monkeypatch: pytest.MonkeyPatch) -> None:

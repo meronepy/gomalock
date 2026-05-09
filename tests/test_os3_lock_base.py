@@ -1,6 +1,4 @@
 # pylint: disable=missing-module-docstring,protected-access
-from __future__ import annotations
-
 import asyncio
 from typing import Any, cast
 from unittest.mock import AsyncMock, Mock
@@ -11,7 +9,7 @@ from gomalock import const, exc, os3_lock_base, os3_protocol, protocol_types
 from tests.conftest import TEST_ADDRESS, TEST_UUID, make_mock_os3_device
 
 
-class DummyLock(os3_lock_base.BaseSesameOS3Lock[int]):
+class DummyLock(os3_lock_base.BaseSesameOS3Lock["DummyLock", int]):
     """Minimal concrete lock used to exercise the base class."""
 
     def on_published(self, publish_data: protocol_types.ReceivedSesamePublish) -> None:
@@ -344,13 +342,16 @@ def test_generate_qr_url_owner(monkeypatch: pytest.MonkeyPatch) -> None:
     """Generates an owner QR URL from advertisement data."""
     lock, _ = make_lock(monkeypatch)
 
-    assert lock.generate_qr_url("Base") == os3_protocol.OS3QRCode(
-        "Base",
-        const.KeyLevels.OWNER,
-        const.ProductModels.SESAME5,
-        TEST_UUID,
-        bytes.fromhex("00" * 16),
-    ).qr_url
+    assert (
+        lock.generate_qr_url("Base")
+        == os3_protocol.OS3QRCode(
+            "Base",
+            const.KeyLevels.OWNER,
+            const.ProductModels.SESAME5,
+            TEST_UUID,
+            bytes.fromhex("00" * 16),
+        ).qr_url
+    )
 
 
 def test_generate_qr_url_manager(monkeypatch: pytest.MonkeyPatch) -> None:

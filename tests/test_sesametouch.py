@@ -1,13 +1,17 @@
 # pylint: disable=duplicate-code,missing-module-docstring
-from __future__ import annotations
-
 import struct
 from unittest.mock import AsyncMock, Mock
 
 import pytest
 
-from gomalock import const, exc, os3_lock_base, os3_protocol, protocol_types
-from gomalock import sesametouch
+from gomalock import (
+    const,
+    exc,
+    os3_lock_base,
+    os3_protocol,
+    protocol_types,
+    sesametouch,
+)
 from tests.conftest import TEST_ADDRESS, TEST_UUID, make_mock_os3_device
 
 
@@ -247,13 +251,16 @@ def test_generate_qr_url_owner(monkeypatch: pytest.MonkeyPatch) -> None:
     """Generates owner QR URLs from the device advertisement data."""
     device, _ = make_touch(monkeypatch)
 
-    assert device.generate_qr_url("Touch") == os3_protocol.OS3QRCode(
-        "Touch",
-        const.KeyLevels.OWNER,
-        const.ProductModels.SESAME_TOUCH,
-        TEST_UUID,
-        bytes.fromhex("11" * 16),
-    ).qr_url
+    assert (
+        device.generate_qr_url("Touch")
+        == os3_protocol.OS3QRCode(
+            "Touch",
+            const.KeyLevels.OWNER,
+            const.ProductModels.SESAME_TOUCH,
+            TEST_UUID,
+            bytes.fromhex("11" * 16),
+        ).qr_url
+    )
 
 
 def test_generate_qr_url_manager(monkeypatch: pytest.MonkeyPatch) -> None:

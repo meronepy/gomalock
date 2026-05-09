@@ -1,6 +1,4 @@
 # pylint: disable=missing-module-docstring
-from __future__ import annotations
-
 import asyncio
 import struct
 from collections.abc import Callable
@@ -165,7 +163,9 @@ async def test_find_device_by_filter_match(monkeypatch: pytest.MonkeyPatch) -> N
         yield ("11:22:33:44:55:66", first)
         yield (TEST_ADDRESS, second)
 
-    monkeypatch.setattr(scanner.SesameScanner, "detected_devices_generator", fake_generator)
+    monkeypatch.setattr(
+        scanner.SesameScanner, "detected_devices_generator", fake_generator
+    )
     monkeypatch.setattr(scanner.SesameScanner, "start", AsyncMock())
     monkeypatch.setattr(scanner.SesameScanner, "stop", AsyncMock())
 
@@ -223,14 +223,17 @@ async def test_find_device_by_uuid_match(monkeypatch: pytest.MonkeyPatch) -> Non
 
     filter_func = finder.call_args.args[0]
     assert filter_func(TEST_ADDRESS, make_advertisement()) is True
-    assert filter_func(
-        TEST_ADDRESS,
-        protocol_types.SesameAdvertisementData(
-            const.ProductModels.SESAME5,
-            True,
-            UUID("abcdef01-2345-6789-abcd-ef0123456789"),
-        ),
-    ) is False
+    assert (
+        filter_func(
+            TEST_ADDRESS,
+            protocol_types.SesameAdvertisementData(
+                const.ProductModels.SESAME5,
+                True,
+                UUID("abcdef01-2345-6789-abcd-ef0123456789"),
+            ),
+        )
+        is False
+    )
 
 
 @pytest.mark.asyncio
@@ -245,7 +248,9 @@ async def test_discover_returns_detected_devices(
         "__aenter__",
         AsyncMock(return_value=scanner_instance),
     )
-    monkeypatch.setattr(scanner.SesameScanner, "__aexit__", AsyncMock(return_value=None))
+    monkeypatch.setattr(
+        scanner.SesameScanner, "__aexit__", AsyncMock(return_value=None)
+    )
     monkeypatch.setattr(scanner.asyncio, "sleep", AsyncMock())
 
     result = await scanner.SesameScanner.discover(timeout=1)
