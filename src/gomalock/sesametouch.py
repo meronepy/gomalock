@@ -7,14 +7,17 @@ Touch Pro, and Bike 2 devices.
 
 from __future__ import annotations
 
+import logging
 import struct
 from dataclasses import dataclass
-from typing import Self, cast
+from typing import Self
 
 from .os3_lock_base import BaseSesameOS3Lock
 from .const import ItemCodes, MechStatusBitFlags
 from .os3_protocol import calculate_battery_percentage
 from .protocol_types import ReceivedSesamePublish
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -99,8 +102,12 @@ class SesameTouch(BaseSesameOS3Lock[SesameTouchMechStatus]):
                     publish_data.payload
                 )
                 for callback in self._mech_status_callbacks.values():
-                    callback(cast(Self, self), self._mech_status)
+                    callback(self, self._mech_status)
             case _:
-                self._log_unhandled_publish(publish_data)
+                logger.debug(
+                    "Received unhandled publish notification [address=%s, item=%s]",
+                    self.mac_address,
+                    publish_data.item_code.name,
+                )
         if not self._login_completed.is_set() and self._mech_status is not None:
             self._login_completed.set()

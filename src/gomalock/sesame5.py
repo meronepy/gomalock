@@ -10,7 +10,7 @@ from __future__ import annotations
 import logging
 import struct
 from dataclasses import dataclass
-from typing import Callable, Self, cast
+from typing import Callable, Self
 
 from .os3_lock_base import BaseSesameOS3Lock
 from .const import ItemCodes, MechStatusBitFlags
@@ -159,13 +159,17 @@ class Sesame5(BaseSesameOS3Lock[Sesame5MechStatus]):
             case ItemCodes.MECH_STATUS:
                 self._mech_status = Sesame5MechStatus.from_payload(publish_data.payload)
                 for callback in self._mech_status_callbacks.values():
-                    callback(cast(Self, self), self._mech_status)
+                    callback(self, self._mech_status)
             case ItemCodes.MECH_SETTING:
                 self._mech_setting = Sesame5MechSetting.from_payload(
                     publish_data.payload
                 )
             case _:
-                self._log_unhandled_publish(publish_data)
+                logger.debug(
+                    "Received unhandled publish notification [address=%s, item=%s]",
+                    self.mac_address,
+                    publish_data.item_code.name,
+                )
         if (
             not self._login_completed.is_set()
             and self._mech_status is not None
