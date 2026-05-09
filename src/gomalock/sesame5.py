@@ -125,7 +125,7 @@ class Sesame5(BaseSesameOS3Lock["Sesame5", Sesame5MechStatus]):
         mac_address: str,
         secret_key: str | None = None,
         mech_status_callback: (
-            Callable[[Sesame5, Sesame5MechStatus], None] | None
+            Callable[["Sesame5", Sesame5MechStatus], None] | None
         ) = None,
         auto_reconnection_limit: int = 0,
     ) -> None:
