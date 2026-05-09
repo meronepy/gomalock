@@ -144,8 +144,7 @@ def test_from_qr_url_invalid_key_level() -> None:
         TEST_UUID.bytes,
     )
     qr_url = (
-        "ssm://UI?t=sk&sk="
-        f"{base64.b64encode(shared_key).decode('ascii')}&l=9&n=Sesame"
+        f"ssm://UI?t=sk&sk={base64.b64encode(shared_key).decode('ascii')}&l=9&n=Sesame"
     )
 
     with pytest.raises(exc.SesameError):

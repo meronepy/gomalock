@@ -45,7 +45,9 @@ def test_generate_header_flags(
     assert header == expected
 
 
-def make_transport(is_connected: bool = False) -> tuple[
+def make_transport(
+    is_connected: bool = False,
+) -> tuple[
     ble_transport.SesameBLETransport,
     Mock,
     Mock,

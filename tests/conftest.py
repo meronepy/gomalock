@@ -70,9 +70,11 @@ def mock_ble_device(
     type(mock_ble).is_connected = property(lambda _: is_connected)
     type(mock_ble).mac_address = property(lambda _: TEST_ADDRESS)
     type(mock_ble).sesame_advertisement_data = property(
-        lambda _: advertisement
-        or SimpleNamespace(
-            is_registered=False, product_model=const.ProductModels.SESAME5
+        lambda _: (
+            advertisement
+            or SimpleNamespace(
+                is_registered=False, product_model=const.ProductModels.SESAME5
+            )
         )
     )
     return mock_ble
