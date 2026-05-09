@@ -1,4 +1,8 @@
-"""A library for controlling Sesame smart locks via BLE."""
+"""Provides classes for interacting with Sesame smart locks over BLE.
+
+This module exposes the main components of the gomalock library, allowing
+users to scan for Sesame devices and control different lock models.
+"""
 
 from .protocol_types import SesameAdvertisementData
 from .scanner import SesameScanner

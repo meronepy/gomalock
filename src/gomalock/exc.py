@@ -1,32 +1,32 @@
-"""Exceptions for gomalock.
+"""Defines exceptions raised by the gomalock library.
 
-This module defines custom exception classes used throughout the gomalock package
-to handle errors related to Sesame device operations, connection issues, and authentication.
+This module contains custom exceptions for handling errors related to device
+operations, BLE connections, and authentication with Sesame devices.
 """
 
 from .const import ResultCodes
 
 
 class SesameError(Exception):
-    """Base exception for gomalock."""
+    """Base exception for all gomalock errors."""
 
 
 class SesameConnectionError(SesameError):
-    """Exception raised when there is a connection issue with the Sesame device."""
+    """Exception raised for issues establishing or maintaining a BLE connection."""
 
 
 class SesameLoginError(SesameError):
-    """Exception raised when the login state differs from that required for the operation."""
+    """Exception raised when an operation requires an authenticated state."""
 
 
 class SesameOperationError(SesameError):
-    """Exception raised when receiving an error response from Sesame."""
+    """Exception raised when the device returns an error response to a command."""
 
     def __init__(self, message: str, result_code: ResultCodes) -> None:
-        """Initializes the error with a result code from the device.
+        """Initializes the exception with the device's result code.
 
         Args:
-            message: Human-readable error message.
+            message: The descriptive error message.
             result_code: The result code returned by the device.
         """
         super().__init__(message)

@@ -1,8 +1,7 @@
-"""A module that abstracts the BLE communication with Sesame devices.
+"""Abstracts BLE communication with Sesame devices.
 
-This module provides the SesameBleDevice class, which manages BLE communication with
-Sesame devices using the Bleak library. It handles device scanning, connection,
-service discovery, notification handling, and data transmission.
+This module provides the SesameBLETransport class for managing BLE communication
+using the Bleak library, handling connections, notifications, and data transmission.
 """
 
 import asyncio
@@ -24,16 +23,16 @@ logger = logging.getLogger(__name__)
 def generate_header(is_beginning: bool, is_end: bool, is_encrypted: bool) -> bytes:
     """Generates the 1-byte header for an outgoing BLE packet.
 
-    The header encodes the packet's role in a message sequence (beginning,
-    end) and whether the payload is encrypted, using flags from `PacketTypes`.
+    Constructs a header byte indicating if the packet is the beginning or end of a
+    sequence and if it is encrypted.
 
     Args:
-        is_beginning: True if this is the first packet of a message.
-        is_end: True if this is the last packet of a message.
-        is_encrypted: True if the message payload is encrypted.
+        is_beginning: Indicates if this packet starts a new message.
+        is_end: Indicates if this packet completes a message.
+        is_encrypted: Indicates if the message payload is encrypted.
 
     Returns:
-        A single byte representing the constructed header.
+        A 1-byte bytes object representing the header.
     """
     header = 0
     if is_beginning:
@@ -46,10 +45,10 @@ def generate_header(is_beginning: bool, is_end: bool, is_encrypted: bool) -> byt
 
 
 class SesameBLETransport:
-    """A BLE device handler for Sesame device using the Bleak library.
+    """Manages BLE communication with a Sesame device.
 
-    This class manages BLE communication, including connection, service discovery,
-    notification handling, and data transmission for Sesame devices.
+    Handles connection lifecycle, notification processing, and writing data to
+    the device via GATT characteristics.
     """
 
     def __init__(
@@ -58,12 +57,14 @@ class SesameBLETransport:
         received_data_callback: Callable[[bytes, bool], None],
         unexpected_disconnect_callback: Callable[[], None],
     ) -> None:
-        """Initialize the SesameBLEDevice.
+        """Initializes the SesameBLETransport.
 
         Args:
-            mac_address: The MAC address of the Sesame device.
-            received_data_callback: Callback for received data.
-            unexpected_disconnect_callback: Callback for unexpected disconnections.
+            mac_address: The BLE MAC address of the device.
+            received_data_callback: A function called with the reassembled payload
+                and encryption status when a full message is received.
+            unexpected_disconnect_callback: A function called when the device
+                disconnects unexpectedly.
         """
         self._bleak_client = BleakClient(mac_address, self.on_disconnect)
         self._received_data_callback = received_data_callback
@@ -74,10 +75,10 @@ class SesameBLETransport:
         self._sesame_advertisement_data: SesameAdvertisementData | None = None
 
     def on_disconnect(self, client: BleakClient) -> None:
-        """Handles BLE disconnection events.
+        """Handles BLE disconnection callbacks from Bleak.
 
         Args:
-            client: The BleakClient instance that was disconnected.
+            client: The BleakClient instance that disconnected.
         """
         del client  # Unused in this callback.
         logger.debug(
@@ -98,19 +99,17 @@ class SesameBLETransport:
         )
 
     async def _handle_unexpected_disconnect(self) -> None:
-        """Performs cleanup and calls callback after an unexpected BLE disconnection.
+        """Performs cleanup after an unexpected disconnection.
 
         Explicitly calling `disconnect()` after an unexpected disconnection is
         necessary to clear the internal state of the Bleak client (especially
         on Windows). This prevents an 'unhandled services changed event'
-        error when `connect()` is called again.
-        Also resets internal buffers and triggers the `unexpected_disconnect_callback`.
+        error when `connect()` is called again. Also, it invokes the disconnect callback.
 
         Raises:
-            RuntimeError: If getting the running loop fails.
-            BleakDBusError: If there was a D-Bus error (typically on Linux).
-            asyncio.TimeoutError: If the device was not disconnected within
-                10 seconds (typically on Linux).
+            RuntimeError: If retrieving the event loop fails.
+            BleakDBusError: If a D-Bus error occurs, typical on Linux platforms.
+            asyncio.TimeoutError: If the disconnect operation times out.
         """
         try:
             await self._bleak_client.disconnect()
@@ -119,10 +118,12 @@ class SesameBLETransport:
             self._unexpected_disconnect_callback()
 
     def _on_unexpected_disconnect_task_done(self, task: asyncio.Task) -> None:
-        """Handles completion of the unexpected disconnect handling task.
+        """Handles the completion of the unexpected disconnect task.
+
+        Logs any exceptions raised during the cleanup process.
 
         Args:
-            task: The completed asyncio Task.
+            task: The completed task that handled the disconnection.
         """
         self._unexpected_disconnect_task = None
         if task.cancelled():
@@ -142,11 +143,11 @@ class SesameBLETransport:
     def on_notification(
         self, characteristic: BleakGATTCharacteristic, data: bytearray
     ) -> None:
-        """Parses an incoming BLE packet and reassembles fragmented messages.
+        """Parses incoming BLE GATT notifications and reassembles messages.
 
         Args:
-            characteristic: The characteristic (unused).
-            data: The received raw notification data.
+            characteristic: The GATT characteristic that sent the notification.
+            data: The raw byte array received from the device.
         """
         del characteristic  # Unused by Sesame.
         packet = ReceivedSesamePacket.from_ble_data(bytes(data))
@@ -167,13 +168,13 @@ class SesameBLETransport:
         self._received_data_callback(self._rx_buffer, packet.is_encrypted)
 
     async def _get_sesame_advertisement_data(self) -> SesameAdvertisementData:
-        """Scan and retrieve Sesame advertisement data.
+        """Scans for and retrieves the device's advertisement data.
 
         Returns:
-            The advertisement data from the Sesame device.
+            The parsed advertisement data from the Sesame device.
 
         Raises:
-            SesameConnectionError: If the scan times out or the device is not found.
+            SesameConnectionError: If the device is not found within the timeout.
         """
 
         found_device = await SesameScanner.find_device_by_address(
@@ -184,16 +185,16 @@ class SesameBLETransport:
         return found_device[1]
 
     def _cleanup(self) -> None:
-        """Cleans up resources."""
+        """Resets internal buffers and state."""
         self._rx_buffer = b""
         self._sesame_advertisement_data = None
 
     async def connect_and_start_notification(self) -> None:
-        """Connect to the Sesame BLE device.
+        """Connects to the device and starts receiving notifications.
 
         Raises:
-            SesameConnectionError: If already connected, the device cannot be found,
-                or the BLE connection fails.
+            SesameConnectionError: If already connected, if the device cannot be
+                found, or if the connection attempt fails.
         """
         if self._bleak_client.is_connected:
             raise SesameConnectionError("Already connected")
@@ -220,14 +221,17 @@ class SesameBLETransport:
         )
 
     async def write_gatt(self, send_data: bytes, is_encrypted: bool) -> None:
-        """Fragment and write data to the Sesame device via GATT.
+        """Fragments and writes data to the device over BLE GATT.
+
+        Splits the data into chunks based on the MTU size, prepends the appropriate
+        header, and sends them sequentially.
 
         Args:
-            send_data: Data to send.
-            is_encrypted: Whether the data is encrypted.
+            send_data: The data payload to transmit.
+            is_encrypted: Indicates if the data is encrypted.
 
         Raises:
-            SesameConnectionError: If not connected.
+            SesameConnectionError: If the device is not connected.
         """
         if not self._bleak_client.is_connected:
             raise SesameConnectionError("Not connected")
@@ -256,11 +260,7 @@ class SesameBLETransport:
             await self._bleak_client.write_gatt_char(UUID_WRITE, packet, response=False)
 
     async def disconnect(self) -> None:
-        """Disconnect from Sesame device if connected.
-
-        This is a best-effort cleanup and does not raise if the device is already
-        disconnected.
-        """
+        """Disconnects from the Sesame device if currently connected."""
         if self._bleak_client.is_connected:
             logger.debug("Closing BLE connection [address=%s]", self.mac_address)
             self._is_expectedly_disconnected = True
@@ -280,19 +280,20 @@ class SesameBLETransport:
         """The MAC address of the Sesame device.
 
         Returns:
-            The BLE MAC address string.
+            The BLE MAC address as a string.
         """
         return self._bleak_client.address
 
     @property
     def sesame_advertisement_data(self) -> SesameAdvertisementData:
-        """The latest advertisement data from the Sesame device.
+        """The advertisement data from the most recent scan.
 
         Returns:
-            Parsed advertisement data from the last successful scan.
+            The parsed advertisement data.
 
         Raises:
-            SesameConnectionError: If not connected.
+            SesameConnectionError: If the device is not connected and no data
+                is available.
         """
         if self._sesame_advertisement_data is None:
             raise SesameConnectionError("Not connected")
@@ -300,9 +301,9 @@ class SesameBLETransport:
 
     @property
     def is_connected(self) -> bool:
-        """Whether the BLE device is currently connected.
+        """Indicates if the BLE device is currently connected.
 
         Returns:
-            True if a BLE connection is active, otherwise False.
+            True if connected, False otherwise.
         """
         return self._bleak_client.is_connected

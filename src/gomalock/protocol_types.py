@@ -1,7 +1,7 @@
-"""BLE data structures and parsing utilities for Sesame devices.
+"""Defines data structures and parsers for Sesame BLE payloads.
 
-This module provides classes and functions for handling BLE advertisement data,
-notifications, responses, and command packetization for Sesame devices.
+This module provides classes for encapsulating and parsing advertisement data,
+incoming BLE packets, reassembled messages, and constructed commands.
 """
 
 import struct
@@ -14,12 +14,12 @@ from .const import ItemCodes, OpCodes, PacketTypes, ProductModels, ResultCodes
 
 @dataclass(frozen=True)
 class SesameAdvertisementData:
-    """Parsed advertisement data from a Sesame BLE device.
+    """Represents the parsed manufacturer data from a Sesame advertisement.
 
     Attributes:
-        product_model: The product model of the Sesame device.
-        is_registered: Whether the Sesame device is registered.
-        device_uuid: The UUID of the Sesame device.
+        product_model: The identified hardware model of the device.
+        is_registered: Indicates whether the device has already been registered.
+        device_uuid: The unique UUID broadcasted by the device.
     """
 
     product_model: ProductModels
@@ -28,17 +28,17 @@ class SesameAdvertisementData:
 
     @classmethod
     def from_manufacturer_data(cls, manufacturer_data: bytes) -> Self:
-        """Parses the manufacturer data advertised via BLE.
+        """Decodes the raw manufacturer data into an advertisement object.
 
         Args:
-            manufacturer_data: CANDYHOUSE, Inc-specific data.
+            manufacturer_data: The manufacturer-specific byte string from the BLE ad.
 
         Returns:
-            A parsed advertisement data instance.
+            A populated SesameAdvertisementData instance.
 
         Raises:
-            struct.error: If manufacturer_data has an invalid format or length.
-            ValueError: If the product model or UUID data is invalid.
+            struct.error: If the byte string length or format does not match expectations.
+            ValueError: If the unpacked model or UUID values are invalid.
         """
         model_value, registered_value, uuid_value = struct.unpack(
             "<HB16s", manufacturer_data
@@ -51,12 +51,11 @@ class SesameAdvertisementData:
 
 @dataclass(frozen=True)
 class ReceivedSesamePacket:
-    """A single BLE packet fragment received from a Sesame device.
+    """Represents a single parsed chunk of a BLE GATT notification.
 
     Attributes:
-        header: A header indicating the type of packet.
-        payload: The payload portion of the received packet
-            excluding a 1-byte header.
+        header: The 1-byte integer header indicating packet sequence and encryption.
+        payload: The remaining byte data following the header.
     """
 
     header: int
@@ -64,16 +63,16 @@ class ReceivedSesamePacket:
 
     @classmethod
     def from_ble_data(cls, ble_data: bytes) -> Self:
-        """Parses a raw BLE packet fragment.
+        """Splits raw BLE packet data into a header and payload.
 
         Args:
-            ble_data: Raw BLE packet bytes, including a 1-byte header.
+            ble_data: The unparsed byte string received from a GATT notification.
 
         Returns:
-            A ReceivedSesamePacket instance.
+            A populated ReceivedSesamePacket instance.
 
         Raises:
-            IndexError: If ble_data is empty.
+            IndexError: If the provided byte string is empty.
         """
         header = ble_data[0]
         payload = ble_data[1:]
@@ -81,29 +80,29 @@ class ReceivedSesamePacket:
 
     @property
     def is_beginning(self) -> bool:
-        """Whether the packet is marked as the first packet."""
+        """Indicates whether this packet is the start of a sequence."""
         return bool(self.header & PacketTypes.BEGINNING)
 
     @property
     def is_end(self) -> bool:
-        """Whether the packet is marked as the end of the packet."""
+        """Indicates whether this packet concludes a sequence."""
         return bool(
             self.header & (PacketTypes.PLAINTEXT_END | PacketTypes.ENCRYPTED_END)
         )
 
     @property
     def is_encrypted(self) -> bool:
-        """Whether the packet is marked as the encrypted end of the packet."""
+        """Indicates whether the payload content is encrypted."""
         return bool(self.header & PacketTypes.ENCRYPTED_END)
 
 
 @dataclass(frozen=True)
 class ReceivedSesameMessage:
-    """A reassembled data from a Sesame device.
+    """Represents a fully reassembled message payload from the device.
 
     Attributes:
-        op_code: The operation code of the received message.
-        payload: The raw byte data which contains publish or response data.
+        op_code: The operation code identifying the message type.
+        payload: The remaining bytes representing the specific message content.
     """
 
     op_code: OpCodes
@@ -111,17 +110,17 @@ class ReceivedSesameMessage:
 
     @classmethod
     def from_reassembled_data(cls, reassembled_data: bytes) -> Self:
-        """Parses a reassembled BLE message into an opcode and payload.
+        """Parses a complete, concatenated BLE message into an opcode and payload.
 
         Args:
-            reassembled_data: The full BLE message after reassembly.
+            reassembled_data: The full byte string reconstructed from multiple packets.
 
         Returns:
-            A ReceivedSesameMessage instance.
+            A populated ReceivedSesameMessage instance.
 
         Raises:
-            IndexError: If reassembled_data is empty.
-            ValueError: If the opcode value is invalid.
+            IndexError: If the provided byte string is empty.
+            ValueError: If the extracted opcode is unknown.
         """
         op_code = OpCodes(reassembled_data[0])
         payload = reassembled_data[1:]
@@ -130,12 +129,12 @@ class ReceivedSesameMessage:
 
 @dataclass(frozen=True)
 class ReceivedSesameResponse:
-    """A response type data from a Sesame device.
+    """Represents a parsed response to a previously issued command.
 
     Attributes:
-        item_code: The item code indicating the type of response.
-        result_code: The result code indicating the success or failure of the request.
-        payload: The specific data associated with the item code.
+        item_code: The code corresponding to the original command.
+        result_code: The outcome status of the command.
+        payload: Any additional data returned by the device.
     """
 
     item_code: ItemCodes
@@ -144,17 +143,17 @@ class ReceivedSesameResponse:
 
     @classmethod
     def from_sesame_message(cls, message_payload: bytes) -> Self:
-        """Parses a `ReceivedSesameMessage.payload` into response.
+        """Decodes a response message payload into its components.
 
         Args:
-            message_payload: The payload of a Sesame response message.
+            message_payload: The byte string from a ReceivedSesameMessage.
 
         Returns:
-            A ReceivedSesameResponse instance.
+            A populated ReceivedSesameResponse instance.
 
         Raises:
-            IndexError: If message_payload is too short (less than 2 bytes).
-            ValueError: If the item code or result code value is invalid.
+            IndexError: If the payload is too short to contain the required headers.
+            ValueError: If the item code or result code are unknown.
         """
         item_code = ItemCodes(message_payload[0])
         result_code = ResultCodes(message_payload[1])
@@ -164,11 +163,11 @@ class ReceivedSesameResponse:
 
 @dataclass(frozen=True)
 class ReceivedSesamePublish:
-    """A publish type data from a Sesame device.
+    """Represents an asynchronous publish notification from the device.
 
     Attributes:
-        item_code: The item code indicating the type of publish.
-        payload: The specific data associated with the item code.
+        item_code: The code identifying the type of published data.
+        payload: The actual data content of the notification.
     """
 
     item_code: ItemCodes
@@ -176,17 +175,17 @@ class ReceivedSesamePublish:
 
     @classmethod
     def from_sesame_message(cls, message_payload: bytes) -> Self:
-        """Parses a `ReceivedSesameMessage.payload` into publish.
+        """Decodes a publish message payload into its components.
 
         Args:
-            message_payload: The payload of a Sesame publish message.
+            message_payload: The byte string from a ReceivedSesameMessage.
 
         Returns:
-            A ReceivedSesamePublish instance.
+            A populated ReceivedSesamePublish instance.
 
         Raises:
-            IndexError: If message_payload is empty.
-            ValueError: If the item code value is invalid.
+            IndexError: If the payload is empty.
+            ValueError: If the item code is unknown.
         """
         item_code = ItemCodes(message_payload[0])
         payload = message_payload[1:]
@@ -195,11 +194,11 @@ class ReceivedSesamePublish:
 
 @dataclass(frozen=True)
 class SesameCommand:
-    """A command to be sent to Sesame devices.
+    """Encapsulates a command intended for transmission to the device.
 
     Attributes:
-        item_code: The item code indicating the type of request.
-        payload: The specific data associated with the item code.
+        item_code: The target item code for the operation.
+        payload: The specific data parameters for the command.
     """
 
     item_code: ItemCodes
@@ -207,9 +206,9 @@ class SesameCommand:
 
     @property
     def transmission_data(self) -> bytes:
-        """Returns the encoded data to be transmitted over BLE.
+        """Constructs the full byte string to be sent over BLE.
 
         Returns:
-            A bytes object with item code prepended to payload.
+            The combined bytes of the item code and payload.
         """
         return self.item_code.value.to_bytes(1, byteorder="little") + self.payload

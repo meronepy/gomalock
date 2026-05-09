@@ -1,7 +1,8 @@
-"""Sesame 5 device BLE control and status module.
+"""Provides control and status monitoring for Sesame 5 devices.
 
-This module provides a main class of Sesame5 for controlling and abstracts
-the mechanical status of a Sesame 5 device.
+This module contains the Sesame5 class, which extends the base OS3 lock
+functionality to provide specific commands (lock, unlock, toggle) and parse
+the mechanical status and settings for Sesame 5 locks.
 """
 
 from __future__ import annotations
@@ -22,11 +23,11 @@ logger = logging.getLogger(__name__)
 
 @dataclass(frozen=True)
 class Sesame5MechStatus:
-    """Represents the mechanical status of Sesame5 device.
+    """Represents the parsed mechanical status of a Sesame 5 device.
 
     Attributes:
-        position: The latest angle the sensor synchronizes to.
-        target: The target thumb turn position the motor is trying to reach.
+        position: The current angle of the lock's thumb turn.
+        target: The target angle the motor is attempting to reach.
     """
 
     _raw_battery: int
@@ -36,60 +37,59 @@ class Sesame5MechStatus:
 
     @classmethod
     def from_payload(cls, payload: bytes) -> Self:
-        """Parses the payload received from the Sesame5 device.
+        """Decodes the mechanical status from a publish payload.
 
         Args:
-            payload: The byte payload received from the Sesame5 device
-                with item code mech_status.
+            payload: The byte string from a MECH_STATUS publish message.
 
         Returns:
-            A parsed mechanical status instance.
+            A populated Sesame5MechStatus instance.
 
         Raises:
-            struct.error: If payload has an invalid format or length.
+            struct.error: If the payload length or format is incorrect.
         """
         raw_battery, target, position, status_flags = struct.unpack("<HhhB", payload)
         return cls(raw_battery, status_flags, target, position)
 
     @property
     def is_in_lock_range(self) -> bool:
-        """Whether the thumb turn is within the lock range."""
+        """Indicates if the current position is considered locked."""
         return bool(self._status_flags & MechStatusBitFlags.IS_IN_LOCK_RANGE)
 
     @property
     def is_in_unlock_range(self) -> bool:
-        """Whether the thumb turn is within the unlock range."""
+        """Indicates if the current position is considered unlocked."""
         return bool(self._status_flags & MechStatusBitFlags.IS_IN_UNLOCK_RANGE)
 
     @property
     def is_battery_critical(self) -> bool:
-        """Whether the Sesame5 battery voltage is below 5V."""
+        """Indicates if the battery voltage has dropped below critical levels."""
         return bool(self._status_flags & MechStatusBitFlags.IS_BATTERY_CRITICAL)
 
     @property
     def is_stop(self) -> bool:
-        """Whether the thumb turn angle does not change."""
+        """Indicates if the motor is currently idle (not moving)."""
         return bool(self._status_flags & MechStatusBitFlags.IS_STOP)
 
     @property
     def battery_voltage(self) -> float:
-        """The current battery voltage of the Sesame5."""
+        """The estimated battery voltage in volts."""
         return self._raw_battery * 2 / 1000
 
     @property
     def battery_percentage(self) -> int:
-        """The estimated battery percentage based on `battery_voltage`."""
+        """The estimated remaining battery capacity as a percentage."""
         return calculate_battery_percentage(self.battery_voltage)
 
 
 @dataclass(frozen=True)
 class Sesame5MechSetting:
-    """Represents the mechanical settings of Sesame5 device.
+    """Represents the configured settings for a Sesame 5 device.
 
     Attributes:
-        lock_position: The position value representing the locked state.
-        unlock_position: The position value representing the unlocked state.
-        auto_lock_duration: The duration in seconds before the device auto-locks.
+        lock_position: The angle value defining the locked state.
+        unlock_position: The angle value defining the unlocked state.
+        auto_lock_duration: The time in seconds before the device automatically locks.
     """
 
     lock_position: int
@@ -98,17 +98,16 @@ class Sesame5MechSetting:
 
     @classmethod
     def from_payload(cls, payload: bytes) -> Self:
-        """Parses the payload received from the Sesame5 device.
+        """Decodes the mechanical settings from a publish payload.
 
         Args:
-            payload: The byte payload received from the Sesame5 device
-                with item code mech_setting.
+            payload: The byte string from a MECH_SETTING publish message.
 
         Returns:
-            A parsed mechanical setting instance.
+            A populated Sesame5MechSetting instance.
 
         Raises:
-            struct.error: If payload has an invalid format or length.
+            struct.error: If the payload length or format is incorrect.
         """
         lock_position, unlock_position, auto_lock_duration = struct.unpack(
             "<hhH", payload
@@ -117,9 +116,10 @@ class Sesame5MechSetting:
 
 
 class Sesame5(BaseSesameOS3Lock[Sesame5MechStatus]):
-    """Main interface for controlling and monitoring a Sesame 5 device.
+    """Controls and monitors a Sesame 5 device.
 
-    Handles BLE connection, login, lock/unlock/toggle commands, and status callbacks.
+    Provides methods to lock, unlock, toggle, and configure the device, while
+    tracking its current mechanical status and settings.
     """
 
     def __init__(
@@ -131,15 +131,15 @@ class Sesame5(BaseSesameOS3Lock[Sesame5MechStatus]):
         ) = None,
         auto_reconnection_limit: int = 0,
     ) -> None:
-        """Initializes the Sesame5 device interface.
+        """Initializes the Sesame 5 device handler.
 
         Args:
-            mac_address: The MAC address of the Sesame 5 device.
-            secret_key: The secret key for login.
-            mech_status_callback: A callable invoked on mechanical status updates.
-                It receives the Sesame5 instance and a Sesame5MechStatus value.
-            auto_reconnection_limit: Maximum number of auto-reconnection attempts.
-                Defaults to 0 (disabled).
+            mac_address: The BLE MAC address of the device.
+            secret_key: The hex-encoded secret key used for login.
+            mech_status_callback: A function called whenever the device publishes
+                a new mechanical status.
+            auto_reconnection_limit: The maximum number of consecutive auto-reconnection
+                attempts.
         """
         super().__init__(
             mac_address, secret_key, mech_status_callback, auto_reconnection_limit
@@ -147,10 +147,13 @@ class Sesame5(BaseSesameOS3Lock[Sesame5MechStatus]):
         self._mech_setting: Sesame5MechSetting | None = None
 
     def on_published(self, publish_data: ReceivedSesamePublish) -> None:
-        """Handles published data from the device.
+        """Processes published status and setting updates from the device.
+
+        Updates the internal state and invokes the mechanical status callbacks.
+        Completes the login process once both status and settings are received.
 
         Args:
-            publish_data: Data published by the device.
+            publish_data: The parsed publish notification from the device.
         """
         match publish_data.item_code:
             case ItemCodes.MECH_STATUS:
@@ -175,16 +178,16 @@ class Sesame5(BaseSesameOS3Lock[Sesame5MechStatus]):
             self._login_completed.set()
 
     async def _set_locked(self, history_name: str, locked: bool) -> None:
-        """Sends a lock or unlock command to the device.
+        """Issues a lock or unlock command to the device.
 
         Args:
-            history_name: The history tag name.
+            history_name: The tag to record in the device's history log.
             locked: True to lock, False to unlock.
 
         Raises:
-            SesameLoginError: If not logged in.
-            SesameConnectionError: If the device is not connected.
-            SesameOperationError: If the operation fails.
+            SesameLoginError: If the device is not logged in.
+            SesameConnectionError: If there is no active BLE connection.
+            SesameOperationError: If the command is rejected by the device.
         """
         await self._wait_for_reconnection()
         if not self.is_logged_in:
@@ -203,22 +206,22 @@ class Sesame5(BaseSesameOS3Lock[Sesame5MechStatus]):
         )
 
     def _cleanup(self) -> None:
-        """Cleans up resources."""
+        """Resets the mechanical settings and clears the base state."""
         super()._cleanup()
         self._mech_setting = None
 
     async def set_lock_position(self, lock_position: int, unlock_position: int) -> None:
-        """Sets the lock and unlock positions of the Sesame 5 device.
+        """Configures the lock and unlock angle thresholds.
 
         Args:
-            lock_position: The position value representing the locked state.
-            unlock_position: The position value representing the unlocked state.
+            lock_position: The target angle for the locked state.
+            unlock_position: The target angle for the unlocked state.
 
         Raises:
-            asyncio.TimeoutError: If the response times out.
-            SesameConnectionError: If not connected to the device.
-            SesameLoginError: If not logged in.
-            SesameOperationError: If the operation fails.
+            asyncio.TimeoutError: If the device fails to respond in time.
+            SesameConnectionError: If there is no active BLE connection.
+            SesameLoginError: If the device is not logged in.
+            SesameOperationError: If the command is rejected by the device.
         """
         await self._wait_for_reconnection()
         if not self.is_logged_in:
@@ -235,19 +238,17 @@ class Sesame5(BaseSesameOS3Lock[Sesame5MechStatus]):
         )
 
     async def set_auto_lock_duration(self, auto_lock_duration: int) -> None:
-        """Sets the auto lock duration of the Sesame 5 device.
-
-        Sets the duration in seconds before the device auto-locks. If set to 0,
-        the auto-lock feature is disabled.
+        """Configures the automatic locking timer.
 
         Args:
-            auto_lock_duration: The duration in seconds before the device auto-locks.
+            auto_lock_duration: The delay in seconds before auto-locking. Set to
+                0 to disable auto-lock.
 
         Raises:
-            asyncio.TimeoutError: If the response times out.
-            SesameConnectionError: If not connected to the device.
-            SesameLoginError: If not logged in.
-            SesameOperationError: If the operation fails.
+            asyncio.TimeoutError: If the device fails to respond in time.
+            SesameConnectionError: If there is no active BLE connection.
+            SesameLoginError: If the device is not logged in.
+            SesameOperationError: If the command is rejected by the device.
         """
         await self._wait_for_reconnection()
         if not self.is_logged_in:
@@ -263,44 +264,44 @@ class Sesame5(BaseSesameOS3Lock[Sesame5MechStatus]):
         )
 
     async def lock(self, history_name: str) -> None:
-        """Locks the Sesame 5 device.
+        """Commands the device to lock.
 
         Args:
-            history_name: The history tag name.
+            history_name: The tag to record in the device's history log.
 
         Raises:
-            asyncio.TimeoutError: If the response times out.
-            SesameConnectionError: If not connected to the device.
-            SesameLoginError: If not logged in.
-            SesameOperationError: If the lock operation fails.
+            asyncio.TimeoutError: If the device fails to respond in time.
+            SesameConnectionError: If there is no active BLE connection.
+            SesameLoginError: If the device is not logged in.
+            SesameOperationError: If the lock command is rejected.
         """
         await self._set_locked(history_name, True)
 
     async def unlock(self, history_name: str) -> None:
-        """Unlocks the Sesame 5 device.
+        """Commands the device to unlock.
 
         Args:
-            history_name: The history tag name.
+            history_name: The tag to record in the device's history log.
 
         Raises:
-            asyncio.TimeoutError: If the response times out.
-            SesameConnectionError: If not connected to the device.
-            SesameLoginError: If not logged in.
-            SesameOperationError: If the unlock operation fails.
+            asyncio.TimeoutError: If the device fails to respond in time.
+            SesameConnectionError: If there is no active BLE connection.
+            SesameLoginError: If the device is not logged in.
+            SesameOperationError: If the unlock command is rejected.
         """
         await self._set_locked(history_name, False)
 
     async def toggle(self, history_name: str) -> None:
-        """Toggles the lock state of the device.
+        """Toggles the current lock state.
 
         Args:
-            history_name: The history tag name.
+            history_name: The tag to record in the device's history log.
 
         Raises:
-            asyncio.TimeoutError: If the response times out.
-            SesameConnectionError: If not connected to the device.
-            SesameLoginError: If not logged in.
-            SesameOperationError: If the toggle operation fails.
+            asyncio.TimeoutError: If the device fails to respond in time.
+            SesameConnectionError: If there is no active BLE connection.
+            SesameLoginError: If the device is not logged in.
+            SesameOperationError: If the toggle command is rejected.
         """
         await self._wait_for_reconnection()
         if self.mech_status.is_in_lock_range:
@@ -310,13 +311,13 @@ class Sesame5(BaseSesameOS3Lock[Sesame5MechStatus]):
 
     @property
     def mech_setting(self) -> Sesame5MechSetting:
-        """The latest mechanical setting of the device.
+        """The most recently received mechanical settings.
 
         Returns:
-            The most recently received mechanical setting.
+            The mechanical setting object.
 
         Raises:
-            SesameLoginError: If not logged in.
+            SesameLoginError: If the device is not logged in.
         """
         if self._mech_setting is None:
             raise SesameLoginError("Login is required to access mechanical setting")

@@ -1,21 +1,21 @@
-"""Constants and enumerations for Sesame BLE communication.
+"""Defines constants and enumerations for Sesame communication.
 
-This module defines various constants and enumerations used throughout the
-`gomalock` library for interacting with Sesame devices.
+This module provides the necessary enumerations, status flags, opcodes, and
+other constants required to interact with Sesame BLE devices.
 """
 
 from enum import Enum, Flag, IntFlag, auto
 
 
 class KeyLevels(Enum):
-    """Key levels for Sesame devices."""
+    """Represents the authorization levels for Sesame keys."""
 
     OWNER = 0
     MANAGER = 1
 
 
 class ProductModels(Enum):
-    """The model IDs received in the advertisement data."""
+    """Enumerates the supported Sesame device models and their identifiers."""
 
     SESAME5 = 5
     SESAME5_PRO = 7
@@ -25,7 +25,7 @@ class ProductModels(Enum):
 
 
 class PacketTypes(IntFlag):
-    """Packet type flags used in the 1-byte header of BLE packets."""
+    """Flags for the 1-byte header in BLE communication packets."""
 
     BEGINNING = 0b001
     PLAINTEXT_END = 0b010
@@ -33,7 +33,7 @@ class PacketTypes(IntFlag):
 
 
 class MechStatusBitFlags(IntFlag):
-    """Mechanical status flags for Sesame devices."""
+    """Flags indicating the mechanical state and errors of the Sesame device."""
 
     IS_CLUTCH_FAILED = 0b00000001
     IS_IN_LOCK_RANGE = 0b00000010
@@ -45,7 +45,7 @@ class MechStatusBitFlags(IntFlag):
 
 
 class DeviceStatus(Flag):
-    """Device status of Sesame."""
+    """Represents the connection and authentication state of the device."""
 
     DISCONNECTED = auto()
     CONNECTING = auto()
@@ -59,7 +59,7 @@ class DeviceStatus(Flag):
 
 
 class ItemCodes(Enum):
-    """Item codes used in Sesame command and notification payloads."""
+    """Codes representing specific commands, settings, or data types."""
 
     NONE = 0
     REGISTRATION = 1
@@ -206,7 +206,7 @@ class ItemCodes(Enum):
 
 
 class OpCodes(Enum):
-    """Operation codes used in the header of received notifications."""
+    """Operation codes indicating the type of message being transmitted."""
 
     CREATE = 0x01
     READ = 0x02
@@ -220,7 +220,7 @@ class OpCodes(Enum):
 
 
 class ResultCodes(Enum):
-    """Result codes received in response messages."""
+    """Codes indicating the success or specific failure reason of a command."""
 
     SUCCESS = 0
     INVALID_FORMAT = 1
@@ -252,7 +252,7 @@ VOLTAGE_LEVELS = (
     4.8,
     4.6,
 )
-"""Voltage levels for battery percentage calculation."""
+"""Predefined battery voltage levels used to calculate remaining percentage."""
 
 BATTERY_PERCENTAGES = (
     100.0,
@@ -272,26 +272,26 @@ BATTERY_PERCENTAGES = (
     3.0,
     0.0,
 )
-"""Battery percentage corresponding to the voltage levels."""
+"""Battery percentages that map to the corresponding values in VOLTAGE_LEVELS."""
 
 COMPANY_ID = 0x055A
-"""The company ID for CANDYHOUSE, Inc."""
+"""The assigned Bluetooth SIG company identifier for CANDYHOUSE, Inc."""
 UUID_SERVICE = "0000fd81-0000-1000-8000-00805f9b34fb"
-"""The UUID for the primary Sesame BLE service."""
+"""The primary GATT service UUID for Sesame BLE communication."""
 UUID_WRITE = "16860002-a5ae-9856-b6d3-dbb4c676993e"
-"""The UUID for the GATT characteristic used to write commands."""
+"""The GATT characteristic UUID for sending commands to the device."""
 UUID_NOTIFICATION = "16860003-a5ae-9856-b6d3-dbb4c676993e"
-"""The UUID for the GATT characteristic used to receive notifications."""
+"""The GATT characteristic UUID for receiving data from the device."""
 HISTORY_TAG_MAX_LEN = 20
-"""Max history tag length."""
+"""The maximum allowed byte length for a history tag."""
 MTU_SIZE = 20
-"""The MTU for BLE communication."""
+"""The Maximum Transmission Unit size used for chunking BLE packets."""
 
 SCAN_TIMEOUT = 10
-"""Timeout for BLE scanning."""
+"""The default duration in seconds to wait when scanning for devices."""
 PUBLISH_TIMEOUT = 5
-"""Timeout for waiting for a expected publish message."""
+"""The maximum time in seconds to wait for an expected publish message."""
 RESPONSE_TIMEOUT = 2
-"""Timeout for waiting for a response from the device."""
+"""The maximum time in seconds to wait for a command response."""
 RECONNECT_MAX_BACKOFF = 32
-"""Maximum backoff time in seconds for auto-reconnection attempts."""
+"""The maximum delay in seconds between auto-reconnection attempts."""

@@ -1,7 +1,7 @@
-"""AES-CCM encryption and decryption utilities for SesameOS3.
+"""Provides AES-CCM encryption and decryption for Sesame OS3 devices.
 
-This module provides the OS3Cipher class, which implements AES-CCM based
-encryption and decryption for secure communication with SesameOS3 devices.
+This module contains cryptographic utilities and the OS3Cipher class to handle
+key generation, session derivation, and secure data transmission.
 """
 
 from Crypto.Cipher import AES
@@ -11,12 +11,12 @@ from Crypto.PublicKey import ECC
 
 
 def generate_app_keys() -> tuple[bytes, ECC.EccKey]:
-    """Generates a new application key pair for Sesame OS3.
+    """Generates a new ECC application key pair for device registration.
 
     Returns:
-        A tuple of `(public_key, private_key)` where `public_key` is the
-        64-byte uncompressed point without the 0x04 prefix, and `private_key`
-        is the application's ECC private key.
+        A tuple of `(public_key, private_key)` where `public_key` is a 64-byte
+        uncompressed point without the 0x04 prefix, and `private_key` is the
+        corresponding ECC private key.
     """
     app_private_key = ECC.generate(curve="NIST P-256")
     app_uncompressed_public_key = app_private_key.public_key().export_key(format="raw")
@@ -28,18 +28,18 @@ def generate_app_keys() -> tuple[bytes, ECC.EccKey]:
 def generate_device_secret_key(
     device_protocol_public_key: bytes, app_private_key: ECC.EccKey
 ) -> bytes:
-    """Generates the device secret key using ECDH.
+    """Derives a shared device secret key using ECDH.
 
     Args:
-        device_protocol_public_key: The device's public key as received from the
-            SesameOS3 device (without the uncompressed flag).
-        app_private_key: The application's private ECC key.
+        device_protocol_public_key: The device's 64-byte public key without the
+            uncompressed 0x04 flag.
+        app_private_key: The application's ECC private key.
 
     Returns:
-        The 16-byte device secret key.
+        A 16-byte derived secret key.
 
     Raises:
-        ValueError: If the device public key cannot be parsed or is invalid.
+        ValueError: If the device's public key format is invalid.
     """
     # add the uncompressed flag
     device_uncompressed_public_key = b"\x04" + device_protocol_public_key
@@ -53,17 +53,17 @@ def generate_device_secret_key(
 
 
 def generate_session_key(secret_key: bytes, session_token: bytes) -> bytes:
-    """Generates the session key using CMAC-AES.
+    """Computes a session key using CMAC-AES.
 
     Args:
-        secret_key: The 16-byte secret key of the Sesame device.
-        session_token: The 4-byte session token received from the device.
+        secret_key: The 16-byte shared secret key.
+        session_token: The 4-byte session token from the device.
 
     Returns:
-        The generated 16-byte session key.
+        A 16-byte session key.
 
     Raises:
-        ValueError: If `secret_key` is an invalid length for CMAC-AES.
+        ValueError: If the provided secret key length is invalid.
     """
     cobj = CMAC.new(secret_key, ciphermod=AES)
     cobj.update(session_token)
@@ -71,21 +71,20 @@ def generate_session_key(secret_key: bytes, session_token: bytes) -> bytes:
 
 
 class OS3Cipher:
-    """Handles AES-CCM encryption and decryption for SesameOS3.
+    """Manages AES-CCM encryption and decryption for a Sesame OS3 session.
 
-    This class is responsible for encrypting outgoing data and decrypting
-    incoming data using AES in CCM mode.
+    Handles message counters, nonce generation, and the encryption/decryption
+    process for BLE communication.
     """
 
     _MAX_COUNTER = 2**64 - 1
 
     def __init__(self, session_token: bytes, session_key: bytes) -> None:
-        """Initializes the cipher with the session token and derived key.
+        """Initializes the cipher instance with session credentials.
 
         Args:
-            session_token: The session token (nonce part) for this session.
-            session_key: The session key, which is the session token
-                signed with CMAC using the secret key.
+            session_token: The 4-byte session token acting as part of the nonce.
+            session_key: The 16-byte derived session key.
         """
         self._session_token = session_token
         self._session_key = session_key
@@ -93,27 +92,27 @@ class OS3Cipher:
         self._decrypt_counter = 0
 
     def _generate_nonce(self, counter: int) -> bytes:
-        """Generates a nonce for AES-CCM encryption/decryption.
+        """Constructs an AES-CCM nonce from the counter and session token.
 
         Args:
-            counter: The 64-bit message counter.
+            counter: The 64-bit message sequence counter.
 
         Returns:
-            The 13-byte nonce used for AES-CCM.
+            A 13-byte nonce string.
         """
         return counter.to_bytes(8, "little") + b"\x00" + self._session_token
 
     def encrypt(self, plaintext: bytes) -> bytes:
-        """Encrypts the given data using AES-CCM.
+        """Encrypts plaintext data using AES-CCM.
 
         Args:
-            plaintext: The plaintext data to encrypt.
+            plaintext: The unencrypted data to send.
 
         Returns:
-            The ciphertext concatenated with the 4-byte authentication tag.
+            The resulting ciphertext with a 4-byte authentication tag appended.
 
         Raises:
-            OverflowError: If the internal encryption counter exceeds its maximum value.
+            OverflowError: If the encryption counter exceeds the 64-bit maximum.
         """
         if self._encrypt_counter >= OS3Cipher._MAX_COUNTER:
             raise OverflowError("Encryption counter has exceeded its maximum value")
@@ -125,19 +124,17 @@ class OS3Cipher:
         return ciphertext + tag
 
     def decrypt(self, ciphertext: bytes) -> bytes:
-        """Decrypts the given data using AES-CCM and verifies its integrity.
+        """Decrypts and authenticates received AES-CCM ciphertext.
 
         Args:
-            ciphertext: The ciphertext concatenated with the 4-byte
-                authentication tag.
+            ciphertext: The encrypted data ending with a 4-byte authentication tag.
 
         Returns:
             The decrypted plaintext data.
 
         Raises:
-            OverflowError: If the internal decryption counter exceeds its maximum value.
-            ValueError: If decryption fails due to an authentication tag mismatch
-                or malformed data.
+            OverflowError: If the decryption counter exceeds the 64-bit maximum.
+            ValueError: If the authentication tag verification fails.
         """
         if self._decrypt_counter >= OS3Cipher._MAX_COUNTER:
             raise OverflowError("Decryption counter has exceeded its maximum value")

@@ -1,8 +1,8 @@
-"""A module that abstracts the communication protocol of Sesame OS3.
+"""Implements the communication protocol for Sesame OS3 devices.
 
-This module provides the OS3Device class for managing communication and authentication
-with Sesame OS3 BLE devices. It handles BLE connection management, login procedures,
-command transmission, and notification processing.
+This module provides the SesameOS3Protocol class and related utilities for
+managing BLE connections, login handshakes, and command transmissions
+with Sesame OS3 locks.
 """
 
 import asyncio
@@ -52,20 +52,19 @@ logger = logging.getLogger(__name__)
 
 
 def calculate_battery_percentage(battery_voltage: float) -> int:
-    """Calculates battery percentage.
+    """Calculates the battery percentage from a voltage reading.
 
-    This is calculated by linearly interpolating the `battery_voltage`
-    against a predefined table of voltage levels and corresponding percentages.
+    Uses a predefined lookup table of voltage levels to perform a linear
+    interpolation for the percentage.
 
     Args:
-        battery_voltage: The battery voltage to convert.
+        battery_voltage: The raw voltage reading from the device.
 
     Returns:
-        The calculated battery percentage, clamped to the configured
-        voltage range.
+        The estimated battery percentage as an integer between 0 and 100.
 
     Raises:
-        AssertionError: If the code reaches an unreachable state.
+        AssertionError: If an unexpected voltage value evades the bounds checks.
     """
     if battery_voltage >= VOLTAGE_LEVELS[0]:
         return int(BATTERY_PERCENTAGES[0])
@@ -85,13 +84,13 @@ def calculate_battery_percentage(battery_voltage: float) -> int:
 
 
 def create_history_tag(history_name: str) -> bytes:
-    """Creates a history tag payload from a history name.
+    """Generates a formatted history tag payload from a string.
 
     Args:
-        history_name: The name to use for the history tag.
+        history_name: The name to be recorded in the device's history.
 
     Returns:
-        A history tag payload for Sesame OS3.
+        A byte string representing the length-prefixed history tag.
     """
     payload = history_name.encode("utf-8")[:HISTORY_TAG_MAX_LEN]
     return len(payload).to_bytes(1, byteorder="little") + payload
@@ -99,20 +98,19 @@ def create_history_tag(history_name: str) -> bytes:
 
 @dataclass(frozen=True)
 class OS3QRCode:
-    """Represents QR code information for OS3 (Sesame 3) devices.
+    """Represents the parsed data from a Sesame OS3 QR code.
 
-    This class holds all the necessary information to identify and authenticate
-    with an OS3 device, including cryptographic keys and device metadata.
+    Contains the cryptographic keys and metadata required to authenticate and
+    communicate with a specific device.
 
     Attributes:
-        device_name: The name of the device displayed in the app.
-        key_level: The permission level of the key (owner/manager).
-        product_model: The product model identifier.
-        device_uuid: The UUID of the device.
-        secret_key: The secret key used for device authentication.
-        session_token_when_registered: The session token provided during registration.
-            It has no meaning in Sesame OS3, so 4 zero bytes are used as a placeholder.
-        key_index: A constant value used in the key structure.
+        device_name: The human-readable name of the device.
+        key_level: The authorization level (owner or manager) granted by the key.
+        product_model: The specific Sesame hardware model.
+        device_uuid: The unique identifier for the device.
+        secret_key: The 16-byte secret key used for session derivation.
+        registration_session_token: A placeholder for compatibility, typically zeroed.
+        key_index: A constant value maintained for key structure compatibility.
     """
 
     device_name: str
@@ -125,17 +123,18 @@ class OS3QRCode:
 
     @classmethod
     def from_qr_url(cls, qr_url: str) -> Self:
-        """Creates an OS3QRCode instance from an official app QR code URL.
+        """Instantiates an OS3QRCode from an official app's QR code URL.
 
         Args:
-            qr_url: The QR code URL containing device information.
+            qr_url: The full URL string encoded in the QR code.
 
         Returns:
-            An instance of OS3DeviceInfo.
+            A parsed OS3QRCode object.
 
         Raises:
-            SesameError: If the key level is not supported.
-            ValueError: If the QR URL or embedded data is malformed.
+            SesameError: If the parsed key level is not supported.
+            ValueError: If the URL structure or base64 data is malformed.
+            struct.error: If the binary key data cannot be unpacked.
         """
         query = parse.parse_qs(parse.urlparse(qr_url).query)
         key_level_value = int(query.get("l", ["0"])[0])
@@ -158,10 +157,10 @@ class OS3QRCode:
 
     @property
     def qr_url(self) -> str:
-        """Generates a QR code URL for the official app.
+        """Generates a QR code URL compatible with the official Sesame app.
 
         Returns:
-            The encoded URL string that can be converted to a QR code.
+            The formatted URL string.
         """
         shared_key = struct.pack(
             ">B16s4s2s16s",
@@ -185,10 +184,10 @@ class OS3QRCode:
 
 
 class SesameOS3Protocol:
-    """A class to manage communication and authentication with a Sesame OS3 device.
+    """Manages the OS3 communication lifecycle and command transmission.
 
-    This class handles BLE connection, login, command transmission, and notification
-    processing for a Sesame OS3 device.
+    Handles BLE connections, the cryptographic login handshake, sending encrypted
+    commands, and routing incoming notifications and responses.
     """
 
     def __init__(
@@ -197,12 +196,14 @@ class SesameOS3Protocol:
         publish_data_callback: Callable[[ReceivedSesamePublish], None],
         unexpected_disconnect_callback: Callable[[], None],
     ) -> None:
-        """Initializes the OS3Device instance.
+        """Initializes the OS3 protocol handler.
 
         Args:
-            mac_address: The MAC address of the BLE device.
-            publish_data_callback: Callback for publish data notifications.
-            unexpected_disconnect_callback: Callback for unexpected disconnections.
+            mac_address: The BLE MAC address of the device.
+            publish_data_callback: A function called when publish notifications
+                are received from the device.
+            unexpected_disconnect_callback: A function called when the BLE
+                connection drops unexpectedly.
         """
         self._ble_device = SesameBLETransport(
             mac_address, self.on_received, self.on_unexpected_disconnect
@@ -217,16 +218,16 @@ class SesameOS3Protocol:
         self._cipher: OS3Cipher | None = None
 
     def on_unexpected_disconnect(self) -> None:
-        """Handles unexpected disconnection events."""
+        """Cleans up internal state and delegates to the disconnect callback."""
         self._cleanup()
         self._unexpected_disconnect_callback()
 
     def on_received(self, data: bytes, is_encrypted: bool) -> None:
-        """Handles reassembled received data.
+        """Processes and routes reassembled data from the BLE transport layer.
 
         Args:
-            data: The reassembled received data.
-            is_encrypted: Whether `data` is encrypted.
+            data: The fully reassembled payload from the device.
+            is_encrypted: Indicates if the data was received encrypted.
         """
         if is_encrypted:
             # after sending REGISTRATION command, for some reason sometimes receive
@@ -255,10 +256,10 @@ class SesameOS3Protocol:
                 )
 
     def _handle_response(self, response_data: ReceivedSesameResponse) -> None:
-        """Handles response data from the device.
+        """Resolves the appropriate future for a received response.
 
         Args:
-            response_data: The response data object.
+            response_data: The parsed response object.
         """
         logger.debug(
             "Received response [item=%s, result=%s]",
@@ -276,10 +277,10 @@ class SesameOS3Protocol:
         response_future.set_result(response_data)
 
     def _handle_publish(self, publish_data: ReceivedSesamePublish) -> None:
-        """Handles publish data notifications from the device.
+        """Routes publish data or resolves the initial session token future.
 
         Args:
-            publish_data: The publish data object.
+            publish_data: The parsed publish object.
         """
         logger.debug(
             "Received publish notification [item=%s]", publish_data.item_code.name
@@ -295,7 +296,7 @@ class SesameOS3Protocol:
             self._publish_data_callback(publish_data)
 
     def _cleanup(self) -> None:
-        """Cleans up resources."""
+        """Cancels pending futures and resets the cipher state."""
         for future in self._response_futures.values():
             future.cancel()
         if self._session_token_future is not None:
@@ -307,20 +308,20 @@ class SesameOS3Protocol:
     async def send_command(
         self, command: SesameCommand, should_encrypt: bool
     ) -> ReceivedSesameResponse:
-        """Sends a request type command to the device and waits for a response.
+        """Transmits a command to the device and awaits its response.
 
         Args:
-            command: The command to send.
-            should_encrypt: Whether to encrypt the command.
+            command: The command object containing the item code and payload.
+            should_encrypt: Indicates whether the payload requires encryption.
 
         Returns:
-            The response from the device.
+            The parsed response from the device.
 
         Raises:
-            asyncio.TimeoutError: If the response times out.
-            SesameConnectionError: If not connected to the device.
-            SesameLoginError: If encryption is attempted before login.
-            SesameOperationError: If the operation fails.
+            asyncio.TimeoutError: If the device fails to respond within the timeout.
+            SesameConnectionError: If there is no active BLE connection.
+            SesameLoginError: If encryption is requested but the session is not established.
+            SesameOperationError: If the device returns an error result code.
         """
         async with self._send_lock:
             logger.debug(
@@ -363,11 +364,12 @@ class SesameOS3Protocol:
             return response
 
     async def connect(self) -> None:
-        """Establishes a connection to the device.
+        """Establishes a BLE connection and awaits the initial session token.
 
         Raises:
-            asyncio.TimeoutError: If the session token retrieval times out.
-            SesameConnectionError: If already connected or the device cannot be found.
+            asyncio.TimeoutError: If the device does not publish its session token.
+            SesameConnectionError: If a connection already exists or the device
+                cannot be found.
         """
         if self.is_connected:
             raise SesameConnectionError("Already connected")
@@ -384,19 +386,16 @@ class SesameOS3Protocol:
             raise
 
     async def register(self) -> bytes:
-        """Register the Sesame OS3 device and derive a shared secret key.
-
-        This method performs the initial registration handshake with a Sesame OS3
-        device. The device must not be registered already.
+        """Executes the registration handshake to derive a device secret key.
 
         Returns:
-            The derived device secret key.
+            The newly derived 16-byte secret key.
 
         Raises:
-            asyncio.TimeoutError: If the response times out.
-            SesameConnectionError: If not connected to the device.
-            SesameError: If the device is already registered.
-            SesameOperationError: If the registration operation fails.
+            asyncio.TimeoutError: If the registration response times out.
+            SesameConnectionError: If there is no active BLE connection.
+            SesameError: If the device indicates it is already registered.
+            SesameOperationError: If the registration command is rejected.
         """
         if self.sesame_advertisement_data.is_registered:
             raise SesameError("Device is already registered")
@@ -413,19 +412,20 @@ class SesameOS3Protocol:
         return secret_key
 
     async def login(self, secret_key: bytes) -> int:
-        """Authenticates with the device using the provided secret key.
+        """Performs the cryptographic login handshake to establish a secure session.
 
         Args:
-            secret_key: The secret key in bytes.
+            secret_key: The 16-byte secret key for the device.
 
         Returns:
-            The login timestamp.
+            The integer timestamp provided by the device upon successful login.
 
         Raises:
-            asyncio.TimeoutError: If the response times out.
-            SesameConnectionError: If no connection is established or not connected.
-            SesameLoginError: If already logged in.
-            SesameOperationError: If the login operation fails.
+            asyncio.TimeoutError: If the login response times out.
+            SesameConnectionError: If the connection was lost or the session token
+                is unavailable.
+            SesameLoginError: If a login session is already active.
+            SesameOperationError: If the login command is rejected.
         """
         if self._cipher is not None:
             raise SesameLoginError("Already logged in")
@@ -442,10 +442,7 @@ class SesameOS3Protocol:
         return int.from_bytes(response.payload, "little")
 
     async def disconnect(self) -> None:
-        """Disconnects from the device.
-
-        This method is idempotent and does nothing if already disconnected.
-        """
+        """Terminates the BLE connection and cleans up session state."""
         if self.is_connected:
             try:
                 await self._ble_device.disconnect()
@@ -454,30 +451,30 @@ class SesameOS3Protocol:
 
     @property
     def mac_address(self) -> str:
-        """The MAC address of the Sesame device.
+        """The MAC address of the device.
 
         Returns:
-            The BLE MAC address string.
+            The BLE MAC address as a string.
         """
         return self._ble_device.mac_address
 
     @property
     def is_connected(self) -> bool:
-        """Whether the BLE device is currently connected.
+        """Indicates if the BLE connection is active.
 
         Returns:
-            True if a BLE connection is active, otherwise False.
+            True if connected, False otherwise.
         """
         return self._ble_device.is_connected
 
     @property
     def sesame_advertisement_data(self) -> SesameAdvertisementData:
-        """The latest advertisement data from the Sesame device.
+        """The advertisement data from the most recent scan.
 
         Returns:
-            Parsed advertisement data from the last successful scan.
+            The parsed advertisement data.
 
         Raises:
-            SesameConnectionError: If not connected.
+            SesameConnectionError: If the device is not connected.
         """
         return self._ble_device.sesame_advertisement_data

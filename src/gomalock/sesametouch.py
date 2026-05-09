@@ -1,7 +1,8 @@
-"""Sesame Touch device BLE control and status module.
+"""Provides control and status monitoring for Sesame Touch devices.
 
-This module provides a main class of Sesame Touch for controlling and abstracts
-the mechanical status of a Sesame Touch device.
+This module contains the SesameTouch class, which extends the base OS3 lock
+functionality to handle the specific mechanical status parsing for Sesame Touch,
+Touch Pro, and Bike 2 devices.
 """
 
 from __future__ import annotations
@@ -21,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 @dataclass(frozen=True)
 class SesameTouchMechStatus:
-    """Represents the mechanical status of Sesame Touch device.
+    """Represents the parsed mechanical status of a Sesame Touch device.
 
     Attributes:
         cards_number: Number of cards registered with Sesame Touch.
@@ -37,17 +38,16 @@ class SesameTouchMechStatus:
 
     @classmethod
     def from_payload(cls, payload: bytes) -> Self:
-        """Parses the payload received from the Sesame Touch device.
+        """Decodes the mechanical status from a publish payload.
 
         Args:
-            payload: The byte payload received from the Sesame Touch device
-                with item code mech_status.
+            payload: The byte string from a MECH_STATUS publish message.
 
         Returns:
-            A parsed mechanical status instance.
+            A populated SesameTouchMechStatus instance.
 
         Raises:
-            struct.error: If payload has an invalid format or length.
+            struct.error: If the payload length or format is incorrect.
         """
         (
             raw_battery,
@@ -66,31 +66,35 @@ class SesameTouchMechStatus:
 
     @property
     def is_battery_critical(self) -> bool:
-        """Whether the Sesame Touch battery voltage is below 5V."""
+        """Checks if the battery voltage is below the critical threshold."""
         return bool(self._status_flags & MechStatusBitFlags.IS_BATTERY_CRITICAL)
 
     @property
     def battery_voltage(self) -> float:
-        """The current battery voltage of the Sesame Touch."""
+        """Calculates the current battery voltage in volts."""
         return self._raw_battery * 2 / 1000
 
     @property
     def battery_percentage(self) -> int:
-        """The estimated battery percentage based on `battery_voltage`."""
+        """The estimated remaining battery capacity as a percentage."""
         return calculate_battery_percentage(self.battery_voltage)
 
 
 class SesameTouch(BaseSesameOS3Lock[SesameTouchMechStatus]):
-    """Main interface for monitoring a Sesame Touch device.
+    """Controls and monitors a Sesame Touch device.
 
-    Handles BLE connection and status callbacks.
+    Handles connection, authentication, and the tracking of the device's
+    battery and operational status.
     """
 
     def on_published(self, publish_data: ReceivedSesamePublish) -> None:
-        """Handles published data from the device.
+        """Processes published status updates from the device.
+
+        Updates the internal state, invokes the mechanical status callbacks, and
+        completes the login process when the status is received.
 
         Args:
-            publish_data: Data published by the device.
+            publish_data: The parsed publish notification from the device.
         """
         match publish_data.item_code:
             case ItemCodes.MECH_STATUS:
