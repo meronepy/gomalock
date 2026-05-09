@@ -1,13 +1,13 @@
 import asyncio
 
-from gomalock.sesametouch import SesameTouch, SesameTouchMechStatus
+import gomalock
 
 MAC_ADDRESS = "XX:XX:XX:XX:XX:XX"
 SECRET_KEY = "0123456789abcdef0123456789abcdef"
 
 
 def on_mechstatus_changed(
-    sesametouch: SesameTouch, status: SesameTouchMechStatus
+    sesametouch: gomalock.SesameTouch, status: gomalock.SesameTouchMechStatus
 ) -> None:
     info = {
         "Address": sesametouch.mac_address,
@@ -29,7 +29,7 @@ def on_mechstatus_changed(
 
 
 async def main():
-    async with SesameTouch(MAC_ADDRESS, SECRET_KEY, on_mechstatus_changed):
+    async with gomalock.SesameTouch(MAC_ADDRESS, SECRET_KEY, on_mechstatus_changed):
         while True:
             await asyncio.sleep(10)
 

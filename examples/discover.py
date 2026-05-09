@@ -6,13 +6,13 @@ and displays BLE information as well as Sesame-specific information.
 
 import asyncio
 
-from gomalock.scanner import SesameScanner
+import gomalock
 
 
 async def main():
     """Scan for Sesame BLE devices and print their information."""
     print("-" * 50)
-    devices = await SesameScanner.discover(timeout=10)
+    devices = await gomalock.SesameScanner.discover(timeout=10)
     for address, sesame_adv_data in devices.items():
         print(f"{'Address':11}: {address}")
         print(f"{'Model':11}: {sesame_adv_data.product_model.name}")

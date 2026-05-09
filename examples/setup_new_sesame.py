@@ -2,7 +2,7 @@ import asyncio
 
 import qrcode
 
-from gomalock.sesame5 import Sesame5
+import gomalock
 
 MAC_ADDRESS = "XX:XX:XX:XX:XX:XX"
 LOCK_POSITION = 0
@@ -11,7 +11,7 @@ AUTOLOCK_DURATION = 5
 
 
 async def main():
-    async with Sesame5(MAC_ADDRESS) as sesame5:
+    async with gomalock.Sesame5(MAC_ADDRESS) as sesame5:
         secret_key = await sesame5.register()
         print(secret_key)
 

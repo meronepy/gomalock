@@ -1,6 +1,6 @@
 import asyncio
 
-from gomalock.sesame5 import Sesame5
+import gomalock
 
 MAC_ADDRESS = "XX:XX:XX:XX:XX:XX"
 SECRET_KEY = "0123456789abcdef0123456789abcdef"
@@ -14,7 +14,9 @@ def on_mech_status_changed(_, mech_status):
 
 
 async def main():
-    async with Sesame5(MAC_ADDRESS, SECRET_KEY, on_mech_status_changed) as sesame5:
+    async with gomalock.Sesame5(
+        MAC_ADDRESS, SECRET_KEY, on_mech_status_changed
+    ) as sesame5:
         while True:
             user_input = await asyncio.to_thread(
                 input, "Enter command (s: lock, u: unlock): "

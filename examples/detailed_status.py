@@ -3,7 +3,7 @@ import asyncio
 # you need to run 'pip install qrcode' to use this example
 import qrcode
 
-from gomalock.sesame5 import Sesame5, Sesame5MechStatus
+import gomalock
 
 MAC_ADDRESS = "XX:XX:XX:XX:XX:XX"
 SECRET_KEY = "0123456789abcdef0123456789abcdef"
@@ -11,7 +11,9 @@ HISTORY_TAG = "gomalock"
 DEVICE_NAME = "My Sesame5"
 
 
-def on_mechstatus_changed(sesame5: Sesame5, status: Sesame5MechStatus) -> None:
+def on_mechstatus_changed(
+    sesame5: gomalock.Sesame5, status: gomalock.Sesame5MechStatus
+) -> None:
     info = {
         "Address": sesame5.mac_address,
         "Model": sesame5.sesame_advertisement_data.product_model.name,
@@ -36,22 +38,22 @@ def on_mechstatus_changed(sesame5: Sesame5, status: Sesame5MechStatus) -> None:
         print(f"{key:19}: {value}")
 
 
-async def handle_lock(sesame5: Sesame5) -> None:
+async def handle_lock(sesame5: gomalock.Sesame5) -> None:
     print("Locking...")
     await sesame5.lock(HISTORY_TAG)
 
 
-async def handle_unlock(sesame5: Sesame5) -> None:
+async def handle_unlock(sesame5: gomalock.Sesame5) -> None:
     print("Unlocking...")
     await sesame5.unlock(HISTORY_TAG)
 
 
-async def handle_toggle(sesame5: Sesame5) -> None:
+async def handle_toggle(sesame5: gomalock.Sesame5) -> None:
     print("Toggling...")
     await sesame5.toggle(HISTORY_TAG)
 
 
-async def handle_reconnect(sesame5: Sesame5) -> None:
+async def handle_reconnect(sesame5: gomalock.Sesame5) -> None:
     print("Reconnecting...")
     await sesame5.disconnect()
     await asyncio.sleep(3)
@@ -59,7 +61,7 @@ async def handle_reconnect(sesame5: Sesame5) -> None:
     await sesame5.login()
 
 
-async def handle_mech_setting(sesame5: Sesame5) -> None:
+async def handle_mech_setting(sesame5: gomalock.Sesame5) -> None:
     lock_pos = await asyncio.to_thread(input, "Enter lock_position: ")
     unlock_pos = await asyncio.to_thread(input, "Enter unlock_position: ")
     print("Setting mechanical settings...")
@@ -69,13 +71,13 @@ async def handle_mech_setting(sesame5: Sesame5) -> None:
     )
 
 
-async def handle_auto_lock(sesame5: Sesame5) -> None:
+async def handle_auto_lock(sesame5: gomalock.Sesame5) -> None:
     auto_lock_sec = await asyncio.to_thread(input, "Enter auto_lock_seconds: ")
     print("Setting auto lock seconds...")
     await sesame5.set_auto_lock_duration(auto_lock_duration=int(auto_lock_sec))
 
 
-def handle_display_qr(sesame5: Sesame5) -> None:
+def handle_display_qr(sesame5: gomalock.Sesame5) -> None:
     print("Displaying QR code...")
     url = sesame5.generate_qr_url(DEVICE_NAME)
     qr = qrcode.QRCode()
@@ -100,7 +102,9 @@ q: Quit the program"""
 
 async def main() -> None:
     print("Connecting to Sesame5 device...")
-    async with Sesame5(MAC_ADDRESS, SECRET_KEY, on_mechstatus_changed) as sesame5:
+    async with gomalock.Sesame5(
+        MAC_ADDRESS, SECRET_KEY, on_mechstatus_changed
+    ) as sesame5:
         while True:
             command = await asyncio.to_thread(input, "Enter command: ")
             match command.lower():
