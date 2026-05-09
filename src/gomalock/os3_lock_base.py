@@ -11,6 +11,7 @@ import asyncio
 import logging
 import random
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from typing import Callable, Self
 
 from .const import (
@@ -24,6 +25,14 @@ from .os3_protocol import SesameOS3Protocol, OS3QRCode
 from .protocol_types import ReceivedSesamePublish, SesameAdvertisementData
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class _ReconnectionState:
+    """Tracks auto-reconnection configuration and the active task."""
+
+    limit: int
+    task: asyncio.Task | None = None
 
 
 class BaseSesameOS3Lock[MechStatusT](ABC):
@@ -54,8 +63,7 @@ class BaseSesameOS3Lock[MechStatusT](ABC):
             mac_address, self.on_published, self.on_unexpected_disconnect
         )
         self._secret_key = secret_key
-        self._auto_reconnection_limit = auto_reconnection_limit
-        self._reconnect_task: asyncio.Task | None = None
+        self._reconnection = _ReconnectionState(auto_reconnection_limit)
         self._mech_status: MechStatusT | None = None
         self._login_completed = asyncio.Event()
         self._device_status = DeviceStatus.DISCONNECTED
@@ -92,24 +100,24 @@ class BaseSesameOS3Lock[MechStatusT](ABC):
         """
         logger.error("Unexpected Sesame disconnection [address=%s]", self.mac_address)
         self._cleanup()
-        if self._auto_reconnection_limit > 0 and (
-            self._reconnect_task is None or self._reconnect_task.done()
+        if self._reconnection.limit > 0 and (
+            self._reconnection.task is None or self._reconnection.task.done()
         ):
-            self._reconnect_task = asyncio.create_task(self._auto_reconnect())
+            self._reconnection.task = asyncio.create_task(self._auto_reconnect())
 
     async def _auto_reconnect(self) -> None:
         """Attempts to reconnect and log in to the device automatically.
 
         Uses an exponential backoff strategy for consecutive reconnection attempts.
         """
-        for attempt in range(self._auto_reconnection_limit):
+        for attempt in range(self._reconnection.limit):
             delay = min(2**attempt + random.random(), RECONNECT_MAX_BACKOFF)
             logger.info(
                 "Auto-reconnection will be attempted after delay "
                 "[address=%s, attempt=%d/%d, delay=%.1fs]",
                 self.mac_address,
                 attempt + 1,
-                self._auto_reconnection_limit,
+                self._reconnection.limit,
                 delay,
             )
             await asyncio.sleep(delay)
@@ -133,9 +141,9 @@ class BaseSesameOS3Lock[MechStatusT](ABC):
 
     async def _wait_for_reconnection(self) -> None:
         """Awaits the completion of an ongoing auto-reconnection task."""
-        if self._reconnect_task is not None:
+        if self._reconnection.task is not None:
             try:
-                await self._reconnect_task
+                await self._reconnection.task
             except asyncio.CancelledError:
                 pass
 
@@ -173,9 +181,9 @@ class BaseSesameOS3Lock[MechStatusT](ABC):
                 in progress, or if the device cannot be found.
         """
         if (
-            self._reconnect_task is not None
-            and not self._reconnect_task.done()
-            and asyncio.current_task() is not self._reconnect_task
+            self._reconnection.task is not None
+            and not self._reconnection.task.done()
+            and asyncio.current_task() is not self._reconnection.task
         ):
             raise SesameConnectionError(
                 "Cannot connect while auto-reconnection is in progress"
@@ -225,9 +233,9 @@ class BaseSesameOS3Lock[MechStatusT](ABC):
             SesameOperationError: If the login command fails.
         """
         if (
-            self._reconnect_task is not None
-            and not self._reconnect_task.done()
-            and asyncio.current_task() is not self._reconnect_task
+            self._reconnection.task is not None
+            and not self._reconnection.task.done()
+            and asyncio.current_task() is not self._reconnection.task
         ):
             raise SesameConnectionError(
                 "Cannot login while auto-reconnection is in progress"
@@ -251,10 +259,10 @@ class BaseSesameOS3Lock[MechStatusT](ABC):
 
     async def disconnect(self) -> None:
         """Disconnects from the device and stops any active auto-reconnection tasks."""
-        if self._reconnect_task is not None and not self._reconnect_task.done():
-            self._reconnect_task.cancel()
+        if self._reconnection.task is not None and not self._reconnection.task.done():
+            self._reconnection.task.cancel()
             try:
-                await self._reconnect_task
+                await self._reconnection.task
             except asyncio.CancelledError:
                 pass
         if self.is_connected:
@@ -270,6 +278,14 @@ class BaseSesameOS3Lock[MechStatusT](ABC):
                 "Skipping disconnect, device not connected [address=%s]",
                 self.mac_address,
             )
+
+    def _log_unhandled_publish(self, publish_data: ReceivedSesamePublish) -> None:
+        """Logs a publish notification that the concrete lock does not handle."""
+        logger.debug(
+            "Received unhandled publish notification [address=%s, item=%s]",
+            self.mac_address,
+            publish_data.item_code.name,
+        )
 
     def generate_qr_url(
         self,
