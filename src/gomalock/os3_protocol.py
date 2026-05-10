@@ -443,9 +443,13 @@ class SesameOS3Protocol:
         )
         self._cipher = OS3Cipher(self._session_token_future.result(), session_key)
         logger.debug("Session cipher initialized")
-        response = await self.send_command(
-            SesameCommand(ItemCodes.LOGIN, session_key[:4]), False
-        )
+        try:
+            response = await self.send_command(
+                SesameCommand(ItemCodes.LOGIN, session_key[:4]), False
+            )
+        except Exception:
+            self._cipher = None
+            raise
         return int.from_bytes(response.payload, "little")
 
     async def disconnect(self) -> None:
