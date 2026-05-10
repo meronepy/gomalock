@@ -4,6 +4,7 @@ This module exposes the main components of the gomalock library, allowing
 users to scan for Sesame devices and control different lock models.
 """
 
+from .const import DeviceStatus
 from .protocol_types import SesameAdvertisementData
 from .scanner import SesameScanner
 from .sesame5 import Sesame5, Sesame5MechSetting, Sesame5MechStatus
@@ -17,4 +18,5 @@ __all__ = [
     "Sesame5MechStatus",
     "SesameTouch",
     "SesameTouchMechStatus",
+    "DeviceStatus",
 ]

@@ -48,7 +48,7 @@
 - Sesame Touchに接続してからでないと実行できません
 - 返り値は次回以降のログインに必要な`secret_key`です
 
-#### `async SesameTouch.login(secret_key: str | None = None) -> None`
+#### `async SesameTouch.login(secret_key: str | None = None) -> int`
 
 - Sesame Touchにログインして、ステータス監視を可能にします
 - `SesameTouch.mech_status`が利用可能になります
@@ -108,12 +108,12 @@
 
 > `v1.0.0`以降`SesameTouch.login_status`は削除され、`SesameTouch.is_logged_in`に変更されました
 
-#### `property SesameTouch.sesame_advertisement_data: protocol.SesameAdvertisementData`
+#### `property SesameTouch.sesame_advertisement_data: SesameAdvertisementData`
 
 - Sesame Touchが[アドバタイズしている情報](sesame_advertisement_data.md)
 - 接続前に参照すると、`SesameConnectionError`を送出します
 
-#### `property SesameTouch.device_status: const.DeviceStatus`
+#### `property SesameTouch.device_status: DeviceStatus`
 
 - Sesame Touchの接続試行中やログイン試行中などの状態
   - DISCONNECTED
