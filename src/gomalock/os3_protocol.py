@@ -348,17 +348,9 @@ class SesameOS3Protocol:
                 command.item_code.name,
                 RESPONSE_TIMEOUT,
             )
-            try:
-                response = await asyncio.wait_for(response_future, RESPONSE_TIMEOUT)
-            except asyncio.CancelledError as e:
-                self._response_futures.pop(command.item_code, None)
-                raise SesameConnectionError(
-                    "Connection is lost while waiting for response"
-                ) from e
-            except Exception:
-                response_future.cancel()
-                self._response_futures.pop(command.item_code, None)
-                raise
+            response = await asyncio.wait_for(
+                response_future, RESPONSE_TIMEOUT
+            )  # TODO: 失敗時に切断処理入れる？
             if response.result_code != ResultCodes.SUCCESS:
                 raise SesameOperationError(
                     f"Operation failed: {response.result_code.name}",
@@ -384,12 +376,9 @@ class SesameOS3Protocol:
         logger.debug(
             "Waiting for INITIAL including session token [timeout=%ds]", PUBLISH_TIMEOUT
         )
-        try:
-            await asyncio.wait_for(self._session_token_future, PUBLISH_TIMEOUT)
-        except Exception:
-            self._session_token_future.cancel()
-            self._session_token_future = None
-            raise
+        await asyncio.wait_for(
+            self._session_token_future, PUBLISH_TIMEOUT
+        )  # TODO: 失敗時に切断処理入れる？
 
     async def register(self) -> bytes:
         """Executes the registration handshake to derive a device secret key.
@@ -443,13 +432,9 @@ class SesameOS3Protocol:
         )
         self._cipher = OS3Cipher(self._session_token_future.result(), session_key)
         logger.debug("Session cipher initialized")
-        try:
-            response = await self.send_command(
-                SesameCommand(ItemCodes.LOGIN, session_key[:4]), False
-            )
-        except Exception:
-            self._cipher = None
-            raise
+        response = await self.send_command(
+            SesameCommand(ItemCodes.LOGIN, session_key[:4]), False
+        )  # TODO: 失敗時に切断処理入れる？
         return int.from_bytes(response.payload, "little")
 
     async def disconnect(self) -> None:
