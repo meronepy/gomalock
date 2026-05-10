@@ -49,6 +49,8 @@ def generate_device_secret_key(
     shared_secret = key_agreement(
         static_priv=app_private_key, static_pub=device_public_key, kdf=lambda x: x
     )
+    if not isinstance(shared_secret, bytes):
+        shared_secret = bytes(shared_secret)
     return shared_secret[:16]  # truncate to 16 bytes as per SesameOS3 protocol
 
 
