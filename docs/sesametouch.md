@@ -26,7 +26,9 @@
 ## 自動再接続について
 
 - 自動再接続は、正常接続後の予期せぬ切断の場合に実行されます
-- 初回接続の失敗では自動再接続を行いません
+- 初回接続の失敗や、呼び出したメソッドの例外によって切断された場合は自動再接続は行いません
+  > 例えば`async SesameTouch.connect()`, `async SesameTouch.login()`などの実行に失敗した場合は自動再接続の対象外です。呼び出し元で`try-except`を用いて適切にエラーハンドリングを行ってください。
+- 下記のメソッドを除き、再接続中に`async SesameTouch.lock()`や`async SesameTouch.unlock()`などの非同期メソッドが実行されると、再接続を待ってから実行されます
 - `async SesameTouch.disconnect()`を実行すると自動再接続を終了します
 - 自動再接続中に`async SesameTouch.connect()`または`async SesameTouch.login()`を手動で呼び出すと例外を送出します
 - `SesameTouch.generate_qr_url()`や`property SesameTouch.sesame_advertisement_data`のような、接続を必要とする通常のメソッド、プロパティは再接続を待たずに例外を送出します
@@ -56,6 +58,7 @@
 - 引数`secret_key`を優先的に使用してログインをします
 - 引数`secret_key`が与えられない場合は`__init__`の`secret_key`を使用してログインします
 - 引数`secret_key`と`__init__`の`secret_key`の両方が`None`の場合は`SesameLoginError`を送出します
+- 操作に失敗した場合は自動的にSesameTouchとのBLE接続が切断されてから例外を送出します
 
 - 引数
   - secret_key: 接続するSesame Touchのシークレットキー
