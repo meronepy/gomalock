@@ -177,7 +177,11 @@ class BaseSesameOS3Lock[LockSelfT, MechStatusT](ABC):
             raise SesameConnectionError("Already connected")
         logger.info("Connecting to Sesame [address=%s]", self.mac_address)
         self._device_status = DeviceStatus.CONNECTING
-        await self._os3_device.connect()
+        try:
+            await self._os3_device.connect()
+        except Exception:
+            self._device_status = DeviceStatus.DISCONNECTED
+            raise
         self._device_status = DeviceStatus.CONNECTED
         logger.info("Connected to Sesame [address=%s]", self.mac_address)
 
@@ -232,8 +236,14 @@ class BaseSesameOS3Lock[LockSelfT, MechStatusT](ABC):
             raise SesameLoginError("A secret key is required for login")
         logger.info("Logging in to Sesame [address=%s]", self.mac_address)
         self._device_status = DeviceStatus.LOGGING_IN
-        timestamp = await self._os3_device.login(bytes.fromhex(secret_key))
-        await asyncio.wait_for(self._login_completed.wait(), timeout=PUBLISH_TIMEOUT)
+        try:
+            timestamp = await self._os3_device.login(bytes.fromhex(secret_key))
+            await asyncio.wait_for(
+                self._login_completed.wait(), timeout=PUBLISH_TIMEOUT
+            )
+        except Exception:
+            self._device_status = DeviceStatus.CONNECTED
+            raise
         self._device_status = DeviceStatus.LOGGED_IN
         logger.info(
             "Logged in to Sesame [address=%s, timestamp=%d]",
