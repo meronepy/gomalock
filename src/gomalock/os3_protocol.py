@@ -350,15 +350,15 @@ class SesameOS3Protocol:
             )
             try:
                 response = await asyncio.wait_for(response_future, RESPONSE_TIMEOUT)
-            except asyncio.TimeoutError:
-                response_future.cancel()
-                self._response_futures.pop(command.item_code, None)
-                raise
             except asyncio.CancelledError as e:
                 self._response_futures.pop(command.item_code, None)
                 raise SesameConnectionError(
                     "Connection is lost while waiting for response"
                 ) from e
+            except Exception:
+                response_future.cancel()
+                self._response_futures.pop(command.item_code, None)
+                raise
             if response.result_code != ResultCodes.SUCCESS:
                 raise SesameOperationError(
                     f"Operation failed: {response.result_code.name}",
@@ -386,7 +386,7 @@ class SesameOS3Protocol:
         )
         try:
             await asyncio.wait_for(self._session_token_future, PUBLISH_TIMEOUT)
-        except asyncio.TimeoutError:
+        except Exception:
             self._session_token_future.cancel()
             self._session_token_future = None
             raise
