@@ -206,7 +206,7 @@ wheels = [
 
 [[package]]
 name = "gomalock"
-version = "1.0.1"
+version = "1.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "bleak" },
@@ -227,7 +227,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "bleak", specifier = ">=1.1.0" },
+    { name = "bleak", specifier = ">=3.0.2" },
     { name = "pycryptodome", specifier = ">=3.23.0" },
 ]
 
