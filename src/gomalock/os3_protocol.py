@@ -16,17 +16,11 @@ from urllib import parse
 from uuid import UUID
 
 from .ble_transport import SesameBLETransport
-from .os3_cipher import (
-    OS3Cipher,
-    generate_app_keys,
-    generate_device_secret_key,
-    generate_session_key,
-)
 from .const import (
     BATTERY_PERCENTAGES,
     HISTORY_TAG_MAX_LEN,
-    RESPONSE_TIMEOUT,
     PUBLISH_TIMEOUT,
+    RESPONSE_TIMEOUT,
     VOLTAGE_LEVELS,
     ItemCodes,
     KeyLevels,
@@ -39,6 +33,12 @@ from .exc import (
     SesameError,
     SesameLoginError,
     SesameOperationError,
+)
+from .os3_cipher import (
+    OS3Cipher,
+    generate_app_keys,
+    generate_device_secret_key,
+    generate_session_key,
 )
 from .protocol_types import (
     ReceivedSesameMessage,
@@ -349,7 +349,7 @@ class SesameOS3Protocol:
             )
             try:
                 response = await asyncio.wait_for(response_future, RESPONSE_TIMEOUT)
-            except asyncio.TimeoutError:
+            except (asyncio.TimeoutError, asyncio.CancelledError):
                 response_future.cancel()
                 self._response_futures.pop(command.item_code, None)
                 raise
