@@ -85,7 +85,7 @@ class BaseSesameOS3Lock[LockSelfT, MechStatusT](ABC):
         """
         logger.error("Unexpected Sesame disconnection [address=%s]", self.mac_address)
         self._cleanup()
-        if self._auto_reconnection_limit > 0 and (
+        if self._auto_reconnection_limit and (
             self._reconnect_task is None or self._reconnect_task.done()
         ):
             self._reconnect_task = asyncio.create_task(self._auto_reconnect())
