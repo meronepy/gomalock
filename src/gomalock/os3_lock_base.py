@@ -177,7 +177,11 @@ class BaseSesameOS3Lock[LockSelfT, MechStatusT](ABC):
             raise SesameConnectionError("Already connected")
         logger.info("Connecting to Sesame [address=%s]", self.mac_address)
         self._device_status = DeviceStatus.CONNECTING
-        await self._os3_device.connect()  # TODO: 失敗時に切断処理入れる？
+        try:
+            await self._os3_device.connect()
+        except Exception:
+            await self.disconnect()
+            raise
         self._device_status = DeviceStatus.CONNECTED
         logger.info("Connected to Sesame [address=%s]", self.mac_address)
 
@@ -232,10 +236,14 @@ class BaseSesameOS3Lock[LockSelfT, MechStatusT](ABC):
             raise SesameLoginError("A secret key is required for login")
         logger.info("Logging in to Sesame [address=%s]", self.mac_address)
         self._device_status = DeviceStatus.LOGGING_IN
-        timestamp = await self._os3_device.login(bytes.fromhex(secret_key))  # TODO: 失敗時に切断処理入れる？
-        await asyncio.wait_for(
+        try:
+            timestamp = await self._os3_device.login(bytes.fromhex(secret_key))
+            await asyncio.wait_for(
                 self._login_completed.wait(), timeout=PUBLISH_TIMEOUT
             )
+        except Exception:
+            await self.disconnect()
+            raise
         self._device_status = DeviceStatus.LOGGED_IN
         logger.info(
             "Logged in to Sesame [address=%s, timestamp=%d]",
@@ -246,7 +254,11 @@ class BaseSesameOS3Lock[LockSelfT, MechStatusT](ABC):
 
     async def disconnect(self) -> None:
         """Disconnects from the device and stops any active auto-reconnection tasks."""
-        if self._reconnect_task is not None and not self._reconnect_task.done():
+        if (
+            self._reconnect_task is not None
+            and not self._reconnect_task.done()
+            and asyncio.current_task() is not self._reconnect_task
+        ):
             self._reconnect_task.cancel()
             try:
                 await self._reconnect_task

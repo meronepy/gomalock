@@ -342,15 +342,23 @@ class SesameOS3Protocol:
                 asyncio.get_running_loop().create_future()
             )
             self._response_futures[command.item_code] = response_future
-            await self._ble_device.write_gatt(send_data, should_encrypt)
-            logger.debug(
-                "Command sent, awaiting response [item=%s, timeout=%ds]",
-                command.item_code.name,
-                RESPONSE_TIMEOUT,
-            )
-            response = await asyncio.wait_for(
-                response_future, RESPONSE_TIMEOUT
-            )  # TODO: 失敗時に切断処理入れる？
+            try:
+                await self._ble_device.write_gatt(send_data, should_encrypt)
+                logger.debug(
+                    "Command sent, awaiting response [item=%s, timeout=%ds]",
+                    command.item_code.name,
+                    RESPONSE_TIMEOUT,
+                )
+                response = await asyncio.wait_for(response_future, RESPONSE_TIMEOUT)
+            except asyncio.CancelledError as e:
+                self._response_futures.pop(command.item_code, None)
+                raise SesameConnectionError(
+                    "Connection is lost while waiting for response"
+                ) from e
+            except Exception:
+                response_future.cancel()
+                self._response_futures.pop(command.item_code, None)
+                raise
             if response.result_code != ResultCodes.SUCCESS:
                 raise SesameOperationError(
                     f"Operation failed: {response.result_code.name}",
@@ -376,9 +384,7 @@ class SesameOS3Protocol:
         logger.debug(
             "Waiting for INITIAL including session token [timeout=%ds]", PUBLISH_TIMEOUT
         )
-        await asyncio.wait_for(
-            self._session_token_future, PUBLISH_TIMEOUT
-        )  # TODO: 失敗時に切断処理入れる？
+        await asyncio.wait_for(self._session_token_future, PUBLISH_TIMEOUT)
 
     async def register(self) -> bytes:
         """Executes the registration handshake to derive a device secret key.
@@ -434,7 +440,7 @@ class SesameOS3Protocol:
         logger.debug("Session cipher initialized")
         response = await self.send_command(
             SesameCommand(ItemCodes.LOGIN, session_key[:4]), False
-        )  # TODO: 失敗時に切断処理入れる？
+        )
         return int.from_bytes(response.payload, "little")
 
     async def disconnect(self) -> None:
