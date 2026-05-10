@@ -108,7 +108,7 @@ class SesameBLETransport:
 
         Raises:
             RuntimeError: If retrieving the event loop fails.
-            BleakDBusError: If a D-Bus error occurs, typical on Linux platforms.
+            BleakGATTProtocolError: If a D-Bus error occurs, typical on Linux platforms.
             asyncio.TimeoutError: If the disconnect operation times out.
         """
         try:
