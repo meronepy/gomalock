@@ -43,7 +43,7 @@
 
 #### `async SesameTouch.register() -> str`
 
-- 工場出荷時のSesame Touchの登録(初期設定)を行います
+- リセット済みのSesame Touchの登録(初期設定)を行います
 - セットアップ済みのSesame Touchには実行できません
 - Sesame Touchに接続してからでないと実行できません
 - 返り値は次回以降のログインに必要な`secret_key`です
