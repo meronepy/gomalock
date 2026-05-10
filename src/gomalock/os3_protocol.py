@@ -319,7 +319,8 @@ class SesameOS3Protocol:
 
         Raises:
             asyncio.TimeoutError: If the device fails to respond within the timeout.
-            SesameConnectionError: If there is no active BLE connection.
+            SesameConnectionError: If there is no active BLE connection
+                or connection is lost while waiting for response.
             SesameLoginError: If encryption is requested but the session is not established.
             SesameOperationError: If the device returns an error result code.
         """
@@ -349,10 +350,15 @@ class SesameOS3Protocol:
             )
             try:
                 response = await asyncio.wait_for(response_future, RESPONSE_TIMEOUT)
-            except (asyncio.TimeoutError, asyncio.CancelledError):
+            except asyncio.TimeoutError:
                 response_future.cancel()
                 self._response_futures.pop(command.item_code, None)
                 raise
+            except asyncio.CancelledError as e:
+                self._response_futures.pop(command.item_code, None)
+                raise SesameConnectionError(
+                    "Connection is lost while waiting for response"
+                ) from e
             if response.result_code != ResultCodes.SUCCESS:
                 raise SesameOperationError(
                     f"Operation failed: {response.result_code.name}",
@@ -392,8 +398,9 @@ class SesameOS3Protocol:
             The newly derived 16-byte secret key.
 
         Raises:
-            asyncio.TimeoutError: If the registration response times out.
-            SesameConnectionError: If there is no active BLE connection.
+            asyncio.TimeoutError: If the device fails to respond within the timeout.
+            SesameConnectionError: If there is no active BLE connection
+                or connection is lost while waiting for response.
             SesameError: If the device indicates it is already registered.
             SesameOperationError: If the registration command is rejected.
         """
@@ -421,9 +428,9 @@ class SesameOS3Protocol:
             The integer timestamp provided by the device upon successful login.
 
         Raises:
-            asyncio.TimeoutError: If the login response times out.
-            SesameConnectionError: If the connection was lost or the session token
-                is unavailable.
+            asyncio.TimeoutError: If the device fails to respond within the timeout.
+            SesameConnectionError: If there is no active BLE connection
+                or connection is lost while waiting for response.
             SesameLoginError: If a login session is already active.
             SesameOperationError: If the login command is rejected.
         """

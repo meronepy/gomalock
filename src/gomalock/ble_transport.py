@@ -181,7 +181,7 @@ class SesameBLETransport:
             self.mac_address, timeout=SCAN_TIMEOUT
         )
         if found_device is None:
-            raise SesameConnectionError(f"Device not found: {self.mac_address}")
+            raise SesameConnectionError("Device not found")
         return found_device[1]
 
     def _cleanup(self) -> None:
@@ -207,9 +207,7 @@ class SesameBLETransport:
         try:
             await self._bleak_client.connect()
         except BleakDeviceNotFoundError as e:
-            raise SesameConnectionError(
-                f"Failed to connect to device: {self.mac_address}"
-            ) from e
+            raise SesameConnectionError("Failed to connect to device") from e
         logger.debug(
             "BLE connection established, starting BLE notification [address=%s]",
             self.mac_address,
