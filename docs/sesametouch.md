@@ -25,7 +25,8 @@
 
 ## 自動再接続について
 
-- 自動再接続は、ログイン後の予期せぬ切断の場合に実行されます
+- 自動再接続は、正常接続後の予期せぬ切断の場合に実行されます
+- 初回接続の失敗では自動再接続を行いません
 - `async SesameTouch.disconnect()`を実行すると自動再接続を終了します
 - 自動再接続中に`async SesameTouch.connect()`または`async SesameTouch.login()`を手動で呼び出すと例外を送出します
 - `SesameTouch.generate_qr_url()`や`property SesameTouch.sesame_advertisement_data`のような、接続を必要とする通常のメソッド、プロパティは再接続を待たずに例外を送出します
