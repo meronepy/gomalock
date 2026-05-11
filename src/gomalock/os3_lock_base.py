@@ -137,6 +137,7 @@ class BaseSesameOS3Lock[LockSelfT, MechStatusT](ABC):
         self._device_status = DeviceStatus.DISCONNECTED
         self._login_completed.clear()
         self._mech_status = None
+        self._os3_device.cleanup()
 
     def register_mech_status_callback(
         self, callback: Callable[[LockSelfT, MechStatusT], None]
@@ -180,7 +181,10 @@ class BaseSesameOS3Lock[LockSelfT, MechStatusT](ABC):
         try:
             await self._os3_device.connect()
         except Exception:
-            await self.disconnect()
+            if self.is_connected:
+                await self.disconnect()
+            else:
+                self._cleanup()
             raise
         self._device_status = DeviceStatus.CONNECTED
         logger.info("Connected to Sesame [address=%s]", self.mac_address)

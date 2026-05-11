@@ -206,21 +206,15 @@ class SesameOS3Protocol:
                 connection drops unexpectedly.
         """
         self._ble_device = SesameBLETransport(
-            mac_address, self.on_received, self.on_unexpected_disconnect
+            mac_address, self.on_received, unexpected_disconnect_callback
         )
         self._publish_data_callback = publish_data_callback
-        self._unexpected_disconnect_callback = unexpected_disconnect_callback
         self._send_lock = asyncio.Lock()
         self._response_futures: dict[
             ItemCodes, asyncio.Future[ReceivedSesameResponse]
         ] = {}
         self._session_token_future: asyncio.Future[bytes] | None = None
         self._cipher: OS3Cipher | None = None
-
-    def on_unexpected_disconnect(self) -> None:
-        """Cleans up internal state and delegates to the disconnect callback."""
-        self._cleanup()
-        self._unexpected_disconnect_callback()
 
     def on_received(self, data: bytes, is_encrypted: bool) -> None:
         """Processes and routes reassembled data from the BLE transport layer.
@@ -295,7 +289,7 @@ class SesameOS3Protocol:
         else:
             self._publish_data_callback(publish_data)
 
-    def _cleanup(self) -> None:
+    def cleanup(self) -> None:
         """Cancels pending futures and resets the cipher state."""
         for future in self._response_futures.values():
             future.cancel()
@@ -304,6 +298,7 @@ class SesameOS3Protocol:
         self._response_futures.clear()
         self._session_token_future = None
         self._cipher = None
+        self._ble_device.cleanup()
 
     async def send_command(
         self, command: SesameCommand, should_encrypt: bool
@@ -446,10 +441,7 @@ class SesameOS3Protocol:
     async def disconnect(self) -> None:
         """Terminates the BLE connection and cleans up session state."""
         if self.is_connected:
-            try:
-                await self._ble_device.disconnect()
-            finally:
-                self._cleanup()
+            await self._ble_device.disconnect()
 
     @property
     def mac_address(self) -> str:

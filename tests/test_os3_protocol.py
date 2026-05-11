@@ -185,17 +185,6 @@ def test_on_received_encrypted_without_login(monkeypatch: pytest.MonkeyPatch) ->
     publish_callback.assert_not_called()
 
 
-def test_on_unexpected_disconnect_invokes_callback(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Delegates unexpected disconnect notifications to the caller."""
-    protocol, _, _, disconnect_callback = make_protocol(monkeypatch)
-
-    protocol.on_unexpected_disconnect()
-
-    disconnect_callback.assert_called_once_with()
-
-
 @pytest.mark.asyncio
 async def test_send_command_success(monkeypatch: pytest.MonkeyPatch) -> None:
     """Sends a command and returns a successful response."""

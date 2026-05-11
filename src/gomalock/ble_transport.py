@@ -114,7 +114,6 @@ class SesameBLETransport:
         try:
             await self._bleak_client.disconnect()
         finally:
-            self._cleanup()
             self._unexpected_disconnect_callback()
 
     def _on_unexpected_disconnect_task_done(self, task: asyncio.Task) -> None:
@@ -184,7 +183,7 @@ class SesameBLETransport:
             raise SesameConnectionError("Device not found")
         return found_device[1]
 
-    def _cleanup(self) -> None:
+    def cleanup(self) -> None:
         """Resets internal buffers and state."""
         self._rx_buffer = b""
         self._sesame_advertisement_data = None
@@ -262,10 +261,7 @@ class SesameBLETransport:
         if self._bleak_client.is_connected:
             logger.debug("Closing BLE connection [address=%s]", self.mac_address)
             self._is_expectedly_disconnected = True
-            try:
-                await self._bleak_client.disconnect()
-            finally:
-                self._cleanup()
+            await self._bleak_client.disconnect()
             logger.debug("BLE connection closed [address=%s]", self.mac_address)
         else:
             logger.debug(

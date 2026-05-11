@@ -302,19 +302,6 @@ async def test_write_gatt_disconnected() -> None:
 
 
 @pytest.mark.asyncio
-async def test_disconnect_connected() -> None:
-    """Disconnects and clears cached advertisement data."""
-    transport, client, _, _ = make_transport(is_connected=True)
-    transport._sesame_advertisement_data = Mock()
-
-    await transport.disconnect()
-
-    client.disconnect.assert_awaited_once()
-    with pytest.raises(exc.SesameConnectionError):
-        _ = transport.sesame_advertisement_data
-
-
-@pytest.mark.asyncio
 async def test_disconnect_disconnected() -> None:
     """Does nothing when the BLE client is already disconnected."""
     transport, client, _, _ = make_transport(is_connected=False)
