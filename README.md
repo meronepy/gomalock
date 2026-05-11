@@ -1,11 +1,11 @@
 # [gomalock](https://github.com/meronepy/gomalock)
 
-![Python](https://img.shields.io/badge/python-3.12-5da1d8)
-[![License](https://img.shields.io/badge/license-MIT-5da1d8)](LICENSE)
-![Platform](https://img.shields.io/badge/platform-Linux%20%2F%20Windows%20%2F%20macOS-ffb8d2)
+![PyPI - Version](https://img.shields.io/pypi/v/gomalock?color=ff336c)
+![Python Version from PEP 621 TOML](https://img.shields.io/python/required-version-toml?tomlFilePath=https%3A%2F%2Fraw.githubusercontent.com%2Fmeronepy%2Fgomalock%2Fmain%2Fpyproject.toml&color=b164ff)
+[![License](https://img.shields.io/badge/license-MIT-29b6ff)](LICENSE)
 [![Test](https://github.com/meronepy/gomalock/actions/workflows/test.yml/badge.svg)](https://github.com/meronepy/gomalock/actions/workflows/test.yml)
 
-SesameスマートロックをPythonからBluetooth Low Energyで操作するためのライブラリ
+SesameスマートロックをPythonからBluetooth Low Energyで操作するライブラリ
 
 ## 機能説明
 
