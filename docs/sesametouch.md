@@ -7,7 +7,7 @@
 
 ---
 
-## `class gomalock.sesametouch.SesameTouch(mac_address: str, secret_key: str | None = None, mech_status_callback: Callable[[SesameTouch, SesameTouchMechStatus], None] | None = None, auto_reconnection_limit: int = 0)`
+## `class gomalock.SesameTouch(mac_address: str, secret_key: str | None = None, mech_status_callback: Callable[[SesameTouch, SesameTouchMechStatus], None] | None = None, auto_reconnection_limit: int = 0)`
 
 - Sesame Touchとの接続、ログイン、操作などを行うクラスです
 - 引数`secret_key`が与えられた場合は非同期コンテキストマネージャー(`async with`)はログインを自動的に行います
@@ -135,6 +135,10 @@
 ---
 
 ## SesameTouchMechStatusクラス
+
+## `dataclass(frozen=True) class gomalock.SesameTouchMechStatus`
+
+---
 
 ### 器械状態
 

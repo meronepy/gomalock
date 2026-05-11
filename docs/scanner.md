@@ -9,7 +9,7 @@
 
 ---
 
-## `class gomalock.scanner.SesameScanner(callback: Callable[[str, SesameAdvertisementData], None] | None = None)`
+## `class gomalock.SesameScanner(callback: Callable[[str, SesameAdvertisementData], None] | None = None)`
 
 - 周囲のSesameデバイスをスキャンするクラスです
 - `async with` による非同期コンテキストマネージャーでの利用に対応しています
