@@ -64,7 +64,7 @@ def calculate_battery_percentage(battery_voltage: float) -> int:
         The estimated battery percentage as an integer between 0 and 100.
 
     Raises:
-        AssertionError: If an unexpected voltage value evades the bounds checks.
+        ValueError: If an unexpected voltage value evades the bounds checks.
     """
     if battery_voltage >= VOLTAGE_LEVELS[0]:
         return int(BATTERY_PERCENTAGES[0])
@@ -80,7 +80,7 @@ def calculate_battery_percentage(battery_voltage: float) -> int:
             upper_percent = BATTERY_PERCENTAGES[i]
             lower_percent = BATTERY_PERCENTAGES[i + 1]
             return int((upper_percent - lower_percent) * voltage_ratio + lower_percent)
-    raise AssertionError("Unreachable code reached in battery percentage calculation")
+    raise ValueError("Unreachable code reached in battery percentage calculation")
 
 
 def create_history_tag(history_name: str) -> bytes:

@@ -86,8 +86,8 @@ def test_calculate_battery_percentage_interpolated() -> None:
 
 
 def test_calculate_battery_percentage_nan() -> None:
-    """Raises AssertionError for values that cannot be ordered."""
-    with pytest.raises(AssertionError):
+    """Raises ValueError for values that cannot be ordered."""
+    with pytest.raises(ValueError):
         os3_protocol.calculate_battery_percentage(math.nan)
 
 
