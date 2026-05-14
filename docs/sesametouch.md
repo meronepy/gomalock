@@ -27,7 +27,8 @@
 
 - 自動再接続は、正常接続後の予期せぬ切断の場合に実行されます
 - 初回接続の失敗や、呼び出したメソッドの例外によって切断された場合は自動再接続は行いません
-  > 例えば`async SesameTouch.connect()`, `async SesameTouch.login()`などの実行に失敗した場合は自動再接続の対象外です。呼び出し元で`try-except`を用いて適切にエラーハンドリングを行ってください。
+  > 例えば`async SesameTouch.connect()`, `async SesameTouch.login()`などが予期せぬ切断によって実行に失敗し、例外が発生した場合は自動再接続の対象外です  
+  > 呼び出し元で`try-except`を用いて適切にエラーハンドリングを行ってください
 - 下記のメソッドを除き、再接続中に`async SesameTouch.lock()`や`async SesameTouch.unlock()`などの非同期メソッドが実行されると、再接続を待ってから実行されます
 - `async SesameTouch.disconnect()`を実行すると自動再接続を終了します
 - 自動再接続中に`async SesameTouch.connect()`または`async SesameTouch.login()`を手動で呼び出すと例外を送出します
@@ -85,7 +86,7 @@
 - 引数
   - device_name: 公式アプリに表示するデバイスの名前
   - generate_owner_key: `True`でオーナーキー、`False`でマネージャーキーを生成
-  - secret_key: QRコードに含めるシークレットキー。`None`の場合は`__init__`の`secret_key`を使用
+  - secret_key: QRコードに含めるシークレットキー、`None`の場合は`__init__`の`secret_key`を使用
 
 - 返り値
   - 生成されたQRコードURL
