@@ -110,11 +110,9 @@ class BaseSesameOS3Lock[LockSelfT, MechStatusT](ABC):
                 await self.connect()
                 if self._secret_key is not None:
                     await self.login()
-            except (SesameConnectionError, asyncio.TimeoutError) as e:
-                logger.warning(
-                    "Auto-reconnection attempt failed [address=%s, error=%s]",
-                    self.mac_address,
-                    e,
+            except (SesameConnectionError, asyncio.TimeoutError):
+                logger.exception(
+                    "Auto-reconnection attempt failed [address=%s]", self.mac_address
                 )
                 self._cleanup()
                 continue
