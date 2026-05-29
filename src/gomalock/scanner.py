@@ -6,6 +6,7 @@ for nearby Sesame locks and parse their broadcasted advertisement data.
 
 import asyncio
 import logging
+import struct
 from typing import AsyncGenerator, Callable, Self
 from uuid import UUID
 
@@ -13,7 +14,7 @@ from bleak import BleakScanner
 from bleak.backends.device import BLEDevice
 from bleak.backends.scanner import AdvertisementData
 
-from .const import COMPANY_ID, SCAN_TIMEOUT, UUID_SERVICE, ProductModels
+from .const import COMPANY_ID, SCAN_TIMEOUT, UUID_SERVICE
 from .protocol_types import SesameAdvertisementData
 
 logger = logging.getLogger(__name__)
@@ -53,17 +54,16 @@ class SesameScanner:
     def _bleak_detection_callback(
         self, device: BLEDevice, adv_data: AdvertisementData
     ) -> None:
-        manufacturer_data = adv_data.manufacturer_data[COMPANY_ID]
-        model_id = int.from_bytes(manufacturer_data[0:2], byteorder="little")
-        if model_id not in ProductModels:
+        try:
+            sesame_adv_data = SesameAdvertisementData.from_manufacturer_data(
+                adv_data.manufacturer_data[COMPANY_ID]
+            )
+        except (ValueError, struct.error):
             return
         logger.debug(
             "Detected Sesame device [address=%s, model=%s]",
             device.address,
-            ProductModels(model_id).name,
-        )
-        sesame_adv_data = SesameAdvertisementData.from_manufacturer_data(
-            manufacturer_data
+            sesame_adv_data.product_model.name,
         )
         self._seen_devices[device.address] = sesame_adv_data
         for callback in self._detection_callbacks.values():
