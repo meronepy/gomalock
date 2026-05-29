@@ -233,16 +233,34 @@ class SesameOS3Protocol:
                 return
             data = self._cipher.decrypt(data)
             logger.debug("Decrypted received data [size=%d]", len(data))
-        sesame_message = ReceivedSesameMessage.from_reassembled_data(data)
+        try:
+            sesame_message = ReceivedSesameMessage.from_reassembled_data(data)
+        except (IndexError, ValueError):
+            logger.exception("Received unknown opcode or empty reassembled data")
+            return
         match sesame_message.op_code:
             case OpCodes.RESPONSE:
-                self._handle_response(
-                    ReceivedSesameResponse.from_sesame_message(sesame_message.payload)
-                )
+                try:
+                    response_data = ReceivedSesameResponse.from_sesame_message(
+                        sesame_message.payload
+                    )
+                except (IndexError, ValueError):
+                    logger.exception(
+                        "Received unknown resultcode or itemcode or empty sesame message"
+                    )
+                    return
+                self._handle_response(response_data)
             case OpCodes.PUBLISH:
-                self._handle_publish(
-                    ReceivedSesamePublish.from_sesame_message(sesame_message.payload)
-                )
+                try:
+                    publish_data = ReceivedSesamePublish.from_sesame_message(
+                        sesame_message.payload
+                    )
+                except (IndexError, ValueError):
+                    logger.exception(
+                        "Received unknown itemcode or empty sesame message"
+                    )
+                    return
+                self._handle_publish(publish_data)
             case _:
                 logger.warning(
                     "Received unsupported opcode [opcode=%s]",
@@ -263,7 +281,7 @@ class SesameOS3Protocol:
         response_future = self._response_futures.pop(response_data.item_code, None)
         if response_future is None or response_future.done():
             logger.warning(
-                "Received unexpected response [ItemCodes=%s, result=%s]",
+                "Received unexpected response [item=%s, result=%s]",
                 response_data.item_code.name,
                 response_data.result_code.name,
             )

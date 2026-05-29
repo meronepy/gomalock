@@ -149,7 +149,14 @@ class SesameBLETransport:
             data: The raw byte array received from the device.
         """
         del characteristic  # Unused by Sesame.
-        packet = ReceivedSesamePacket.from_ble_data(bytes(data))
+        try:
+            packet = ReceivedSesamePacket.from_ble_data(bytes(data))
+        except IndexError:
+            logger.exception(
+                "Received empty BLE packet [address=%s]",
+                self.mac_address,
+            )
+            return
         if packet.is_beginning:
             self._rx_buffer = b""
         self._rx_buffer += packet.payload
