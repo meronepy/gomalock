@@ -5,7 +5,7 @@
 [![License](https://img.shields.io/badge/license-MIT-29b6ff)](LICENSE)
 [![Test](https://github.com/meronepy/gomalock/actions/workflows/test.yml/badge.svg)](https://github.com/meronepy/gomalock/actions/workflows/test.yml)
 
-SesameスマートロックをPythonからBluetooth Low Energyで操作するライブラリ
+SesameスマートロックをBluetooth Low Energyで操作するPythonライブラリ
 
 ## 機能説明
 
@@ -98,9 +98,9 @@ if __name__ == "__main__":
 
 |対応状況|OS|
 |:-:|:-:|
-|✅|Windows 10 version 16299 以降|
+|✅|Windows 11 version 22000 以降|
 |✅|Linux with BlueZ 5.82 以降|
-|⚠️|macOS 10.13 以降 (未検証)|
+|⚠️|macOS 10.15 以降 (未検証)|
 
 ### Python
 
