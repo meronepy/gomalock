@@ -292,7 +292,7 @@ HISTORY_TAG_MAX_LEN = 20
 MTU_SIZE = 20
 """The Maximum Transmission Unit size used for chunking BLE packets."""
 
-SCAN_TIMEOUT = 10
+SCAN_TIMEOUT = 30
 """The default duration in seconds to wait when scanning for devices."""
 PUBLISH_TIMEOUT = 5
 """The maximum time in seconds to wait for an expected publish message."""
