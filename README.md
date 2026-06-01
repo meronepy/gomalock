@@ -65,7 +65,14 @@ if __name__ == "__main__":
 
 ## 注意事項
 
-- Linuxで動作させる場合、 **BlueZ 5.82以降を強く推奨します。** Raspberry Pi OS BookwormのBlueZ 5.66では、Sesame 5のGATT Serviceが取得できず正常に動作しません。
+- Raspberry Pi OSはデフォルトでBluetoothをブロックしていることがあります。  
+    `bleak.exc.BleakBluetoothNotAvailableError`のようなエラーが出る場合は以下のコマンドでブロックを解除してください。
+
+    ```bash
+    sudo rfkill unblock bluetooth
+    ```
+
+- Linuxで動作させる場合、 **BlueZ 5.82以降が必要です。** Raspberry Pi OS BookwormのBlueZ 5.66では、Sesame 5のGATT Serviceが取得できず正常に動作しません。
 - 履歴機能は公式アプリとの連携が困難であるため実装しておりません。
 - 非公式のライブラリです。動作保証はありません。自己責任でご使用ください。
 
