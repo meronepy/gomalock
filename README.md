@@ -56,7 +56,7 @@ if __name__ == "__main__":
 ```
 
 - `MAC_ADDRESS`は[discover.py](examples/discover.py)で周囲のSesameをスキャンして取得できます。
-- `SECRET_KEY`はmochipon様作成の[QR Code Reader for SESAME](https://sesame-qr-reader.vercel.app/)を使用して、マネージャー権限以上のQRコードから抽出できます。
+- `SECRET_KEY`はmochipon様作成の[QR Code Reader for SESAME](https://sesame-qr-reader.vercel.app/)を使用して、マネージャー権限以上のQRコードから抽出するか、[SESAME Biz](https://biz.candyhouse.co/)から取得できます。
 - 詳細な使用方法は[examples](examples)および[docs](docs)をご覧ください。
 
 ### MQTTとブリッジするサンプルコード
@@ -66,13 +66,17 @@ if __name__ == "__main__":
 ## 注意事項
 
 - Raspberry Pi OSはデフォルトでBluetoothをブロックしていることがあります。  
-    `bleak.exc.BleakBluetoothNotAvailableError`のようなエラーが出る場合は以下のコマンドでブロックを解除してください。
+    `BleakBluetoothNotAvailableError`のようなエラーが出る場合は以下のコマンドでブロックを解除してください。
 
     ```bash
     sudo rfkill unblock bluetooth
     ```
 
-- Linuxで動作させる場合、 **BlueZ 5.82以降が必要です。** Raspberry Pi OS BookwormのBlueZ 5.66では、Sesame 5のGATT Serviceが取得できず正常に動作しません。
+- Bluetoothは距離が近いほど安定します。下記のような問題があるときは、Sesameとの距離を近づけて何度かやり直してみてください。公式アプリでSesameのBLE送信出力を上げることも有効です。
+  - `discover.py`でSesameが検出されない。
+  - `SesameConnectionError: Device not found"`や`SesameConnectionError: Failed to connect to device`等のエラーが出て接続に失敗する。
+  - 接続やログインは成功するが、`Sesame5.lock()`や`Sesame5.unlock()`などの操作に失敗する。
+- Linuxでは **BlueZ 5.82 (Raspberry Pi OS Trixie)以降が必要です。**
 - 履歴機能は公式アプリとの連携が困難であるため実装しておりません。
 - 非公式のライブラリです。動作保証はありません。自己責任でご使用ください。
 
@@ -80,8 +84,8 @@ if __name__ == "__main__":
 
 - Windows 11 24H2, Python 3.13.3
 - Raspberry Pi Zero 2W, Raspberry Pi OS Trixie (64bit), Python 3.13.3
-- Sesame 5, 3.0-5-18a8e4
-- Sesame 5 Pro, 3.0-7-848a2d
+- Sesame 5, 3.0-5-ad26ee
+- Sesame 5 Pro, 3.0-7-ad26ee
 
 ## 対応機種
 
