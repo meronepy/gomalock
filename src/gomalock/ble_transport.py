@@ -70,12 +70,7 @@ class SesameBLETransport:
             unexpected_disconnect_callback: A function called when the device
                 disconnects unexpectedly.
         """
-        if isinstance(mac_address_or_scanned_sesame, str):
-            self._mac_address = mac_address_or_scanned_sesame
-            self._scanned_sesame_device = None
-        else:
-            self._mac_address = mac_address_or_scanned_sesame.ble_device.address
-            self._scanned_sesame_device = mac_address_or_scanned_sesame
+        self._scanned_sesame_device = mac_address_or_scanned_sesame
         self._bleak_client: BleakClient | None = None
         self._received_data_callback = received_data_callback
         self._unexpected_disconnect_callback = unexpected_disconnect_callback
@@ -215,7 +210,7 @@ class SesameBLETransport:
             "Initiating communication with Sesame device [address=%s]",
             self.mac_address,
         )
-        if self._scanned_sesame_device is None:
+        if isinstance(self._scanned_sesame_device, str):
             self._scanned_sesame_device = await self._get_sesame_advertisement_data()
         self._bleak_client = BleakClient(
             self._scanned_sesame_device.ble_device, self.on_disconnect
@@ -294,7 +289,9 @@ class SesameBLETransport:
         Returns:
             The BLE MAC address as a string.
         """
-        return self._mac_address
+        if isinstance(self._scanned_sesame_device, str):
+            return self._scanned_sesame_device
+        return self._scanned_sesame_device.mac_address
 
     @property
     def sesame_advertisement_data(self) -> SesameAdvertisementData:
@@ -307,7 +304,7 @@ class SesameBLETransport:
             SesameConnectionError: If the device is not scanned and no data
                 is available.
         """
-        if self._scanned_sesame_device is None:
+        if isinstance(self._scanned_sesame_device, str):
             raise SesameConnectionError("Not scanned yet")
         return self._scanned_sesame_device.sesame_advertisement_data
 
