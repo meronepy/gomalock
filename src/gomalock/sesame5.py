@@ -10,7 +10,7 @@ import struct
 from dataclasses import dataclass
 from typing import Callable, Self
 
-from .const import ItemCodes, MechStatusBitFlags
+from .const import ItemCodes, MechStatusBitFlags, ModelGroups
 from .exc import SesameLoginError
 from .os3_lock_base import BaseSesameOS3Lock
 from .os3_protocol import calculate_battery_percentage, create_history_tag
@@ -140,6 +140,12 @@ class Sesame5(BaseSesameOS3Lock["Sesame5", Sesame5MechStatus]):
             auto_reconnection_limit: The maximum number of consecutive auto-reconnection
                 attempts.
         """
+        if (
+            isinstance(mac_address_or_scanned_sesame, ScannedSesameDevice)
+            and mac_address_or_scanned_sesame.sesame_advertisement_data.product_model
+            not in ModelGroups.SESAME5.value
+        ):
+            raise ValueError("An invalid model ScannedSesameDevice was provided")
         super().__init__(
             mac_address_or_scanned_sesame,
             secret_key,

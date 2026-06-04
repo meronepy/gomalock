@@ -24,6 +24,17 @@ class ProductModels(Enum):
     SESAME5_USA = 16
 
 
+class ModelGroups(Enum):
+    """Groups of product models for categorization purposes."""
+
+    SESAME5 = {
+        ProductModels.SESAME5,
+        ProductModels.SESAME5_PRO,
+        ProductModels.SESAME5_USA,
+    }
+    SESAME_TOUCH = {ProductModels.SESAME_TOUCH, ProductModels.SESAME_TOUCH_PRO}
+
+
 class PacketTypes(IntFlag):
     """Flags for the 1-byte header in BLE communication packets."""
 
