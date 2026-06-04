@@ -5,12 +5,24 @@ users to scan for Sesame devices and control different lock models.
 """
 
 from .const import DeviceStatus
-from .protocol_types import SesameAdvertisementData
+from .exc import (
+    SesameConnectionError,
+    SesameError,
+    SesameLoginError,
+    SesameOperationError,
+)
+from .protocol_types import ScannedSesameDevice, SesameAdvertisementData
 from .scanner import SesameScanner
 from .sesame5 import Sesame5, Sesame5MechSetting, Sesame5MechStatus
 from .sesametouch import SesameTouch, SesameTouchMechStatus
 
 __all__ = [
+    "DeviceStatus",
+    "SesameConnectionError",
+    "SesameError",
+    "SesameLoginError",
+    "SesameOperationError",
+    "ScannedSesameDevice",
     "SesameAdvertisementData",
     "SesameScanner",
     "Sesame5",
@@ -18,5 +30,4 @@ __all__ = [
     "Sesame5MechStatus",
     "SesameTouch",
     "SesameTouchMechStatus",
-    "DeviceStatus",
 ]
