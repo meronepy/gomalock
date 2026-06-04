@@ -14,7 +14,7 @@ from .const import ItemCodes, MechStatusBitFlags
 from .exc import SesameLoginError
 from .os3_lock_base import BaseSesameOS3Lock
 from .os3_protocol import calculate_battery_percentage, create_history_tag
-from .protocol_types import ReceivedSesamePublish, SesameCommand
+from .protocol_types import ReceivedSesamePublish, ScannedSesameDevice, SesameCommand
 
 logger = logging.getLogger(__name__)
 
@@ -122,7 +122,7 @@ class Sesame5(BaseSesameOS3Lock["Sesame5", Sesame5MechStatus]):
 
     def __init__(
         self,
-        mac_address: str,
+        mac_address_or_scanned_sesame: str | ScannedSesameDevice,
         secret_key: str | None = None,
         mech_status_callback: (
             Callable[["Sesame5", Sesame5MechStatus], None] | None
@@ -132,7 +132,8 @@ class Sesame5(BaseSesameOS3Lock["Sesame5", Sesame5MechStatus]):
         """Initializes the Sesame 5 device handler.
 
         Args:
-            mac_address: The BLE MAC address of the device.
+            mac_address_or_scanned_sesame: The BLE MAC address of the device or
+                a scanned sesame device object.
             secret_key: The hex-encoded secret key used for login.
             mech_status_callback: A function called whenever the device publishes
                 a new mechanical status.
@@ -140,7 +141,10 @@ class Sesame5(BaseSesameOS3Lock["Sesame5", Sesame5MechStatus]):
                 attempts.
         """
         super().__init__(
-            mac_address, secret_key, mech_status_callback, auto_reconnection_limit
+            mac_address_or_scanned_sesame,
+            secret_key,
+            mech_status_callback,
+            auto_reconnection_limit,
         )
         self._mech_setting: Sesame5MechSetting | None = None
 
