@@ -9,6 +9,8 @@ from dataclasses import dataclass
 from typing import Self
 from uuid import UUID
 
+from bleak.backends.device import BLEDevice
+
 from .const import ItemCodes, OpCodes, PacketTypes, ProductModels, ResultCodes
 
 
@@ -47,6 +49,24 @@ class SesameAdvertisementData:
         is_registered = bool(registered_value)
         device_uuid = UUID(bytes=uuid_value)
         return cls(product_model, is_registered, device_uuid)
+
+
+@dataclass(frozen=True)
+class ScannedSesameDevice:
+    """Represents a Sesame device detected during scanning.
+
+    Attributes:
+        ble_device: The detected bleak BLEDevice.
+        sesame_advertisement_data: The Sesame specefic advertisement data.
+    """
+
+    ble_device: BLEDevice
+    sesame_advertisement_data: SesameAdvertisementData
+
+    @property
+    def mac_address(self) -> str:
+        """The mac address of the detected Sesame device."""
+        return self.ble_device.address
 
 
 @dataclass(frozen=True)
