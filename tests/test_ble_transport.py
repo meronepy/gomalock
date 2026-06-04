@@ -314,7 +314,7 @@ async def test_disconnect_disconnected() -> None:
 def test_properties_available(advertisement_data) -> None:
     """Returns delegated BLE state and cached advertisement data."""
     transport, _, _, _ = make_transport(is_connected=True)
-    transport._sesame_advertisement_data = advertisement_data
+    transport._scanned_sesame_device = advertisement_data
 
     assert transport.mac_address == TEST_ADDRESS
     assert transport.is_connected is True

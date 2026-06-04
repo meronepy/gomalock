@@ -14,7 +14,11 @@ from typing import Callable, Self
 from .const import PUBLISH_TIMEOUT, RECONNECT_MAX_BACKOFF, DeviceStatus, KeyLevels
 from .exc import SesameConnectionError, SesameLoginError
 from .os3_protocol import OS3QRCode, SesameOS3Protocol
-from .protocol_types import ReceivedSesamePublish, SesameAdvertisementData
+from .protocol_types import (
+    ReceivedSesamePublish,
+    ScannedSesameDevice,
+    SesameAdvertisementData,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +32,7 @@ class BaseSesameOS3Lock[LockSelfT, MechStatusT](ABC):
 
     def __init__(
         self,
-        mac_address: str,
+        mac_address_or_scanned_sesame: str | ScannedSesameDevice,
         secret_key: str | None = None,
         mech_status_callback: Callable[[LockSelfT, MechStatusT], None] | None = None,
         auto_reconnection_limit: int = 0,
@@ -36,7 +40,7 @@ class BaseSesameOS3Lock[LockSelfT, MechStatusT](ABC):
         """Initializes the base lock interface.
 
         Args:
-            mac_address: The BLE MAC address of the device.
+            mac_address_or_scanned_sesame: The BLE MAC address or scanned sesame device.
             secret_key: The hex-encoded secret key used for authentication.
             mech_status_callback: A function invoked when the mechanical status
                 is updated.
@@ -44,7 +48,9 @@ class BaseSesameOS3Lock[LockSelfT, MechStatusT](ABC):
                 to automatically reconnect to the device.
         """
         self._os3_device = SesameOS3Protocol(
-            mac_address, self.on_published, self.on_unexpected_disconnect
+            mac_address_or_scanned_sesame,
+            self.on_published,
+            self.on_unexpected_disconnect,
         )
         self._secret_key = secret_key
         self._auto_reconnection_limit = auto_reconnection_limit

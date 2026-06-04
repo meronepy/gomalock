@@ -44,6 +44,7 @@ from .protocol_types import (
     ReceivedSesameMessage,
     ReceivedSesamePublish,
     ReceivedSesameResponse,
+    ScannedSesameDevice,
     SesameAdvertisementData,
     SesameCommand,
 )
@@ -192,21 +193,23 @@ class SesameOS3Protocol:
 
     def __init__(
         self,
-        mac_address: str,
+        mac_address_or_scanned_sesame: str | ScannedSesameDevice,
         publish_data_callback: Callable[[ReceivedSesamePublish], None],
         unexpected_disconnect_callback: Callable[[], None],
     ) -> None:
         """Initializes the OS3 protocol handler.
 
         Args:
-            mac_address: The BLE MAC address of the device.
+            mac_address_or_scanned_sesame: The BLE MAC address or scanned sesame device.
             publish_data_callback: A function called when publish notifications
                 are received from the device.
             unexpected_disconnect_callback: A function called when the BLE
                 connection drops unexpectedly.
         """
         self._ble_device = SesameBLETransport(
-            mac_address, self.on_received, unexpected_disconnect_callback
+            mac_address_or_scanned_sesame,
+            self.on_received,
+            unexpected_disconnect_callback,
         )
         self._publish_data_callback = publish_data_callback
         self._send_lock = asyncio.Lock()

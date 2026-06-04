@@ -14,7 +14,11 @@ from bleak.exc import BleakDeviceNotFoundError
 
 from .const import MTU_SIZE, SCAN_TIMEOUT, UUID_NOTIFICATION, UUID_WRITE, PacketTypes
 from .exc import SesameConnectionError
-from .protocol_types import ReceivedSesamePacket, SesameAdvertisementData
+from .protocol_types import (
+    ReceivedSesamePacket,
+    ScannedSesameDevice,
+    SesameAdvertisementData,
+)
 from .scanner import SesameScanner
 
 logger = logging.getLogger(__name__)
@@ -53,26 +57,31 @@ class SesameBLETransport:
 
     def __init__(
         self,
-        mac_address: str,
+        mac_address_or_scanned_sesame: str | ScannedSesameDevice,
         received_data_callback: Callable[[bytes, bool], None],
         unexpected_disconnect_callback: Callable[[], None],
     ) -> None:
         """Initializes the SesameBLETransport.
 
         Args:
-            mac_address: The BLE MAC address of the device.
+            mac_address_or_scanned_sesame: The BLE MAC address or scanned Sesame device.
             received_data_callback: A function called with the reassembled payload
                 and encryption status when a full message is received.
             unexpected_disconnect_callback: A function called when the device
                 disconnects unexpectedly.
         """
-        self._bleak_client = BleakClient(mac_address, self.on_disconnect)
+        if isinstance(mac_address_or_scanned_sesame, str):
+            self._mac_address = mac_address_or_scanned_sesame
+            self._scanned_sesame_device = None
+        else:
+            self._mac_address = mac_address_or_scanned_sesame.ble_device.address
+            self._scanned_sesame_device = mac_address_or_scanned_sesame
+        self._bleak_client: BleakClient | None = None
         self._received_data_callback = received_data_callback
         self._unexpected_disconnect_callback = unexpected_disconnect_callback
         self._is_expectedly_disconnected = False
         self._unexpected_disconnect_task: asyncio.Task | None = None
         self._rx_buffer = b""
-        self._sesame_advertisement_data: SesameAdvertisementData | None = None
 
     def on_disconnect(self, client: BleakClient) -> None:
         """Handles BLE disconnection callbacks from Bleak.
@@ -80,7 +89,6 @@ class SesameBLETransport:
         Args:
             client: The BleakClient instance that disconnected.
         """
-        del client  # Unused in this callback.
         logger.debug(
             "BLE disconnected callback invoked [address=%s, is_expected=%s]",
             self.mac_address,
@@ -92,13 +100,13 @@ class SesameBLETransport:
         if self._unexpected_disconnect_task is not None:
             return
         self._unexpected_disconnect_task = asyncio.create_task(
-            self._handle_unexpected_disconnect()
+            self._handle_unexpected_disconnect(client)
         )
         self._unexpected_disconnect_task.add_done_callback(
             self._on_unexpected_disconnect_task_done
         )
 
-    async def _handle_unexpected_disconnect(self) -> None:
+    async def _handle_unexpected_disconnect(self, client: BleakClient) -> None:
         """Performs cleanup after an unexpected disconnection.
 
         Explicitly calling `disconnect()` after an unexpected disconnection is
@@ -112,7 +120,7 @@ class SesameBLETransport:
             asyncio.TimeoutError: If the disconnect operation times out.
         """
         try:
-            await self._bleak_client.disconnect()
+            await client.disconnect()
         finally:
             self._unexpected_disconnect_callback()
 
@@ -173,7 +181,7 @@ class SesameBLETransport:
         )
         self._received_data_callback(self._rx_buffer, packet.is_encrypted)
 
-    async def _get_sesame_advertisement_data(self) -> SesameAdvertisementData:
+    async def _get_sesame_advertisement_data(self) -> ScannedSesameDevice:
         """Scans for and retrieves the device's advertisement data.
 
         Returns:
@@ -193,7 +201,6 @@ class SesameBLETransport:
     def cleanup(self) -> None:
         """Resets internal buffers and state."""
         self._rx_buffer = b""
-        self._sesame_advertisement_data = None
 
     async def connect_and_start_notification(self) -> None:
         """Connects to the device and starts receiving notifications.
@@ -202,13 +209,17 @@ class SesameBLETransport:
             SesameConnectionError: If already connected, if the device cannot be
                 found, or if the connection attempt fails.
         """
-        if self._bleak_client.is_connected:
+        if self.is_connected:
             raise SesameConnectionError("Already connected")
         logger.debug(
             "Initiating communication with Sesame device [address=%s]",
             self.mac_address,
         )
-        self._sesame_advertisement_data = await self._get_sesame_advertisement_data()
+        if self._scanned_sesame_device is None:
+            self._scanned_sesame_device = await self._get_sesame_advertisement_data()
+        self._bleak_client = BleakClient(
+            self._scanned_sesame_device.ble_device, self.on_disconnect
+        )
         logger.debug("Initiating BLE connection [address=%s]", self.mac_address)
         try:
             await self._bleak_client.connect()
@@ -237,7 +248,7 @@ class SesameBLETransport:
         Raises:
             SesameConnectionError: If the device is not connected.
         """
-        if not self._bleak_client.is_connected:
+        if not self.is_connected or self._bleak_client is None:
             raise SesameConnectionError("Not connected")
         payload_max_len = MTU_SIZE - 1  # 1 byte for header
         total_len = len(send_data)
@@ -265,7 +276,7 @@ class SesameBLETransport:
 
     async def disconnect(self) -> None:
         """Disconnects from the Sesame device if currently connected."""
-        if self._bleak_client.is_connected:
+        if self.is_connected and self._bleak_client is not None:
             logger.debug("Closing BLE connection [address=%s]", self.mac_address)
             self._is_expectedly_disconnected = True
             await self._bleak_client.disconnect()
@@ -283,7 +294,7 @@ class SesameBLETransport:
         Returns:
             The BLE MAC address as a string.
         """
-        return self._bleak_client.address
+        return self._mac_address
 
     @property
     def sesame_advertisement_data(self) -> SesameAdvertisementData:
@@ -293,12 +304,12 @@ class SesameBLETransport:
             The parsed advertisement data.
 
         Raises:
-            SesameConnectionError: If the device is not connected and no data
+            SesameConnectionError: If the device is not scanned and no data
                 is available.
         """
-        if self._sesame_advertisement_data is None:
-            raise SesameConnectionError("Not connected")
-        return self._sesame_advertisement_data
+        if self._scanned_sesame_device is None:
+            raise SesameConnectionError("Not scanned yet")
+        return self._scanned_sesame_device.sesame_advertisement_data
 
     @property
     def is_connected(self) -> bool:
@@ -307,4 +318,6 @@ class SesameBLETransport:
         Returns:
             True if connected, False otherwise.
         """
+        if self._bleak_client is None:
+            return False
         return self._bleak_client.is_connected
