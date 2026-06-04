@@ -25,14 +25,10 @@ class SesameScanner:
 
     Maintains a dictionary of detected devices and allows registering callbacks
     to process discoveries asynchronously.
-
-    Attributes:
-        detected_devices: A dictionary mapping BLE MAC addresses to their parsed
-            SesameAdvertisementData.
     """
 
     def __init__(
-        self, callback: Callable[[str, ScannedSesameDevice], None] | None = None
+        self, callback: Callable[[ScannedSesameDevice], None] | None = None
     ) -> None:
         """Initializes the scanner with an optional discovery callback.
 
@@ -41,7 +37,7 @@ class SesameScanner:
                 The same device may trigger this callback multiple times.
         """
         self._detection_callbacks: dict[
-            object, Callable[[str, ScannedSesameDevice], None]
+            object, Callable[[ScannedSesameDevice], None]
         ] = {}
         self._seen_devices: dict[str, ScannedSesameDevice] = {}
         self._scanner = BleakScanner(
@@ -68,7 +64,7 @@ class SesameScanner:
         )
         self._seen_devices[device.address] = scanned_sesame
         for callback in self._detection_callbacks.values():
-            callback(device.address, scanned_sesame)
+            callback(scanned_sesame)
 
     async def __aenter__(self) -> Self:
         """Starts the BLE scanning process upon entering the async context.
@@ -98,13 +94,12 @@ class SesameScanner:
         logger.info("BLE scanner stopped [devices_found=%d]", len(self._seen_devices))
 
     def register_detection_callback(
-        self, callback: Callable[[str, ScannedSesameDevice], None]
+        self, callback: Callable[[ScannedSesameDevice], None]
     ) -> Callable[[], None]:
         """Registers a function to be called when a Sesame device is discovered.
 
         Args:
-            callback: The function to invoke with the MAC address and parsed
-                advertisement data.
+            callback: The function to invoke with the detected ScannedSesameDevice object.
 
         Returns:
             A function that unregisters the callback when invoked.
@@ -119,20 +114,15 @@ class SesameScanner:
 
     async def detected_devices_generator(
         self,
-    ) -> AsyncGenerator[tuple[str, ScannedSesameDevice], None]:
+    ) -> AsyncGenerator[ScannedSesameDevice, None]:
         """Provides an asynchronous stream of detected device events.
 
         Yields:
-            A tuple containing the device's MAC address and its parsed
-            advertisement data.
+            ScannedSesameDevice objects as they are detected by the scanner.
         """
-        detected_devices_queue: asyncio.Queue[tuple[str, ScannedSesameDevice]] = (
-            asyncio.Queue()
-        )
+        detected_devices_queue: asyncio.Queue[ScannedSesameDevice] = asyncio.Queue()
         unregister_detection_callback = self.register_detection_callback(
-            lambda address, sesame_adv_data: detected_devices_queue.put_nowait(
-                (address, sesame_adv_data)
-            )
+            detected_devices_queue.put_nowait
         )
         try:
             while True:
@@ -152,34 +142,30 @@ class SesameScanner:
     @classmethod
     async def find_device_by_filter(
         cls,
-        filter_func: Callable[[str, ScannedSesameDevice], bool],
+        filter_func: Callable[[ScannedSesameDevice], bool],
         timeout: float = SCAN_TIMEOUT,
-    ) -> tuple[str, ScannedSesameDevice] | None:
+    ) -> ScannedSesameDevice | None:
         """Scans for a device that satisfies a given filtering condition.
 
         Args:
-            filter_func: A function that takes a MAC address and advertisement
-                data, returning True if the device matches the desired criteria.
+            filter_func: A function that takes a ScannedSesameDevice object
+                and returns True if the device matches the desired criteria.
             timeout: The maximum duration in seconds to scan.
 
         Returns:
-            A tuple of the MAC address and advertisement data if a matching device
-            is found, or None if the timeout expires.
+            The scanned Sesame device if a matching device is found, or None if the timeout expires.
         """
 
         async def find_task():
             async with cls() as scanner:
-                async for (
-                    address,
-                    scanned_sesame,
-                ) in scanner.detected_devices_generator():
-                    if filter_func(address, scanned_sesame):
+                async for scanned_sesame in scanner.detected_devices_generator():
+                    if filter_func(scanned_sesame):
                         logger.info(
                             "Found matching device [address=%s, model=%s]",
-                            address,
+                            scanned_sesame.mac_address,
                             scanned_sesame.sesame_advertisement_data.product_model.name,
                         )
-                        return address, scanned_sesame
+                        return scanned_sesame
 
         try:
             logger.info("Searching for device with filter [timeout=%.1fs]", timeout)
@@ -191,7 +177,7 @@ class SesameScanner:
     @classmethod
     async def find_device_by_address(
         cls, address: str, timeout: float = SCAN_TIMEOUT
-    ) -> tuple[str, ScannedSesameDevice] | None:
+    ) -> ScannedSesameDevice | None:
         """Scans for a device matching a specific MAC address.
 
         Args:
@@ -199,18 +185,19 @@ class SesameScanner:
             timeout: The maximum duration in seconds to scan.
 
         Returns:
-            A tuple of the MAC address and advertisement data if the device
-            is found, or None if the timeout expires.
+            The scanned Sesame device if found, or None if the timeout expires.
         """
         return await cls.find_device_by_filter(
-            lambda detected_address, _: detected_address.lower() == address.lower(),
+            lambda scanned_sesame: (
+                scanned_sesame.mac_address.lower() == address.lower()
+            ),
             timeout,
         )
 
     @classmethod
     async def find_device_by_uuid(
         cls, uuid: UUID, timeout: float = SCAN_TIMEOUT
-    ) -> tuple[str, ScannedSesameDevice] | None:
+    ) -> ScannedSesameDevice | None:
         """Scans for a device matching a specific UUID.
 
         Args:
@@ -218,11 +205,10 @@ class SesameScanner:
             timeout: The maximum duration in seconds to scan.
 
         Returns:
-            A tuple of the MAC address and advertisement data if the device
-            is found, or None if the timeout expires.
+            The scanned Sesame device if found, or None if the timeout expires.
         """
         return await cls.find_device_by_filter(
-            lambda _, scanned_sesame: (
+            lambda scanned_sesame: (
                 scanned_sesame.sesame_advertisement_data.device_uuid == uuid
             ),
             timeout,

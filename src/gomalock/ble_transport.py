@@ -196,7 +196,7 @@ class SesameBLETransport:
         )
         if found_device is None:
             raise SesameConnectionError("Device not found")
-        return found_device[1]
+        return found_device
 
     def cleanup(self) -> None:
         """Resets internal buffers and state."""
