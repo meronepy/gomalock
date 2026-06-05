@@ -230,6 +230,48 @@ async def test_connect_and_start_notification_success(
 
 
 @pytest.mark.asyncio
+async def test_connect_and_start_notification_with_scanned_device_skips_scan(
+    advertisement_data,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Connects directly when initialized with a scanned Sesame device."""
+    scanned_device = make_scanned_device(advertisement_data)
+    received_callback = Mock()
+    disconnect_callback = Mock()
+    transport = ble_transport.SesameBLETransport(
+        scanned_device,
+        received_callback,
+        disconnect_callback,
+    )
+    client = Mock()
+    client.is_connected = False
+    client.connect = AsyncMock()
+    client.start_notify = AsyncMock()
+    finder = AsyncMock()
+    bleak_client = Mock(return_value=client)
+    monkeypatch.setattr(ble_transport, "BleakClient", bleak_client)
+    monkeypatch.setattr(
+        ble_transport.SesameScanner,
+        "find_device_by_address",
+        finder,
+    )
+
+    await transport.connect_and_start_notification()
+
+    finder.assert_not_awaited()
+    bleak_client.assert_called_once_with(
+        scanned_device.ble_device,
+        transport.on_disconnect,
+    )
+    client.connect.assert_awaited_once_with(timeout=const.SCAN_TIMEOUT)
+    client.start_notify.assert_awaited_once_with(
+        const.UUID_NOTIFICATION,
+        transport.on_notification,
+    )
+    assert transport.sesame_advertisement_data == advertisement_data
+
+
+@pytest.mark.asyncio
 async def test_connect_and_start_notification_connected() -> None:
     """Raises SesameConnectionError when already connected."""
     transport, client, _, _ = make_transport(is_connected=True)
