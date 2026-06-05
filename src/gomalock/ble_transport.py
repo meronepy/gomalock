@@ -176,7 +176,7 @@ class SesameBLETransport:
         )
         self._received_data_callback(self._rx_buffer, packet.is_encrypted)
 
-    async def _get_sesame_advertisement_data(self) -> ScannedSesameDevice:
+    async def _get_scanned_sesame_device(self) -> ScannedSesameDevice:
         """Scans for and retrieves the Sesame device.
 
         Returns:
@@ -211,7 +211,7 @@ class SesameBLETransport:
             self.mac_address,
         )
         if isinstance(self._identifier, str):
-            self._identifier = await self._get_sesame_advertisement_data()
+            self._identifier = await self._get_scanned_sesame_device()
         self._bleak_client = BleakClient(
             self._identifier.ble_device, self.on_disconnect
         )
