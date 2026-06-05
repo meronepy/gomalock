@@ -276,7 +276,10 @@ class BaseSesameOS3Lock[LockSelfT: "BaseSesameOS3Lock", MechStatusT](ABC):
                 self._login_completed.wait(), timeout=PUBLISH_TIMEOUT
             )
         except Exception:
-            await self.disconnect()
+            if self.is_connected:
+                await self.disconnect()
+            else:
+                self._cleanup()
             raise
         self._device_status = DeviceStatus.LOGGED_IN
         logger.info(
