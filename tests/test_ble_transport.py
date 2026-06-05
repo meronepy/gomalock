@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, Mock
 import pytest
 from bleak.exc import BleakDeviceNotFoundError
 
-from gomalock import ble_transport, const, exc
+from gomalock import ble_transport, const, exc, protocol_types
 from tests.conftest import TEST_ADDRESS
 
 
@@ -70,6 +70,16 @@ def make_transport(
     client.write_gatt_char = AsyncMock()
     transport._bleak_client = client
     return transport, client, received_callback, disconnect_callback
+
+
+def make_scanned_device(
+    advertisement_data: protocol_types.SesameAdvertisementData,
+) -> protocol_types.ScannedSesameDevice:
+    """Creates a scanned Sesame device test double."""
+    return protocol_types.ScannedSesameDevice(
+        Mock(address=TEST_ADDRESS),
+        advertisement_data,
+    )
 
 
 def test_on_notification_partial_packet() -> None:
@@ -195,7 +205,10 @@ async def test_connect_and_start_notification_success(
 ) -> None:
     """Scans, connects, and starts notifications."""
     transport, client, _, _ = make_transport(is_connected=False)
-    finder = AsyncMock(return_value=(TEST_ADDRESS, advertisement_data))
+    scanned_device = make_scanned_device(advertisement_data)
+    finder = AsyncMock(return_value=scanned_device)
+    bleak_client = Mock(return_value=client)
+    monkeypatch.setattr(ble_transport, "BleakClient", bleak_client)
     monkeypatch.setattr(
         ble_transport.SesameScanner,
         "find_device_by_address",
@@ -205,6 +218,7 @@ async def test_connect_and_start_notification_success(
     await transport.connect_and_start_notification()
 
     finder.assert_awaited_once_with(TEST_ADDRESS, timeout=const.SCAN_TIMEOUT)
+    bleak_client.assert_called_once_with(scanned_device.ble_device, transport.on_disconnect)
     client.connect.assert_awaited_once()
     client.start_notify.assert_awaited_once_with(
         const.UUID_NOTIFICATION,
@@ -248,10 +262,11 @@ async def test_connect_and_start_notification_bleak_not_found(
     """Wraps BleakDeviceNotFoundError in SesameConnectionError."""
     transport, client, _, _ = make_transport(is_connected=False)
     client.connect.side_effect = BleakDeviceNotFoundError(TEST_ADDRESS)
+    monkeypatch.setattr(ble_transport, "BleakClient", Mock(return_value=client))
     monkeypatch.setattr(
         ble_transport.SesameScanner,
         "find_device_by_address",
-        AsyncMock(return_value=(TEST_ADDRESS, advertisement_data)),
+        AsyncMock(return_value=make_scanned_device(advertisement_data)),
     )
 
     with pytest.raises(exc.SesameConnectionError):
@@ -314,7 +329,7 @@ async def test_disconnect_disconnected() -> None:
 def test_properties_available(advertisement_data) -> None:
     """Returns delegated BLE state and cached advertisement data."""
     transport, _, _, _ = make_transport(is_connected=True)
-    transport._identifier = advertisement_data
+    transport._identifier = make_scanned_device(advertisement_data)
 
     assert transport.mac_address == TEST_ADDRESS
     assert transport.is_connected is True

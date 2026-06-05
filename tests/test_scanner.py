@@ -60,6 +60,17 @@ def make_advertisement(
     )
 
 
+def make_scanned_device(
+    address: str = TEST_ADDRESS,
+    advertisement: protocol_types.SesameAdvertisementData | None = None,
+) -> protocol_types.ScannedSesameDevice:
+    """Creates a scanned Sesame device test double."""
+    return protocol_types.ScannedSesameDevice(
+        Mock(address=address),
+        advertisement or make_advertisement(),
+    )
+
+
 def make_ble_advertisement(manufacturer_data: bytes) -> tuple[Mock, Mock]:
     """Creates BLE device and advertisement test doubles."""
     ble_device = Mock(address=TEST_ADDRESS)
@@ -69,18 +80,14 @@ def make_ble_advertisement(manufacturer_data: bytes) -> tuple[Mock, Mock]:
 
 
 def test_detected_devices_supported_model() -> None:
-    """Stores Sesame advertisements keyed by device address."""
+    """Stores scanned Sesame devices keyed by device address."""
     sesame_scanner = scanner.SesameScanner()
 
     FakeBleakScanner.instances[-1].emit(make_manufacturer_data())
 
-    assert sesame_scanner.detected_devices == {
-        TEST_ADDRESS: protocol_types.SesameAdvertisementData(
-            const.ProductModels.SESAME5,
-            True,
-            TEST_UUID,
-        )
-    }
+    scanned_device = sesame_scanner.detected_devices[TEST_ADDRESS]
+    assert scanned_device.mac_address == TEST_ADDRESS
+    assert scanned_device.sesame_advertisement_data == make_advertisement()
 
 
 def test_detected_devices_unsupported_model() -> None:
@@ -96,13 +103,16 @@ def test_detected_devices_unsupported_model() -> None:
 
 
 def test_register_detection_callback_invoked() -> None:
-    """Calls registered callbacks with address and parsed advertisement data."""
+    """Calls registered callbacks with a scanned Sesame device."""
     callback = Mock()
     scanner.SesameScanner(callback)
 
     FakeBleakScanner.instances[-1].emit(make_manufacturer_data())
 
-    callback.assert_called_once_with(TEST_ADDRESS, make_advertisement())
+    callback.assert_called_once()
+    scanned_device = callback.call_args.args[0]
+    assert scanned_device.mac_address == TEST_ADDRESS
+    assert scanned_device.sesame_advertisement_data == make_advertisement()
 
 
 def test_register_detection_callback_unregistered() -> None:
@@ -127,7 +137,9 @@ async def test_detected_devices_generator_yields() -> None:
 
     FakeBleakScanner.instances[-1].emit(make_manufacturer_data())
 
-    assert await next_item == (TEST_ADDRESS, make_advertisement())
+    scanned_device = await next_item
+    assert scanned_device.mac_address == TEST_ADDRESS
+    assert scanned_device.sesame_advertisement_data == make_advertisement()
     await generator.aclose()
 
 
@@ -158,10 +170,11 @@ async def test_find_device_by_filter_match(monkeypatch: pytest.MonkeyPatch) -> N
     """Returns the first detected device matching the filter."""
     first = make_advertisement(const.ProductModels.SESAME5)
     second = make_advertisement(const.ProductModels.SESAME5_PRO)
+    matching_device = make_scanned_device(TEST_ADDRESS, second)
 
     async def fake_generator(_self):
-        yield ("11:22:33:44:55:66", first)
-        yield (TEST_ADDRESS, second)
+        yield make_scanned_device("11:22:33:44:55:66", first)
+        yield matching_device
 
     monkeypatch.setattr(
         scanner.SesameScanner, "detected_devices_generator", fake_generator
@@ -170,11 +183,11 @@ async def test_find_device_by_filter_match(monkeypatch: pytest.MonkeyPatch) -> N
     monkeypatch.setattr(scanner.SesameScanner, "stop", AsyncMock())
 
     result = await scanner.SesameScanner.find_device_by_filter(
-        lambda address, _: address == TEST_ADDRESS,
+        lambda scanned_device: scanned_device.mac_address == TEST_ADDRESS,
         timeout=1,
     )
 
-    assert result == (TEST_ADDRESS, second)
+    assert result == matching_device
 
 
 @pytest.mark.asyncio
@@ -191,7 +204,7 @@ async def test_find_device_by_filter_timeout(
     monkeypatch.setattr(scanner.asyncio, "wait_for", fake_wait_for)
 
     result = await scanner.SesameScanner.find_device_by_filter(
-        lambda *_: True,
+        lambda _: True,
         timeout=0.01,
     )
 
@@ -209,8 +222,8 @@ async def test_find_device_by_address_case_insensitive(
     await scanner.SesameScanner.find_device_by_address(TEST_ADDRESS)
 
     filter_func = finder.call_args.args[0]
-    assert filter_func(TEST_ADDRESS.lower(), make_advertisement()) is True
-    assert filter_func("00:00:00:00:00:00", make_advertisement()) is False
+    assert filter_func(make_scanned_device(TEST_ADDRESS.lower())) is True
+    assert filter_func(make_scanned_device("00:00:00:00:00:00")) is False
 
 
 @pytest.mark.asyncio
@@ -222,14 +235,15 @@ async def test_find_device_by_uuid_match(monkeypatch: pytest.MonkeyPatch) -> Non
     await scanner.SesameScanner.find_device_by_uuid(TEST_UUID)
 
     filter_func = finder.call_args.args[0]
-    assert filter_func(TEST_ADDRESS, make_advertisement()) is True
+    assert filter_func(make_scanned_device()) is True
     assert (
         filter_func(
-            TEST_ADDRESS,
-            protocol_types.SesameAdvertisementData(
-                const.ProductModels.SESAME5,
-                True,
-                UUID("abcdef01-2345-6789-abcd-ef0123456789"),
+            make_scanned_device(
+                advertisement=protocol_types.SesameAdvertisementData(
+                    const.ProductModels.SESAME5,
+                    True,
+                    UUID("abcdef01-2345-6789-abcd-ef0123456789"),
+                )
             ),
         )
         is False
@@ -241,7 +255,7 @@ async def test_discover_returns_detected_devices(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Returns all devices detected during the scan window."""
-    detected = {TEST_ADDRESS: make_advertisement()}
+    detected = {TEST_ADDRESS: make_scanned_device()}
     scanner_instance = Mock(detected_devices=detected)
     monkeypatch.setattr(
         scanner.SesameScanner,
@@ -264,6 +278,6 @@ def test_detected_devices_copy() -> None:
     FakeBleakScanner.instances[-1].emit(make_manufacturer_data())
 
     detected = sesame_scanner.detected_devices
-    detected["new"] = make_advertisement()
+    detected["new"] = make_scanned_device("00:00:00:00:00:00")
 
     assert "new" not in sesame_scanner.detected_devices
