@@ -170,11 +170,7 @@ class BaseSesameOS3Lock[LockSelfT: "BaseSesameOS3Lock", MechStatusT](ABC):
             SesameConnectionError: If a connection or auto-reconnection is already
                 in progress, or if the device cannot be found.
         """
-        if (
-            self._reconnect_task is not None
-            and not self._reconnect_task.done()
-            and asyncio.current_task() is not self._reconnect_task
-        ):
+        if self.is_background_reconnecting:
             raise SesameConnectionError(
                 "Cannot connect while auto-reconnection is in progress"
             )
@@ -229,11 +225,7 @@ class BaseSesameOS3Lock[LockSelfT: "BaseSesameOS3Lock", MechStatusT](ABC):
             SesameLoginError: If already logged in or if no secret key is available.
             SesameOperationError: If the login command fails.
         """
-        if (
-            self._reconnect_task is not None
-            and not self._reconnect_task.done()
-            and asyncio.current_task() is not self._reconnect_task
-        ):
+        if self.is_background_reconnecting:
             raise SesameConnectionError(
                 "Cannot login while auto-reconnection is in progress"
             )
@@ -262,11 +254,7 @@ class BaseSesameOS3Lock[LockSelfT: "BaseSesameOS3Lock", MechStatusT](ABC):
 
     async def disconnect(self) -> None:
         """Disconnects from the device and stops any active auto-reconnection tasks."""
-        if (
-            self._reconnect_task is not None
-            and not self._reconnect_task.done()
-            and asyncio.current_task() is not self._reconnect_task
-        ):
+        if self.is_background_reconnecting and self._reconnect_task is not None:
             self._reconnect_task.cancel()
             try:
                 await self._reconnect_task
@@ -328,6 +316,20 @@ class BaseSesameOS3Lock[LockSelfT: "BaseSesameOS3Lock", MechStatusT](ABC):
         Args:
             publish_data: The data object published by the device.
         """
+
+    @property
+    def is_background_reconnecting(self) -> bool:
+        """Returns True if a reconnection task is running in the background.
+
+        Returns :
+            False if no task exists, the task has completed,
+            or the caller is the reconnection task itself.
+        """
+        return (
+            self._reconnect_task is not None
+            and not self._reconnect_task.done()
+            and asyncio.current_task() is not self._reconnect_task
+        )
 
     @property
     def mac_address(self) -> str:
