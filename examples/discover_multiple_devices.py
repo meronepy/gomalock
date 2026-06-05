@@ -35,7 +35,13 @@ async def discover_together(*args: str) -> set[gomalock.ScannedSesameDevice]:
 
 
 async def main():
-    devices = await discover_together(*TARGET_DEVICE_DICT.keys())
+    try:
+        devices = await asyncio.wait_for(
+            discover_together(*TARGET_DEVICE_DICT.keys()), timeout=30
+        )
+    except asyncio.TimeoutError:
+        print("Device not found within the timeout")
+        return
     for device in devices:
         # By scanning all devices together and connecting to each target device
         # using ScannedSesameDevice instead of mac_address, the scanning process
