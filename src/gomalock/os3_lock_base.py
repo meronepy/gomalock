@@ -168,6 +168,14 @@ class BaseSesameOS3Lock[LockSelfT: "BaseSesameOS3Lock", MechStatusT](ABC):
         self._mech_status = None
         self._os3_device.cleanup()
 
+    def _handle_unsupported_publish(self, publish_data: ReceivedSesamePublish) -> None:
+        """Handles publish notifications unsupported by the concrete device."""
+        logger.debug(
+            "Received unhandled publish notification [address=%s, item=%s]",
+            self.mac_address,
+            publish_data.item_code.name,
+        )
+
     def register_mech_status_callback(
         self, callback: Callable[[LockSelfT, MechStatusT], None]
     ) -> Callable[[], None]:

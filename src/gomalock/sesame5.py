@@ -174,11 +174,7 @@ class Sesame5(BaseSesameOS3Lock["Sesame5", Sesame5MechStatus]):
                     publish_data.payload
                 )
             case _:
-                logger.debug(
-                    "Received unhandled publish notification [address=%s, item=%s]",
-                    self.mac_address,
-                    publish_data.item_code.name,
-                )
+                self._handle_unsupported_publish(publish_data)
         if (
             not self._login_completed.is_set()
             and self._mech_status is not None
