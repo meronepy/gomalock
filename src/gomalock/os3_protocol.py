@@ -200,7 +200,9 @@ class SesameOS3Protocol:
         """Initializes the OS3 protocol handler.
 
         Args:
-            mac_address_or_scanned_sesame: The BLE MAC address or scanned sesame device.
+            mac_address_or_scanned_sesame: The BLE MAC address or scanned Sesame
+                device. Passing a ScannedSesameDevice skips the discovery scan
+                performed before connection.
             publish_data_callback: A function called when publish notifications
                 are received from the device.
             unexpected_disconnect_callback: A function called when the BLE
@@ -484,12 +486,13 @@ class SesameOS3Protocol:
 
     @property
     def sesame_advertisement_data(self) -> SesameAdvertisementData:
-        """The advertisement data from the most recent scan.
+        """The advertisement data from the scanned Sesame device.
 
         Returns:
             The parsed advertisement data.
 
         Raises:
-            SesameConnectionError: If the device is not connected.
+            SesameConnectionError: If initialized with only a MAC address and the
+                device has not been scanned yet.
         """
         return self._ble_device.sesame_advertisement_data

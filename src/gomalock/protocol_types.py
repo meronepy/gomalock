@@ -57,7 +57,7 @@ class ScannedSesameDevice:
 
     Attributes:
         ble_device: The detected bleak BLEDevice.
-        sesame_advertisement_data: The Sesame specefic advertisement data.
+        sesame_advertisement_data: The Sesame-specific advertisement data.
     """
 
     ble_device: BLEDevice
@@ -65,7 +65,7 @@ class ScannedSesameDevice:
 
     @property
     def mac_address(self) -> str:
-        """The mac address of the detected Sesame device."""
+        """The MAC address of the detected Sesame device."""
         return self.ble_device.address
 
 

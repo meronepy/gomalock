@@ -177,10 +177,10 @@ class SesameBLETransport:
         self._received_data_callback(self._rx_buffer, packet.is_encrypted)
 
     async def _get_sesame_advertisement_data(self) -> ScannedSesameDevice:
-        """Scans for and retrieves the device's advertisement data.
+        """Scans for and retrieves the Sesame device.
 
         Returns:
-            The parsed advertisement data from the Sesame device.
+            The scanned Sesame device, including its BLE device and advertisement data.
 
         Raises:
             SesameConnectionError: If the device is not found within the timeout.
@@ -295,14 +295,14 @@ class SesameBLETransport:
 
     @property
     def sesame_advertisement_data(self) -> SesameAdvertisementData:
-        """The advertisement data from the most recent scan.
+        """The advertisement data from the scanned Sesame device.
 
         Returns:
             The parsed advertisement data.
 
         Raises:
-            SesameConnectionError: If the device is not scanned and no data
-                is available.
+            SesameConnectionError: If initialized with only a MAC address and the
+                device has not been scanned yet.
         """
         if isinstance(self._identifier, str):
             raise SesameConnectionError("Not scanned yet")

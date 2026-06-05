@@ -117,7 +117,8 @@ class Sesame5(BaseSesameOS3Lock["Sesame5", Sesame5MechStatus]):
     """Controls and monitors a Sesame 5 device.
 
     Provides methods to lock, unlock, toggle, and configure the device, while
-    tracking its current mechanical status and settings.
+    tracking its current mechanical status and settings. The constructor accepts
+    either a MAC address string or a ScannedSesameDevice for Sesame 5 models.
     """
 
     _VALID_MODEL_GROUPS = ModelGroups.SESAME5
@@ -135,12 +136,16 @@ class Sesame5(BaseSesameOS3Lock["Sesame5", Sesame5MechStatus]):
 
         Args:
             mac_address_or_scanned_sesame: The BLE MAC address of the device or
-                a scanned sesame device object.
+                a scanned Sesame device object. Passing a ScannedSesameDevice
+                skips the discovery scan performed before connection.
             secret_key: The hex-encoded secret key used for login.
             mech_status_callback: A function called whenever the device publishes
                 a new mechanical status.
             auto_reconnection_limit: The maximum number of consecutive auto-reconnection
                 attempts.
+
+        Raises:
+            ValueError: If the ScannedSesameDevice is not a Sesame 5 model.
         """
         super().__init__(
             mac_address_or_scanned_sesame,

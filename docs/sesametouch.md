@@ -7,14 +7,15 @@
 
 ---
 
-## `class gomalock.SesameTouch(mac_address: str, secret_key: str | None = None, mech_status_callback: Callable[[SesameTouch, SesameTouchMechStatus], None] | None = None, auto_reconnection_limit: int = 0)`
+## `class gomalock.SesameTouch(mac_address_or_scanned_sesame: str | ScannedSesameDevice, secret_key: str | None = None, mech_status_callback: Callable[[SesameTouch, SesameTouchMechStatus], None] | None = None, auto_reconnection_limit: int = 0)`
 
 - Sesame Touchとの接続、ログイン、操作などを行うクラスです
 - 引数`secret_key`が与えられた場合は非同期コンテキストマネージャー(`async with`)はログインを自動的に行います
 - 引数`secret_key`が`None`の場合は非同期コンテキストマネージャーは接続のみ自動で行います
+- Sesame 5系など異なるモデルの`ScannedSesameDevice`を渡すと`ValueError`を送出します
 
 - 引数
-  - mac_address: 接続するSesame TouchのMACアドレス
+  - mac_address_or_scanned_sesame: 接続するSesame TouchのMACアドレス、または`SesameScanner`で取得した`ScannedSesameDevice`
   - secret_key: 接続するSesame Touchのシークレットキー
   - mech_status_callback: 器械状態の変化時に呼び出されるコールバック関数
   - auto_reconnection_limit: 再接続の試行回数の上限 (デフォルトは`0`で無効)
@@ -32,7 +33,6 @@
 - 下記のメソッドを除き、再接続中に`async SesameTouch.lock()`や`async SesameTouch.unlock()`などの非同期メソッドが実行されると、再接続を待ってから実行されます
 - `async SesameTouch.disconnect()`を実行すると自動再接続を終了します
 - 自動再接続中に`async SesameTouch.connect()`または`async SesameTouch.login()`を手動で呼び出すと例外を送出します
-- `SesameTouch.generate_qr_url()`や`property SesameTouch.sesame_advertisement_data`のような、接続を必要とする通常のメソッド、プロパティは再接続を待たずに例外を送出します
 
 ### 操作
 
@@ -81,7 +81,7 @@
 
 - Sesame TouchのQRコードURLを生成します
 - 生成されたURLを基にQRコードを作成し、公式アプリでスキャンして鍵を共有できます
-- 接続後でないと実行できません
+- MACアドレス文字列で初期化した場合は接続後、`ScannedSesameDevice`で初期化した場合は接続前でも利用できます
 
 - 引数
   - device_name: 公式アプリに表示するデバイスの名前
@@ -116,7 +116,8 @@
 #### `property SesameTouch.sesame_advertisement_data: SesameAdvertisementData`
 
 - Sesame Touchが[アドバタイズしている情報](sesame_advertisement_data.md)
-- 接続前に参照すると、`SesameConnectionError`を送出します
+- `ScannedSesameDevice`で初期化した場合は接続前でも参照できます
+- MACアドレス文字列で初期化した場合は、スキャンが完了するまで`SesameConnectionError`を送出します
 
 #### `property SesameTouch.device_status: DeviceStatus`
 

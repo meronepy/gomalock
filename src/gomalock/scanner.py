@@ -24,7 +24,7 @@ class SesameScanner:
     """Scans for and tracks BLE advertisements from Sesame devices.
 
     Maintains a dictionary of detected devices and allows registering callbacks
-    to process discoveries asynchronously.
+    to process ScannedSesameDevice discoveries asynchronously.
     """
 
     def __init__(
@@ -34,6 +34,7 @@ class SesameScanner:
 
         Args:
             callback: A function invoked whenever a Sesame device is detected.
+                It receives a single ScannedSesameDevice argument.
                 The same device may trigger this callback multiple times.
         """
         self._detection_callbacks: dict[
@@ -99,7 +100,8 @@ class SesameScanner:
         """Registers a function to be called when a Sesame device is discovered.
 
         Args:
-            callback: The function to invoke with the detected ScannedSesameDevice object.
+            callback: The function to invoke with the detected ScannedSesameDevice
+                object.
 
         Returns:
             A function that unregisters the callback when invoked.
@@ -153,7 +155,8 @@ class SesameScanner:
             timeout: The maximum duration in seconds to scan.
 
         Returns:
-            The scanned Sesame device if a matching device is found, or None if the timeout expires.
+            The scanned Sesame device if a matching device is found, or None if
+            the timeout expires.
         """
 
         async def find_task():
@@ -224,7 +227,7 @@ class SesameScanner:
             timeout: The duration in seconds to actively scan.
 
         Returns:
-            A dictionary mapping MAC addresses to advertisement data for all
+            A dictionary mapping MAC addresses to ScannedSesameDevice objects for all
             discovered devices.
         """
         logger.info("Starting discovery [timeout=%s]", timeout)

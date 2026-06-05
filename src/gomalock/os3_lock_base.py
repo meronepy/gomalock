@@ -34,6 +34,8 @@ class BaseSesameOS3Lock[LockSelfT: "BaseSesameOS3Lock", MechStatusT](ABC):
 
     Provides common functionality such as connecting, logging in, handling
     unexpected disconnections, and processing mechanical status updates.
+    Concrete subclasses must define _VALID_MODEL_GROUPS to validate scanned
+    devices passed to the constructor.
     """
 
     _VALID_MODEL_GROUPS: ModelGroups
@@ -57,7 +59,9 @@ class BaseSesameOS3Lock[LockSelfT: "BaseSesameOS3Lock", MechStatusT](ABC):
         """Initializes the base lock interface.
 
         Args:
-            mac_address_or_scanned_sesame: The BLE MAC address or scanned sesame device.
+            mac_address_or_scanned_sesame: The BLE MAC address or scanned Sesame
+                device. Passing a ScannedSesameDevice skips the discovery scan
+                performed before connection.
             secret_key: The hex-encoded secret key used for authentication.
             mech_status_callback: A function invoked when the mechanical status
                 is updated.
@@ -342,7 +346,7 @@ class BaseSesameOS3Lock[LockSelfT: "BaseSesameOS3Lock", MechStatusT](ABC):
     def is_background_reconnecting(self) -> bool:
         """Returns True if a reconnection task is running in the background.
 
-        Returns :
+        Returns:
             False if no task exists, the task has completed,
             or the caller is the reconnection task itself.
         """
@@ -404,12 +408,13 @@ class BaseSesameOS3Lock[LockSelfT: "BaseSesameOS3Lock", MechStatusT](ABC):
 
     @property
     def sesame_advertisement_data(self) -> SesameAdvertisementData:
-        """The parsed advertisement data from the latest scan.
+        """The parsed advertisement data from the scanned Sesame device.
 
         Returns:
             The advertisement data object.
 
         Raises:
-            SesameConnectionError: If the device is not connected.
+            SesameConnectionError: If initialized with only a MAC address and the
+                device has not been scanned yet.
         """
         return self._os3_device.sesame_advertisement_data
