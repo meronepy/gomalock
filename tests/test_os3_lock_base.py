@@ -12,6 +12,8 @@ from tests.conftest import TEST_ADDRESS, TEST_UUID, make_mock_os3_device
 class DummyLock(os3_lock_base.BaseSesameOS3Lock["DummyLock", int]):
     """Minimal concrete lock used to exercise the base class."""
 
+    _VALID_MODEL_GROUPS = const.ModelGroups.SESAME5
+
     def on_published(self, publish_data: protocol_types.ReceivedSesamePublish) -> None:
         """Updates status and completes login from public publish handling."""
         self._mech_status = int.from_bytes(publish_data.payload, "little")
@@ -50,6 +52,16 @@ def publish_status(lock: DummyLock, value: int = 7) -> None:
             value.to_bytes(1, "little"),
         )
     )
+
+
+def test_subclass_requires_valid_model_groups() -> None:
+    """Requires concrete subclasses to declare the valid model group."""
+    with pytest.raises(TypeError):
+        type(
+            "MissingValidModelGroups",
+            (os3_lock_base.BaseSesameOS3Lock,),
+            {"on_published": lambda self, publish_data: None},
+        )
 
 
 @pytest.mark.asyncio

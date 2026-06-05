@@ -120,6 +120,8 @@ class Sesame5(BaseSesameOS3Lock["Sesame5", Sesame5MechStatus]):
     tracking its current mechanical status and settings.
     """
 
+    _VALID_MODEL_GROUPS = ModelGroups.SESAME5
+
     def __init__(
         self,
         mac_address_or_scanned_sesame: str | ScannedSesameDevice,
@@ -140,12 +142,6 @@ class Sesame5(BaseSesameOS3Lock["Sesame5", Sesame5MechStatus]):
             auto_reconnection_limit: The maximum number of consecutive auto-reconnection
                 attempts.
         """
-        if (
-            isinstance(mac_address_or_scanned_sesame, ScannedSesameDevice)
-            and mac_address_or_scanned_sesame.sesame_advertisement_data.product_model
-            not in ModelGroups.SESAME5.value
-        ):
-            raise ValueError("An invalid model ScannedSesameDevice was provided")
         super().__init__(
             mac_address_or_scanned_sesame,
             secret_key,

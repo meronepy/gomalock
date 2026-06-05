@@ -11,7 +11,13 @@ import random
 from abc import ABC, abstractmethod
 from typing import Callable, Self
 
-from .const import PUBLISH_TIMEOUT, RECONNECT_MAX_BACKOFF, DeviceStatus, KeyLevels
+from .const import (
+    PUBLISH_TIMEOUT,
+    RECONNECT_MAX_BACKOFF,
+    DeviceStatus,
+    KeyLevels,
+    ModelGroups,
+)
 from .exc import SesameConnectionError, SesameLoginError
 from .os3_protocol import OS3QRCode, SesameOS3Protocol
 from .protocol_types import (
@@ -30,6 +36,17 @@ class BaseSesameOS3Lock[LockSelfT: "BaseSesameOS3Lock", MechStatusT](ABC):
     unexpected disconnections, and processing mechanical status updates.
     """
 
+    _VALID_MODEL_GROUPS: ModelGroups
+
+    def __init_subclass__(cls, **kwargs):
+        """Ensures that subclasses define the required class variable."""
+        super().__init_subclass__(**kwargs)
+        if not hasattr(cls, "_VALID_MODEL_GROUPS"):
+            raise TypeError(
+                f"Can't instantiate abstract class {cls.__name__} "
+                f"without an implementation for abstract class variable '_VALID_MODEL_GROUPS'"
+            )
+
     def __init__(
         self,
         mac_address_or_scanned_sesame: str | ScannedSesameDevice,
@@ -47,6 +64,12 @@ class BaseSesameOS3Lock[LockSelfT: "BaseSesameOS3Lock", MechStatusT](ABC):
             auto_reconnection_limit: The maximum number of consecutive attempts
                 to automatically reconnect to the device.
         """
+        if (
+            isinstance(mac_address_or_scanned_sesame, ScannedSesameDevice)
+            and mac_address_or_scanned_sesame.sesame_advertisement_data.product_model
+            not in type(self)._VALID_MODEL_GROUPS.value
+        ):
+            raise ValueError("An invalid model ScannedSesameDevice was provided")
         self._os3_device = SesameOS3Protocol(
             mac_address_or_scanned_sesame,
             self.on_published,
