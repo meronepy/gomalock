@@ -93,7 +93,11 @@ def create_history_tag(history_name: str) -> bytes:
     Returns:
         A byte string representing the length-prefixed history tag.
     """
-    payload = history_name.encode("utf-8")[:HISTORY_TAG_MAX_LEN]
+    payload = (
+        history_name.encode("utf-8")[:HISTORY_TAG_MAX_LEN]
+        .decode("utf-8", errors="ignore")
+        .encode("utf-8")
+    )
     return len(payload).to_bytes(1, byteorder="little") + payload
 
 

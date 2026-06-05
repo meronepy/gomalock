@@ -109,11 +109,13 @@ def test_create_history_tag_empty() -> None:
 
 
 def test_create_history_tag_multibyte() -> None:
-    """Truncates multibyte strings by encoded byte length."""
+    """Truncates multibyte strings without splitting UTF-8 characters."""
     tag = os3_protocol.create_history_tag("あ" * 20)
 
-    assert tag[0] == const.HISTORY_TAG_MAX_LEN
-    assert len(tag[1:]) == const.HISTORY_TAG_MAX_LEN
+    payload = tag[1:]
+    assert tag[0] == len(payload)
+    assert len(payload) <= const.HISTORY_TAG_MAX_LEN
+    assert payload.decode("utf-8") == "あ" * 6
 
 
 def test_from_qr_url_roundtrip() -> None:
