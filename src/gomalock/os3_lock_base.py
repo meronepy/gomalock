@@ -23,7 +23,7 @@ from .protocol_types import (
 logger = logging.getLogger(__name__)
 
 
-class BaseSesameOS3Lock[LockSelfT, MechStatusT](ABC):
+class BaseSesameOS3Lock[LockSelfT: "BaseSesameOS3Lock", MechStatusT](ABC):
     """Abstract base class for interacting with Sesame OS3 devices.
 
     Provides common functionality such as connecting, logging in, handling
