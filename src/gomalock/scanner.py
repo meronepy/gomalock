@@ -55,7 +55,7 @@ class SesameScanner:
             sesame_adv_data = SesameAdvertisementData.from_manufacturer_data(
                 adv_data.manufacturer_data[COMPANY_ID]
             )
-        except (ValueError, struct.error):
+        except (ValueError, KeyError, struct.error):
             return
         scanned_sesame = ScannedSesameDevice(device, sesame_adv_data)
         logger.debug(
