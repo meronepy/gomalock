@@ -236,7 +236,11 @@ class SesameOS3Protocol:
                     "Ignoring encrypted data received before cipher initialization"
                 )
                 return
-            data = self._cipher.decrypt(data)
+            try:
+                data = self._cipher.decrypt(data)
+            except (ValueError, OverflowError):
+                logger.exception("Failed to decrypt received data")
+                return
             logger.debug("Decrypted received data [size=%d]", len(data))
         try:
             sesame_message = ReceivedSesameMessage.from_reassembled_data(data)
