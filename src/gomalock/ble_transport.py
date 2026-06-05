@@ -217,7 +217,7 @@ class SesameBLETransport:
         )
         logger.debug("Initiating BLE connection [address=%s]", self.mac_address)
         try:
-            await self._bleak_client.connect()
+            await self._bleak_client.connect(timeout=SCAN_TIMEOUT)
         except BleakDeviceNotFoundError as e:
             raise SesameConnectionError("Failed to connect to device") from e
         logger.debug(
