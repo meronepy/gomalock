@@ -218,7 +218,9 @@ async def test_connect_and_start_notification_success(
     await transport.connect_and_start_notification()
 
     finder.assert_awaited_once_with(TEST_ADDRESS, timeout=const.SCAN_TIMEOUT)
-    bleak_client.assert_called_once_with(scanned_device.ble_device, transport.on_disconnect)
+    bleak_client.assert_called_once_with(
+        scanned_device.ble_device, transport.on_disconnect
+    )
     client.connect.assert_awaited_once()
     client.start_notify.assert_awaited_once_with(
         const.UUID_NOTIFICATION,
