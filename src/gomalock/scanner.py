@@ -64,7 +64,7 @@ class SesameScanner:
             sesame_adv_data.product_model.name,
         )
         self._seen_devices[device.address] = scanned_sesame
-        for callback in self._detection_callbacks.values():
+        for callback in tuple(self._detection_callbacks.values()):
             callback(scanned_sesame)
 
     async def __aenter__(self) -> Self:
