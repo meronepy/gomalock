@@ -167,7 +167,7 @@ class Sesame5(BaseSesameOS3Lock["Sesame5", Sesame5MechStatus]):
         match publish_data.item_code:
             case ItemCodes.MECH_STATUS:
                 self._mech_status = Sesame5MechStatus.from_payload(publish_data.payload)
-                for callback in self._mech_status_callbacks.values():
+                for callback in tuple(self._mech_status_callbacks.values()):
                     callback(self, self._mech_status)
             case ItemCodes.MECH_SETTING:
                 self._mech_setting = Sesame5MechSetting.from_payload(

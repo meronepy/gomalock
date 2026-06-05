@@ -99,7 +99,7 @@ class SesameTouch(BaseSesameOS3Lock["SesameTouch", SesameTouchMechStatus]):
                 self._mech_status = SesameTouchMechStatus.from_payload(
                     publish_data.payload
                 )
-                for callback in self._mech_status_callbacks.values():
+                for callback in tuple(self._mech_status_callbacks.values()):
                     callback(self, self._mech_status)
             case _:
                 self._handle_unsupported_publish(publish_data)
