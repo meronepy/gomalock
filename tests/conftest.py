@@ -7,24 +7,24 @@ from uuid import UUID
 
 import pytest
 
-from gomalock import const, protocol_types
+from gomalock import _const, _protocol_types
 
 TEST_ADDRESS = "AA:BB:CC:DD:EE:FF"
 TEST_UUID = UUID("01234567-89ab-cdef-0123-456789abcdef")
 
 
 @pytest.fixture
-def advertisement_data() -> protocol_types.SesameAdvertisementData:
+def advertisement_data() -> _protocol_types.SesameAdvertisementData:
     """Returns a representative Sesame advertisement."""
-    return protocol_types.SesameAdvertisementData(
-        const.ProductModel.SESAME_5,
+    return _protocol_types.SesameAdvertisementData(
+        _const.ProductModel.SESAME_5,
         True,
         TEST_UUID,
     )
 
 
 def make_manufacturer_data(
-    model: const.ProductModel = const.ProductModel.SESAME_5,
+    model: _const.ProductModel = _const.ProductModel.SESAME_5,
     registered: int = 1,
     device_uuid: UUID = TEST_UUID,
 ) -> bytes:
@@ -35,7 +35,7 @@ def make_manufacturer_data(
 def make_mock_os3_device(
     *,
     is_connected: bool = False,
-    product_model: const.ProductModel = const.ProductModel.SESAME_5,
+    product_model: _const.ProductModel = _const.ProductModel.SESAME_5,
     secret_key: bytes = b"\x11" * 16,
 ) -> Mock:
     """Creates an OS3 protocol test double."""
@@ -48,7 +48,7 @@ def make_mock_os3_device(
     type(mock_os3).is_connected = property(lambda _: is_connected)
     type(mock_os3).address = property(lambda _: TEST_ADDRESS)
     type(mock_os3).advertisement_data = property(
-        lambda _: protocol_types.SesameAdvertisementData(
+        lambda _: _protocol_types.SesameAdvertisementData(
             product_model,
             True,
             TEST_UUID,
@@ -73,7 +73,7 @@ def mock_ble_device(
         lambda _: (
             advertisement
             or SimpleNamespace(
-                is_registered=False, product_model=const.ProductModel.SESAME_5
+                is_registered=False, product_model=_const.ProductModel.SESAME_5
             )
         )
     )

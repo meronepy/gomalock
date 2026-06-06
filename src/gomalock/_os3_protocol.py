@@ -15,8 +15,8 @@ from typing import Callable, Self
 from urllib import parse
 from uuid import UUID
 
-from .ble_transport import SesameBLETransport
-from .const import (
+from ._ble_transport import SesameBLETransport
+from ._const import (
     BATTERY_PERCENTAGES,
     HISTORY_TAG_MAX_LEN,
     PUBLISH_TIMEOUT,
@@ -28,19 +28,19 @@ from .const import (
     ProductModel,
     ResultCode,
 )
-from .exc import (
+from ._exc import (
     SesameConnectionError,
     SesameError,
     SesameLoginError,
     SesameOperationError,
 )
-from .os3_cipher import (
+from ._os3_cipher import (
     OS3Cipher,
     generate_app_keys,
     generate_device_secret_key,
     generate_session_key,
 )
-from .protocol_types import (
+from ._protocol_types import (
     ReceivedSesameMessage,
     ReceivedSesamePublish,
     ReceivedSesameResponse,

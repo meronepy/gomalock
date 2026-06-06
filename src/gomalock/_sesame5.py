@@ -10,11 +10,11 @@ import struct
 from dataclasses import dataclass
 from typing import Callable, Self
 
-from .const import ItemCode, MechStatusBitFlag, ModelGroup
-from .exc import SesameLoginError
-from .os3_lock_base import BaseSesameOS3Lock
-from .os3_protocol import calculate_battery_percentage, create_history_tag
-from .protocol_types import ReceivedSesamePublish, ScannedSesameDevice, SesameCommand
+from ._const import ItemCode, MechStatusBitFlag, ModelGroup
+from ._exc import SesameLoginError
+from ._os3_lock_base import BaseSesameOS3Lock
+from ._os3_protocol import calculate_battery_percentage, create_history_tag
+from ._protocol_types import ReceivedSesamePublish, ScannedSesameDevice, SesameCommand
 
 logger = logging.getLogger(__name__)
 

@@ -5,16 +5,16 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 
-from gomalock import const, exc, os3_lock_base, os3_protocol, protocol_types
+from gomalock import _const, _exc, _os3_lock_base, _os3_protocol, _protocol_types
 from tests.conftest import TEST_ADDRESS, TEST_UUID, make_mock_os3_device
 
 
-class DummyLock(os3_lock_base.BaseSesameOS3Lock["DummyLock", int]):
+class DummyLock(_os3_lock_base.BaseSesameOS3Lock["DummyLock", int]):
     """Minimal concrete lock used to exercise the base class."""
 
-    _VALID_MODEL_GROUPS = const.ModelGroup.SESAME_5
+    _VALID_MODEL_GROUPS = _const.ModelGroup.SESAME_5
 
-    def on_published(self, publish_data: protocol_types.ReceivedSesamePublish) -> None:
+    def on_published(self, publish_data: _protocol_types.ReceivedSesamePublish) -> None:
         """Updates status and completes login during publish handling."""
         self._mech_status = int.from_bytes(publish_data.payload, "little")
         for callback in self._mech_status_callbacks.values():
@@ -32,7 +32,7 @@ def make_lock(
     """Creates a test lock with the OS3 protocol replaced by a mock."""
     os3_device = make_mock_os3_device(is_connected=is_connected)
     monkeypatch.setattr(
-        os3_lock_base,
+        _os3_lock_base,
         "SesameOS3Protocol",
         Mock(return_value=os3_device),
     )
@@ -47,8 +47,8 @@ def make_lock(
 def publish_status(lock: DummyLock, value: int = 7) -> None:
     """Publishes a mechanical status to the test lock."""
     lock.on_published(
-        protocol_types.ReceivedSesamePublish(
-            const.ItemCode.MECH_STATUS,
+        _protocol_types.ReceivedSesamePublish(
+            _const.ItemCode.MECH_STATUS,
             value.to_bytes(1, "little"),
         )
     )
@@ -59,7 +59,7 @@ def test_subclass_requires_valid_model_groups() -> None:
     with pytest.raises(TypeError):
         type(
             "MissingValidModelGroups",
-            (os3_lock_base.BaseSesameOS3Lock,),
+            (_os3_lock_base.BaseSesameOS3Lock,),
             {"on_published": lambda self, publish_data: None},
         )
 
@@ -121,7 +121,7 @@ def test_register_mech_status_callback_initial(
     callback = Mock()
     os3_device = make_mock_os3_device()
     monkeypatch.setattr(
-        os3_lock_base,
+        _os3_lock_base,
         "SesameOS3Protocol",
         Mock(return_value=os3_device),
     )
@@ -140,7 +140,7 @@ async def test_connect_disconnected(monkeypatch: pytest.MonkeyPatch) -> None:
     await lock.connect()
 
     os3_device.connect.assert_awaited_once_with()
-    assert lock.device_status == const.DeviceStatus.CONNECTED
+    assert lock.device_status == _const.DeviceStatus.CONNECTED
 
 
 @pytest.mark.asyncio
@@ -148,7 +148,7 @@ async def test_connect_connected(monkeypatch: pytest.MonkeyPatch) -> None:
     """Raises SesameConnectionError when already connected."""
     lock, os3_device = make_lock(monkeypatch, is_connected=True)
 
-    with pytest.raises(exc.SesameConnectionError):
+    with pytest.raises(_exc.SesameConnectionError):
         await lock.connect()
 
     os3_device.connect.assert_not_awaited()
@@ -165,12 +165,12 @@ async def test_connect_reconnecting(monkeypatch: pytest.MonkeyPatch) -> None:
         del delay
         await sleep_blocker
 
-    monkeypatch.setattr(os3_lock_base.asyncio, "sleep", blocked_sleep)
+    monkeypatch.setattr(_os3_lock_base.asyncio, "sleep", blocked_sleep)
     lock.on_unexpected_disconnect()
     await original_sleep(0)
 
     try:
-        with pytest.raises(exc.SesameConnectionError):
+        with pytest.raises(_exc.SesameConnectionError):
             await lock.connect()
     finally:
         await lock.disconnect()
@@ -192,7 +192,7 @@ async def test_register_disconnected(monkeypatch: pytest.MonkeyPatch) -> None:
     """Raises SesameConnectionError when registering while disconnected."""
     lock, _ = make_lock(monkeypatch, is_connected=False)
 
-    with pytest.raises(exc.SesameConnectionError):
+    with pytest.raises(_exc.SesameConnectionError):
         await lock.register()
 
 
@@ -213,7 +213,7 @@ async def test_register_waits_for_cancelled_reconnection(
         del delay
         await sleep_blocker
 
-    monkeypatch.setattr(os3_lock_base.asyncio, "sleep", blocked_sleep)
+    monkeypatch.setattr(_os3_lock_base.asyncio, "sleep", blocked_sleep)
     lock.on_unexpected_disconnect()
     await original_sleep(0)
     await lock.disconnect()
@@ -230,7 +230,7 @@ async def test_login_with_default_secret(monkeypatch: pytest.MonkeyPatch) -> Non
 
     assert await lock.login() == 123
     os3_device.login.assert_awaited_once_with(bytes.fromhex("00" * 16))
-    assert lock.device_status == const.DeviceStatus.LOGGED_IN
+    assert lock.device_status == _const.DeviceStatus.LOGGED_IN
 
 
 @pytest.mark.asyncio
@@ -251,7 +251,7 @@ async def test_login_already_logged_in(monkeypatch: pytest.MonkeyPatch) -> None:
     publish_status(lock, 1)
     await lock.login()
 
-    with pytest.raises(exc.SesameLoginError):
+    with pytest.raises(_exc.SesameLoginError):
         await lock.login()
 
 
@@ -260,7 +260,7 @@ async def test_login_without_secret(monkeypatch: pytest.MonkeyPatch) -> None:
     """Raises SesameLoginError when no secret key is available."""
     lock, os3_device = make_lock(monkeypatch, secret_key=None)
 
-    with pytest.raises(exc.SesameLoginError):
+    with pytest.raises(_exc.SesameLoginError):
         await lock.login()
 
     os3_device.login.assert_not_awaited()
@@ -277,12 +277,12 @@ async def test_login_reconnecting(monkeypatch: pytest.MonkeyPatch) -> None:
         del delay
         await sleep_blocker
 
-    monkeypatch.setattr(os3_lock_base.asyncio, "sleep", blocked_sleep)
+    monkeypatch.setattr(_os3_lock_base.asyncio, "sleep", blocked_sleep)
     lock.on_unexpected_disconnect()
     await original_sleep(0)
 
     try:
-        with pytest.raises(exc.SesameConnectionError):
+        with pytest.raises(_exc.SesameConnectionError):
             await lock.login()
     finally:
         await lock.disconnect()
@@ -294,7 +294,7 @@ async def test_login_reconnecting(monkeypatch: pytest.MonkeyPatch) -> None:
 async def test_login_publish_timeout(monkeypatch: pytest.MonkeyPatch) -> None:
     """Raises TimeoutError when login completion publish never arrives."""
     lock, _ = make_lock(monkeypatch)
-    monkeypatch.setattr(os3_lock_base, "PUBLISH_TIMEOUT", 0.01)
+    monkeypatch.setattr(_os3_lock_base, "PUBLISH_TIMEOUT", 0.01)
 
     with pytest.raises(asyncio.TimeoutError):
         await lock.login()
@@ -309,8 +309,8 @@ async def test_disconnect_connected(monkeypatch: pytest.MonkeyPatch) -> None:
     await lock.disconnect()
 
     os3_device.disconnect.assert_awaited_once_with()
-    assert lock.device_status == const.DeviceStatus.DISCONNECTED
-    with pytest.raises(exc.SesameLoginError):
+    assert lock.device_status == _const.DeviceStatus.DISCONNECTED
+    with pytest.raises(_exc.SesameLoginError):
         _ = lock.mech_status
 
 
@@ -341,7 +341,7 @@ async def test_disconnect_cancels_reconnection(
         del delay
         await sleep_blocker
 
-    monkeypatch.setattr(os3_lock_base.asyncio, "sleep", blocked_sleep)
+    monkeypatch.setattr(_os3_lock_base.asyncio, "sleep", blocked_sleep)
     lock.on_unexpected_disconnect()
     await original_sleep(0)
 
@@ -355,11 +355,11 @@ def test_generate_qr_url_owner(monkeypatch: pytest.MonkeyPatch) -> None:
     lock, _ = make_lock(monkeypatch)
 
     assert (
-        lock.create_share_url("Base", const.KeyLevel.OWNER)
-        == os3_protocol.OS3QRCode(
+        lock.create_share_url("Base", _const.KeyLevel.OWNER)
+        == _os3_protocol.OS3QRCode(
             "Base",
-            const.KeyLevel.OWNER,
-            const.ProductModel.SESAME_5,
+            _const.KeyLevel.OWNER,
+            _const.ProductModel.SESAME_5,
             TEST_UUID,
             bytes.fromhex("00" * 16),
         ).qr_url
@@ -370,11 +370,11 @@ def test_generate_qr_url_manager(monkeypatch: pytest.MonkeyPatch) -> None:
     """Generates a manager QR URL when requested."""
     lock, _ = make_lock(monkeypatch)
 
-    assert lock.create_share_url("Base", const.KeyLevel.MANAGER) == (
-        os3_protocol.OS3QRCode(
+    assert lock.create_share_url("Base", _const.KeyLevel.MANAGER) == (
+        _os3_protocol.OS3QRCode(
             "Base",
-            const.KeyLevel.MANAGER,
-            const.ProductModel.SESAME_5,
+            _const.KeyLevel.MANAGER,
+            _const.ProductModel.SESAME_5,
             TEST_UUID,
             bytes.fromhex("00" * 16),
         ).qr_url
@@ -387,13 +387,13 @@ def test_generate_qr_url_explicit_secret(monkeypatch: pytest.MonkeyPatch) -> Non
 
     assert lock.create_share_url(
         "Base",
-        const.KeyLevel.OWNER,
+        _const.KeyLevel.OWNER,
         secret_key="ff" * 16,
     ) == (
-        os3_protocol.OS3QRCode(
+        _os3_protocol.OS3QRCode(
             "Base",
-            const.KeyLevel.OWNER,
-            const.ProductModel.SESAME_5,
+            _const.KeyLevel.OWNER,
+            _const.ProductModel.SESAME_5,
             TEST_UUID,
             bytes.fromhex("ff" * 16),
         ).qr_url
@@ -404,8 +404,8 @@ def test_generate_qr_url_without_secret(monkeypatch: pytest.MonkeyPatch) -> None
     """Raises SesameLoginError when no secret key is available."""
     lock, _ = make_lock(monkeypatch, secret_key=None)
 
-    with pytest.raises(exc.SesameLoginError):
-        lock.create_share_url("Base", const.KeyLevel.OWNER)
+    with pytest.raises(_exc.SesameLoginError):
+        lock.create_share_url("Base", _const.KeyLevel.OWNER)
 
 
 def test_properties_initial(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -415,7 +415,7 @@ def test_properties_initial(monkeypatch: pytest.MonkeyPatch) -> None:
     assert lock.address == TEST_ADDRESS
     assert lock.is_connected is True
     assert lock.is_logged_in is False
-    assert lock.device_status == const.DeviceStatus.DISCONNECTED
+    assert lock.device_status == _const.DeviceStatus.DISCONNECTED
     assert lock.advertisement_data == os3_device.advertisement_data
 
 
@@ -423,7 +423,7 @@ def test_mech_status_unavailable(monkeypatch: pytest.MonkeyPatch) -> None:
     """Raises SesameLoginError before status has been published."""
     lock, _ = make_lock(monkeypatch)
 
-    with pytest.raises(exc.SesameLoginError):
+    with pytest.raises(_exc.SesameLoginError):
         _ = lock.mech_status
 
 
@@ -437,8 +437,8 @@ async def test_on_unexpected_disconnect_without_reconnect(
 
     lock.on_unexpected_disconnect()
 
-    assert lock.device_status == const.DeviceStatus.DISCONNECTED
-    with pytest.raises(exc.SesameLoginError):
+    assert lock.device_status == _const.DeviceStatus.DISCONNECTED
+    with pytest.raises(_exc.SesameLoginError):
         _ = lock.mech_status
 
 
@@ -449,7 +449,7 @@ async def test_on_unexpected_disconnect_reconnects(
     """Schedules auto-reconnection and logs in again when configured."""
     lock, os3_device = make_lock(monkeypatch, auto_reconnection_limit=1)
     original_sleep = asyncio.sleep
-    monkeypatch.setattr(os3_lock_base.asyncio, "sleep", AsyncMock())
+    monkeypatch.setattr(_os3_lock_base.asyncio, "sleep", AsyncMock())
 
     async def login_side_effect(secret_key: bytes) -> int:
         del secret_key
@@ -466,7 +466,7 @@ async def test_on_unexpected_disconnect_reconnects(
 
     os3_device.connect.assert_awaited_once_with()
     os3_device.login.assert_awaited_once_with(bytes.fromhex("00" * 16))
-    assert lock.device_status == const.DeviceStatus.LOGGED_IN
+    assert lock.device_status == _const.DeviceStatus.LOGGED_IN
     assert lock.mech_status == 8
 
 
@@ -476,10 +476,10 @@ async def test_on_unexpected_disconnect_reconnect_failure(
 ) -> None:
     """Retries failed auto-reconnection attempts up to the configured limit."""
     lock, os3_device = make_lock(monkeypatch, auto_reconnection_limit=2)
-    os3_device.connect.side_effect = exc.SesameConnectionError("failed")
+    os3_device.connect.side_effect = _exc.SesameConnectionError("failed")
     original_sleep = asyncio.sleep
-    monkeypatch.setattr(os3_lock_base.asyncio, "sleep", AsyncMock())
-    monkeypatch.setattr(os3_lock_base.random, "random", Mock(return_value=0.0))
+    monkeypatch.setattr(_os3_lock_base.asyncio, "sleep", AsyncMock())
+    monkeypatch.setattr(_os3_lock_base.random, "random", Mock(return_value=0.0))
 
     lock.on_unexpected_disconnect()
     for _ in range(5):
@@ -488,4 +488,4 @@ async def test_on_unexpected_disconnect_reconnect_failure(
         await original_sleep(0)
 
     assert os3_device.connect.await_count == 2
-    assert lock.device_status == const.DeviceStatus.DISCONNECTED
+    assert lock.device_status == _const.DeviceStatus.DISCONNECTED

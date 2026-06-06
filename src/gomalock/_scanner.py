@@ -14,8 +14,8 @@ from bleak import BleakScanner
 from bleak.backends.device import BLEDevice
 from bleak.backends.scanner import AdvertisementData
 
-from .const import COMPANY_ID, SCAN_TIMEOUT, UUID_SERVICE
-from .protocol_types import (
+from ._const import COMPANY_ID, SCAN_TIMEOUT, UUID_SERVICE
+from ._protocol_types import (
     ScannedSesameDevice,
     ScannedSesameWithBLE,
     SesameAdvertisementData,

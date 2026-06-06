@@ -4,7 +4,7 @@ This module contains custom exceptions for handling errors related to device
 operations, BLE connections, and authentication with Sesame devices.
 """
 
-from .const import ResultCode
+from ._const import ResultCode
 
 
 class SesameError(Exception):

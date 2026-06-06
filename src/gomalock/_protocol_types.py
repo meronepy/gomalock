@@ -11,7 +11,7 @@ from uuid import UUID
 
 from bleak.backends.device import BLEDevice
 
-from .const import ItemCode, OpCode, PacketType, ProductModel, ResultCode
+from ._const import ItemCode, OpCode, PacketType, ProductModel, ResultCode
 
 
 @dataclass(frozen=True)

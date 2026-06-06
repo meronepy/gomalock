@@ -7,7 +7,7 @@ from uuid import UUID
 
 import pytest
 
-from gomalock import const, protocol_types, scanner
+from gomalock import _const, _protocol_types, _scanner
 from tests.conftest import TEST_ADDRESS, TEST_UUID, make_manufacturer_data
 
 
@@ -47,26 +47,26 @@ class FakeBleakScanner:
 def fake_bleak_scanner(monkeypatch: pytest.MonkeyPatch):
     """Replaces BleakScanner with a deterministic fake."""
     FakeBleakScanner.instances.clear()
-    monkeypatch.setattr(scanner, "BleakScanner", FakeBleakScanner)
+    monkeypatch.setattr(_scanner, "BleakScanner", FakeBleakScanner)
     return FakeBleakScanner
 
 
 def make_advertisement(
-    model: const.ProductModel = const.ProductModel.SESAME_5,
-) -> protocol_types.SesameAdvertisementData:
+    model: _const.ProductModel = _const.ProductModel.SESAME_5,
+) -> _protocol_types.SesameAdvertisementData:
     """Creates parsed advertisement data."""
-    return protocol_types.SesameAdvertisementData.from_manufacturer_data(
+    return _protocol_types.SesameAdvertisementData.from_manufacturer_data(
         make_manufacturer_data(model=model)
     )
 
 
 def make_scanned_device(
     address: str = TEST_ADDRESS,
-    advertisement: protocol_types.SesameAdvertisementData | None = None,
-) -> protocol_types.ScannedSesameWithBLE:
+    advertisement: _protocol_types.SesameAdvertisementData | None = None,
+) -> _protocol_types.ScannedSesameWithBLE:
     """Creates a scanned Sesame device test double."""
     ble_device = Mock(address=address)
-    return protocol_types.ScannedSesameWithBLE(
+    return _protocol_types.ScannedSesameWithBLE(
         address,
         advertisement or make_advertisement(),
         ble_device,
@@ -77,13 +77,13 @@ def make_ble_advertisement(manufacturer_data: bytes) -> tuple[Mock, Mock]:
     """Creates BLE device and advertisement test doubles."""
     ble_device = Mock(address=TEST_ADDRESS)
     advertisement = Mock()
-    advertisement.manufacturer_data = {const.COMPANY_ID: manufacturer_data}
+    advertisement.manufacturer_data = {_const.COMPANY_ID: manufacturer_data}
     return ble_device, advertisement
 
 
 def test_detected_devices_supported_model() -> None:
     """Stores scanned Sesame devices keyed by device address."""
-    sesame_scanner = scanner.SesameScanner()
+    sesame_scanner = _scanner.SesameScanner()
 
     FakeBleakScanner.instances[-1].emit(make_manufacturer_data())
 
@@ -95,7 +95,7 @@ def test_detected_devices_supported_model() -> None:
 def test_detected_devices_unsupported_model() -> None:
     """Ignores advertisements for unknown model identifiers."""
     callback = Mock()
-    sesame_scanner = scanner.SesameScanner(callback)
+    sesame_scanner = _scanner.SesameScanner(callback)
     manufacturer_data = struct.pack("<HB16s", 999, 1, TEST_UUID.bytes)
 
     FakeBleakScanner.instances[-1].emit(manufacturer_data)
@@ -107,7 +107,7 @@ def test_detected_devices_unsupported_model() -> None:
 def test_register_detection_callback_invoked() -> None:
     """Calls registered callbacks with a scanned Sesame device."""
     callback = Mock()
-    scanner.SesameScanner(callback)
+    _scanner.SesameScanner(callback)
 
     FakeBleakScanner.instances[-1].emit(make_manufacturer_data())
 
@@ -120,7 +120,7 @@ def test_register_detection_callback_invoked() -> None:
 def test_register_detection_callback_unregistered() -> None:
     """Stops invoking callbacks after unregister is called."""
     callback = Mock()
-    sesame_scanner = scanner.SesameScanner()
+    sesame_scanner = _scanner.SesameScanner()
     unregister = sesame_scanner.register_detection_callback(callback)
 
     unregister()
@@ -132,7 +132,7 @@ def test_register_detection_callback_unregistered() -> None:
 @pytest.mark.asyncio
 async def test_detected_devices_generator_yields() -> None:
     """Yields device detections sent through the registered callback."""
-    sesame_scanner = scanner.SesameScanner()
+    sesame_scanner = _scanner.SesameScanner()
     generator = sesame_scanner.detections()
     next_item = asyncio.create_task(generator.__anext__())
     await asyncio.sleep(0)
@@ -148,7 +148,7 @@ async def test_detected_devices_generator_yields() -> None:
 @pytest.mark.asyncio
 async def test_start_clears_seen_devices() -> None:
     """Clears previous detections and starts the Bleak scanner."""
-    sesame_scanner = scanner.SesameScanner()
+    sesame_scanner = _scanner.SesameScanner()
     FakeBleakScanner.instances[-1].emit(make_manufacturer_data())
 
     await sesame_scanner.start()
@@ -160,7 +160,7 @@ async def test_start_clears_seen_devices() -> None:
 @pytest.mark.asyncio
 async def test_stop_success() -> None:
     """Stops the underlying Bleak scanner."""
-    sesame_scanner = scanner.SesameScanner()
+    sesame_scanner = _scanner.SesameScanner()
 
     await sesame_scanner.stop()
 
@@ -170,19 +170,19 @@ async def test_stop_success() -> None:
 @pytest.mark.asyncio
 async def test_find_device_by_filter_match(monkeypatch: pytest.MonkeyPatch) -> None:
     """Returns the first detected device matching the filter."""
-    first = make_advertisement(const.ProductModel.SESAME_5)
-    second = make_advertisement(const.ProductModel.SESAME_5_PRO)
+    first = make_advertisement(_const.ProductModel.SESAME_5)
+    second = make_advertisement(_const.ProductModel.SESAME_5_PRO)
     matching_device = make_scanned_device(TEST_ADDRESS, second)
 
     async def fake_generator(_self):
         yield make_scanned_device("11:22:33:44:55:66", first)
         yield matching_device
 
-    monkeypatch.setattr(scanner.SesameScanner, "detections", fake_generator)
-    monkeypatch.setattr(scanner.SesameScanner, "start", AsyncMock())
-    monkeypatch.setattr(scanner.SesameScanner, "stop", AsyncMock())
+    monkeypatch.setattr(_scanner.SesameScanner, "detections", fake_generator)
+    monkeypatch.setattr(_scanner.SesameScanner, "start", AsyncMock())
+    monkeypatch.setattr(_scanner.SesameScanner, "stop", AsyncMock())
 
-    result = await scanner.SesameScanner.find_device_by_filter(
+    result = await _scanner.SesameScanner.find_device_by_filter(
         lambda scanned_device: scanned_device.address == TEST_ADDRESS,
         timeout=1,
     )
@@ -201,9 +201,9 @@ async def test_find_device_by_filter_timeout(
         coro.close()
         raise asyncio.TimeoutError
 
-    monkeypatch.setattr(scanner.asyncio, "wait_for", fake_wait_for)
+    monkeypatch.setattr(_scanner.asyncio, "wait_for", fake_wait_for)
 
-    result = await scanner.SesameScanner.find_device_by_filter(
+    result = await _scanner.SesameScanner.find_device_by_filter(
         lambda _: True,
         timeout=0.01,
     )
@@ -217,9 +217,9 @@ async def test_find_device_by_address_case_insensitive(
 ) -> None:
     """Matches addresses without regard to letter case."""
     finder = AsyncMock(return_value=None)
-    monkeypatch.setattr(scanner.SesameScanner, "find_device_by_filter", finder)
+    monkeypatch.setattr(_scanner.SesameScanner, "find_device_by_filter", finder)
 
-    await scanner.SesameScanner.find_device_by_address(TEST_ADDRESS)
+    await _scanner.SesameScanner.find_device_by_address(TEST_ADDRESS)
 
     filter_func = finder.call_args.args[0]
     assert filter_func(make_scanned_device(TEST_ADDRESS.lower())) is True
@@ -230,17 +230,17 @@ async def test_find_device_by_address_case_insensitive(
 async def test_find_device_by_uuid_match(monkeypatch: pytest.MonkeyPatch) -> None:
     """Matches advertisements by UUID."""
     finder = AsyncMock(return_value=None)
-    monkeypatch.setattr(scanner.SesameScanner, "find_device_by_filter", finder)
+    monkeypatch.setattr(_scanner.SesameScanner, "find_device_by_filter", finder)
 
-    await scanner.SesameScanner.find_device_by_uuid(TEST_UUID)
+    await _scanner.SesameScanner.find_device_by_uuid(TEST_UUID)
 
     filter_func = finder.call_args.args[0]
     assert filter_func(make_scanned_device()) is True
     assert (
         filter_func(
             make_scanned_device(
-                advertisement=protocol_types.SesameAdvertisementData(
-                    const.ProductModel.SESAME_5,
+                advertisement=_protocol_types.SesameAdvertisementData(
+                    _const.ProductModel.SESAME_5,
                     True,
                     UUID("abcdef01-2345-6789-abcd-ef0123456789"),
                 )
@@ -258,23 +258,23 @@ async def test_discover_returns_detected_devices(
     detected = {TEST_ADDRESS: make_scanned_device()}
     scanner_instance = Mock(detected_devices=detected)
     monkeypatch.setattr(
-        scanner.SesameScanner,
+        _scanner.SesameScanner,
         "__aenter__",
         AsyncMock(return_value=scanner_instance),
     )
     monkeypatch.setattr(
-        scanner.SesameScanner, "__aexit__", AsyncMock(return_value=None)
+        _scanner.SesameScanner, "__aexit__", AsyncMock(return_value=None)
     )
-    monkeypatch.setattr(scanner.asyncio, "sleep", AsyncMock())
+    monkeypatch.setattr(_scanner.asyncio, "sleep", AsyncMock())
 
-    result = await scanner.SesameScanner.discover(timeout=1)
+    result = await _scanner.SesameScanner.discover(timeout=1)
 
     assert result == detected
 
 
 def test_detected_devices_copy() -> None:
     """Returns a copy of the internal detections dictionary."""
-    sesame_scanner = scanner.SesameScanner()
+    sesame_scanner = _scanner.SesameScanner()
     FakeBleakScanner.instances[-1].emit(make_manufacturer_data())
 
     detected = sesame_scanner.detected_devices
