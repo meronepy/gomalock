@@ -178,9 +178,7 @@ async def test_find_device_by_filter_match(monkeypatch: pytest.MonkeyPatch) -> N
         yield make_scanned_device("11:22:33:44:55:66", first)
         yield matching_device
 
-    monkeypatch.setattr(
-        scanner.SesameScanner, "detections", fake_generator
-    )
+    monkeypatch.setattr(scanner.SesameScanner, "detections", fake_generator)
     monkeypatch.setattr(scanner.SesameScanner, "start", AsyncMock())
     monkeypatch.setattr(scanner.SesameScanner, "stop", AsyncMock())
 
