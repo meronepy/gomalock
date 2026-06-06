@@ -56,17 +56,21 @@ class ScannedSesameDevice:
     """Represents a Sesame device detected during scanning.
 
     Attributes:
-        ble_device: The detected bleak BLEDevice.
+        mac_address: The BLE MAC address of the detected device.
         sesame_advertisement_data: The Sesame-specific advertisement data.
+        _ble_device: The detected bleak BLEDevice.
     """
 
-    ble_device: BLEDevice
+    mac_address: str
     sesame_advertisement_data: SesameAdvertisementData
+    _ble_device: BLEDevice | None = None
 
     @property
-    def mac_address(self) -> str:
-        """The MAC address of the detected Sesame device."""
-        return self.ble_device.address
+    def internal_ble_device(self) -> BLEDevice:
+        """Provides access to the underlying BLEDevice for advanced operations."""
+        if self._ble_device is None:
+            raise ValueError("BLEDevice is not available for this scanned device")
+        return self._ble_device
 
 
 @dataclass(frozen=True)

@@ -213,7 +213,7 @@ class SesameBLETransport:
         if isinstance(self._identifier, str):
             self._identifier = await self._get_scanned_sesame_device()
         self._bleak_client = BleakClient(
-            self._identifier.ble_device, self.on_disconnect
+            self._identifier.internal_ble_device, self.on_disconnect
         )
         logger.debug("Initiating BLE connection [address=%s]", self.mac_address)
         try:

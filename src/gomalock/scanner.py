@@ -57,7 +57,7 @@ class SesameScanner:
             )
         except (ValueError, KeyError, struct.error):
             return
-        scanned_sesame = ScannedSesameDevice(device, sesame_adv_data)
+        scanned_sesame = ScannedSesameDevice(device.address, sesame_adv_data, device)
         logger.debug(
             "Detected Sesame device [address=%s, model=%s]",
             device.address,
