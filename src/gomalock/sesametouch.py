@@ -20,16 +20,16 @@ class SesameTouchMechStatus:
     """Represents the parsed mechanical status of a Sesame Touch device.
 
     Attributes:
-        cards_number: Number of cards registered with Sesame Touch.
-        fingerprints_number: Number of fingerprints registered with Sesame Touch.
-        passwords_number: Number of passwords registered with Sesame Touch.
+        card_count: Number of cards registered with Sesame Touch.
+        fingerprint_count: Number of fingerprints registered with Sesame Touch.
+        password_count: Number of passwords registered with Sesame Touch.
     """
 
     _raw_battery: int
     _status_flags: int
-    cards_number: int
-    fingerprints_number: int
-    passwords_number: int
+    card_count: int
+    fingerprint_count: int
+    password_count: int
 
     @classmethod
     def from_payload(cls, payload: bytes) -> Self:
@@ -46,17 +46,17 @@ class SesameTouchMechStatus:
         """
         (
             raw_battery,
-            cards_number,
-            fingerprints_number,
-            passwords_number,
+            card_count,
+            fingerprint_count,
+            password_count,
             status_flags,
         ) = struct.unpack("<HhhhB", payload)
         return cls(
             raw_battery,
             status_flags,
-            cards_number,
-            fingerprints_number,
-            passwords_number,
+            card_count,
+            fingerprint_count,
+            password_count,
         )
 
     @property

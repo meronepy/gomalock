@@ -58,9 +58,9 @@ def test_from_payload_valid() -> None:
         )
     )
 
-    assert status.cards_number == 3
-    assert status.fingerprints_number == 4
-    assert status.passwords_number == 5
+    assert status.card_count == 3
+    assert status.fingerprint_count == 4
+    assert status.password_count == 5
     assert status.is_battery_critical is True
     assert status.battery_voltage == 5.6
     assert status.battery_percentage == os3_protocol.calculate_battery_percentage(5.6)
@@ -94,9 +94,9 @@ def test_on_published_mech_status(monkeypatch: pytest.MonkeyPatch) -> None:
         )
     )
 
-    assert device.mech_status.cards_number == 1
-    assert device.mech_status.fingerprints_number == 2
-    assert device.mech_status.passwords_number == 3
+    assert device.mech_status.card_count == 1
+    assert device.mech_status.fingerprint_count == 2
+    assert device.mech_status.password_count == 3
     callback.assert_called_once_with(device, device.mech_status)
 
 
