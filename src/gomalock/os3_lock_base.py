@@ -314,14 +314,14 @@ class BaseSesameOS3Lock[LockSelfT: "BaseSesameOS3Lock", MechStatusT](ABC):
     def generate_qr_url(
         self,
         device_name: str,
-        generate_owner_key: bool = True,
+        key_level: KeyLevel,
         secret_key: str | None = None,
     ) -> str:
         """Generates a QR code URL for sharing device access.
 
         Args:
             device_name: The display name of the device.
-            generate_owner_key: Indicates if the generated key has owner privileges.
+            key_level: The level of access privileges for the generated key.
             secret_key: The hex-encoded secret key. Defaults to the initialized key.
 
         Returns:
@@ -336,7 +336,7 @@ class BaseSesameOS3Lock[LockSelfT: "BaseSesameOS3Lock", MechStatusT](ABC):
             raise SesameLoginError("A secret key is required for QR code generation")
         info = OS3QRCode(
             device_name,
-            KeyLevel.OWNER if generate_owner_key else KeyLevel.MANAGER,
+            key_level,
             self.sesame_advertisement_data.product_model,
             self.sesame_advertisement_data.device_uuid,
             bytes.fromhex(secret_key),

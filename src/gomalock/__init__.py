@@ -4,7 +4,7 @@ This module exposes the main components of the gomalock library, allowing
 users to scan for Sesame devices and control different lock models.
 """
 
-from .const import DeviceStatus
+from .const import DeviceStatus, KeyLevel, ProductModel, ResultCode
 from .exc import (
     SesameConnectionError,
     SesameError,
@@ -18,10 +18,9 @@ from .sesametouch import SesameTouch, SesameTouchMechStatus
 
 __all__ = [
     "DeviceStatus",
-    "SesameConnectionError",
-    "SesameError",
-    "SesameLoginError",
-    "SesameOperationError",
+    "KeyLevel",
+    "ProductModel",
+    "ResultCode",
     "ScannedSesameDevice",
     "SesameAdvertisementData",
     "SesameScanner",
@@ -30,4 +29,8 @@ __all__ = [
     "Sesame5MechStatus",
     "SesameTouch",
     "SesameTouchMechStatus",
+    "SesameError",
+    "SesameConnectionError",
+    "SesameLoginError",
+    "SesameOperationError",
 ]

@@ -24,7 +24,9 @@ async def main():
 
         # Also you can generate a QR code for easy setup in the Sesame app
         # Before running this, you need to run `pip install qrcode`
-        url = sesame5.generate_qr_url("Entrance Sesame", secret_key=secret_key)
+        url = sesame5.generate_qr_url(
+            "Entrance Sesame", key_level=gomalock.KeyLevel.OWNER, secret_key=secret_key
+        )
         qr = qrcode.QRCode()
         qr.add_data(url)
         qr.make()
