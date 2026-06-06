@@ -212,8 +212,9 @@ class SesameBLETransport:
         )
         if isinstance(self._identifier, str):
             self._identifier = await self._get_scanned_sesame_device()
+        # Private to callers; shared inside gomalock, so pylint: disable=protected-access
         self._bleak_client = BleakClient(
-            self._identifier.internal_ble_device, self.on_disconnect
+            self._identifier._ble_device, self.on_disconnect
         )
         logger.debug("Initiating BLE connection [address=%s]", self.mac_address)
         try:
