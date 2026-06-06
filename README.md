@@ -5,16 +5,16 @@
 [![License](https://img.shields.io/badge/license-MIT-29b6ff)](LICENSE)
 [![Test](https://github.com/meronepy/gomalock/actions/workflows/test.yml/badge.svg)](https://github.com/meronepy/gomalock/actions/workflows/test.yml)
 
-SesameスマートロックをBluetooth Low Energyで操作するPythonライブラリ。
+Sesame スマートロックを Bluetooth Low Energy で操作する Python ライブラリ。
 
 ## 主な機能
 
-- Sesame 5 / Sesame 5 Pro / Sesame 5 USAの施錠、解錠、トグル操作
-- Sesame 5系の角度、バッテリー残量、オートロック設定の取得と変更
-- Sesame Touch / Sesame Touch Proのバッテリー残量と登録済みカード、指紋、パスワード数の取得
-- 周囲のSesameデバイスのスキャン
-- 新規Sesameデバイスの登録
-- 共有用QR URLの作成
+- Sesame 5 / Sesame 5 Pro / Sesame 5 USA の施錠、解錠、トグル操作
+- Sesame 5 系の角度、バッテリー残量、オートロック設定の取得と変更
+- Sesame Touch / Sesame Touch Pro のバッテリー残量と登録済みカード、指紋、パスワード数の取得
+- 周囲の Sesame デバイスのスキャン
+- 新規 Sesame デバイスの登録
+- 共有用 QR URL の作成
 - 予期しない切断後の自動再接続
 
 ## インストール
@@ -49,19 +49,20 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-- `ADDRESS` は [examples/discover.py](examples/discover.py) で周囲のSesameをスキャンして取得できます。
-- `SECRET_KEY` はmochiponさん作成の [QR Code Reader for SESAME](https://sesame-qr-reader.vercel.app/) でマネージャー権限以上のQRコードから抽出するか、[SESAME Biz](https://biz.candyhouse.co/) から取得できます。
+- `ADDRESS` は [examples/discover.py](examples/discover.py) で周囲の Sesame をスキャンして取得できます。
+- `SECRET_KEY` は mochipon さん作成の [QR Code Reader for SESAME](https://sesame-qr-reader.vercel.app/) でマネージャー権限以上の QR コードから抽出するか、[SESAME Biz](https://biz.candyhouse.co/) から取得できます。
 - 詳しい使い方は [examples](examples) と [docs](docs) を参照してください。
 
 ## 注意事項
 
-- Raspberry Pi OSではBluetoothがブロックされていることがあります。`BleakBluetoothNotAvailableError` が出る場合は、次を試してください。
+- Raspberry Pi OS では Bluetooth がブロックされていることがあります。`BleakBluetoothNotAvailableError` が出る場合は、次を試してください。
 
 ```bash
 sudo rfkill unblock bluetooth
 ```
 
-- Bluetoothは距離が近いほど安定します。スキャンできない、接続に失敗する、操作だけ失敗する場合は、デバイスとの距離を近づけて試してください。
+- Bluetooth は距離が近いほど安定します。スキャンできない、接続に失敗する、操作だけ失敗する場合は、デバイスとの距離を近づけて試してください。
+- Linux では **BlueZ 5.82 (Raspberry Pi OS Trixie) 以降** が必要です。
 - 履歴機能は公式アプリとの連携が難しいため実装していません。
 - 非公式ライブラリです。動作保証はありません。自己責任で使用してください。
 
@@ -92,8 +93,8 @@ sudo rfkill unblock bluetooth
 
 |対応状況|OS|
 |:-:|:-:|
-|✅|Windows 11 version 22000以降|
-|✅|Linux with BlueZ 5.82以降|
-|⚠️|macOS 10.15以降 (未検証)|
+|✅|Windows 11 version 22000 以降|
+|✅|Linux with BlueZ 5.82 以降|
+|⚠️|macOS 10.15 以降 (未検証)|
 
-Python 3.12以降が必要です。
+Python 3.12 以降が必要です。

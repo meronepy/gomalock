@@ -1,6 +1,6 @@
-# SesameScannerクラスリファレンス
+# SesameScanner クラスリファレンス
 
-`gomalock.SesameScanner` は周囲のSesameデバイスをBLEでスキャンし、検出したデバイスを `ScannedSesameDevice` として返すクラスです。
+`gomalock.SesameScanner` は周囲の Sesame デバイスを BLE でスキャンし、検出したデバイスを `ScannedSesameDevice` として返すクラスです。
 
 ## コンストラクタ
 
@@ -10,7 +10,7 @@ gomalock.SesameScanner(
 )
 ```
 
-- `callback`: Sesameデバイスを検出するたびに呼ばれるコールバックです。同じデバイスでも複数回呼ばれることがあります。
+- `callback`: Sesame デバイスを検出するたびに呼ばれるコールバックです。同じデバイスでも複数回呼ばれることがあります。
 
 ## 使い方
 
@@ -36,11 +36,11 @@ asyncio.run(main())
 
 ### `find_device_by_address(address: str, timeout=SCAN_TIMEOUT) -> ScannedSesameDevice | None`
 
-指定したBLEアドレスのデバイスを探します。一致するデバイスが見つかるとすぐに値が返されます。
+指定した BLE アドレスのデバイスを探します。一致するデバイスが見つかるとすぐに値が返されます。
 
 ### `find_device_by_uuid(uuid: uuid.UUID, timeout=SCAN_TIMEOUT) -> ScannedSesameDevice | None`
 
-指定したSesame UUIDのデバイスを探します。一致するデバイスが見つかるとすぐに値が返されます。
+指定した Sesame UUID のデバイスを探します。一致するデバイスが見つかるとすぐに値が返されます。
 
 ### `discover(timeout=SCAN_TIMEOUT) -> dict[str, ScannedSesameDevice]`
 

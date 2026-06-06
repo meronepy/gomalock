@@ -1,6 +1,6 @@
-# ScannedSesameDeviceクラスリファレンス
+# ScannedSesameDevice クラスリファレンス
 
-`gomalock.ScannedSesameDevice` は `SesameScanner` が検出したSesameデバイスを表すデータクラスです。
+`gomalock.ScannedSesameDevice` は `SesameScanner` が検出した Sesame デバイスを表すデータクラスです。
 
 ```python
 @dataclass(frozen=True)
@@ -13,11 +13,11 @@ class gomalock.ScannedSesameDevice:
 
 ### `address: str`
 
-検出したSesameデバイスのBLEアドレスです。
+検出した Sesame デバイスの BLE アドレスです。
 
 ### `advertisement_data: SesameAdvertisementData`
 
-デバイスが広告しているSesame固有情報です。モデル、登録済みかどうか、デバイスUUIDを含みます。
+デバイスが広告している Sesame 固有情報です。モデル、登録済みかどうか、デバイス UUID を含みます。
 
 ## 使い方
 
