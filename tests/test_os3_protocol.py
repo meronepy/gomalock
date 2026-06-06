@@ -20,7 +20,7 @@ def make_protocol(
     """Creates a protocol instance with a mocked BLE transport."""
     advertisement = Mock(
         is_registered=is_registered,
-        product_model=const.ProductModel.SESAME5,
+        product_model=const.ProductModel.SESAME_5,
         device_uuid=TEST_UUID,
     )
     ble_device = mock_ble_device(
@@ -123,7 +123,7 @@ def test_from_qr_url_roundtrip() -> None:
     qr_code = os3_protocol.OS3QRCode(
         "Front Door",
         const.KeyLevel.OWNER,
-        const.ProductModel.SESAME5,
+        const.ProductModel.SESAME_5,
         TEST_UUID,
         b"\x01" * 16,
         b"\x02" * 4,
@@ -139,7 +139,7 @@ def test_from_qr_url_invalid_key_level() -> None:
     """Raises SesameError for unsupported key levels."""
     shared_key = struct.pack(
         ">B16s4s2s16s",
-        const.ProductModel.SESAME5.value,
+        const.ProductModel.SESAME_5.value,
         b"\x01" * 16,
         b"\x02" * 4,
         b"\x03\x04",
@@ -158,7 +158,7 @@ def test_qr_url_format() -> None:
     qr_code = os3_protocol.OS3QRCode(
         "Sesame",
         const.KeyLevel.MANAGER,
-        const.ProductModel.SESAME5,
+        const.ProductModel.SESAME_5,
         TEST_UUID,
         b"\x00" * 16,
     )

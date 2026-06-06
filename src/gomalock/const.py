@@ -17,20 +17,20 @@ class KeyLevel(Enum):
 class ProductModel(Enum):
     """Enumerates the supported Sesame device models and their identifiers."""
 
-    SESAME5 = 5
-    SESAME5_PRO = 7
+    SESAME_5 = 5
+    SESAME_5_PRO = 7
     SESAME_TOUCH_PRO = 9
     SESAME_TOUCH = 10
-    SESAME5_USA = 16
+    SESAME_5_USA = 16
 
 
 class ModelGroup(Enum):
     """Groups product models for device compatibility checks."""
 
-    SESAME5 = {
-        ProductModel.SESAME5,
-        ProductModel.SESAME5_PRO,
-        ProductModel.SESAME5_USA,
+    SESAME_5 = {
+        ProductModel.SESAME_5,
+        ProductModel.SESAME_5_PRO,
+        ProductModel.SESAME_5_USA,
     }
     SESAME_TOUCH = {ProductModel.SESAME_TOUCH, ProductModel.SESAME_TOUCH_PRO}
 

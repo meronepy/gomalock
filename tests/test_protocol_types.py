@@ -13,7 +13,7 @@ def test_from_manufacturer_data_registered() -> None:
         make_manufacturer_data()
     )
 
-    assert result.product_model == const.ProductModel.SESAME5
+    assert result.product_model == const.ProductModel.SESAME_5
     assert result.is_registered is True
     assert result.device_uuid == TEST_UUID
 

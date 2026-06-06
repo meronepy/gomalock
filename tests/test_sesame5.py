@@ -397,7 +397,7 @@ def test_generate_qr_url_owner(monkeypatch: pytest.MonkeyPatch) -> None:
         == os3_protocol.OS3QRCode(
             "Sesame",
             const.KeyLevel.OWNER,
-            const.ProductModel.SESAME5,
+            const.ProductModel.SESAME_5,
             TEST_UUID,
             bytes.fromhex("00" * 16),
         ).qr_url
@@ -412,7 +412,7 @@ def test_generate_qr_url_manager(monkeypatch: pytest.MonkeyPatch) -> None:
         os3_protocol.OS3QRCode(
             "Sesame",
             const.KeyLevel.MANAGER,
-            const.ProductModel.SESAME5,
+            const.ProductModel.SESAME_5,
             TEST_UUID,
             bytes.fromhex("00" * 16),
         ).qr_url

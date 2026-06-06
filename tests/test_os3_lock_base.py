@@ -12,7 +12,7 @@ from tests.conftest import TEST_ADDRESS, TEST_UUID, make_mock_os3_device
 class DummyLock(os3_lock_base.BaseSesameOS3Lock["DummyLock", int]):
     """Minimal concrete lock used to exercise the base class."""
 
-    _VALID_MODEL_GROUPS = const.ModelGroup.SESAME5
+    _VALID_MODEL_GROUPS = const.ModelGroup.SESAME_5
 
     def on_published(self, publish_data: protocol_types.ReceivedSesamePublish) -> None:
         """Updates status and completes login during publish handling."""
@@ -359,7 +359,7 @@ def test_generate_qr_url_owner(monkeypatch: pytest.MonkeyPatch) -> None:
         == os3_protocol.OS3QRCode(
             "Base",
             const.KeyLevel.OWNER,
-            const.ProductModel.SESAME5,
+            const.ProductModel.SESAME_5,
             TEST_UUID,
             bytes.fromhex("00" * 16),
         ).qr_url
@@ -374,7 +374,7 @@ def test_generate_qr_url_manager(monkeypatch: pytest.MonkeyPatch) -> None:
         os3_protocol.OS3QRCode(
             "Base",
             const.KeyLevel.MANAGER,
-            const.ProductModel.SESAME5,
+            const.ProductModel.SESAME_5,
             TEST_UUID,
             bytes.fromhex("00" * 16),
         ).qr_url
@@ -393,7 +393,7 @@ def test_generate_qr_url_explicit_secret(monkeypatch: pytest.MonkeyPatch) -> Non
         os3_protocol.OS3QRCode(
             "Base",
             const.KeyLevel.OWNER,
-            const.ProductModel.SESAME5,
+            const.ProductModel.SESAME_5,
             TEST_UUID,
             bytes.fromhex("ff" * 16),
         ).qr_url

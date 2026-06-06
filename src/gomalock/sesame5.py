@@ -121,7 +121,7 @@ class Sesame5(BaseSesameOS3Lock["Sesame5", Sesame5MechStatus]):
     either an address string or a ScannedSesameDevice for Sesame 5 models.
     """
 
-    _VALID_MODEL_GROUPS = ModelGroup.SESAME5
+    _VALID_MODEL_GROUPS = ModelGroup.SESAME_5
 
     def __init__(
         self,
