@@ -68,8 +68,9 @@ class SesameScanner:
             sesame_adv_data.product_model.name,
         )
         self._seen_devices[device.address] = scanned_sesame
+        loop = asyncio.get_running_loop()
         for callback in tuple(self._detection_callbacks.values()):
-            callback(scanned_sesame)
+            loop.call_soon(callback, scanned_sesame)
 
     async def __aenter__(self) -> Self:
         """Starts the BLE scanning process upon entering the async context.

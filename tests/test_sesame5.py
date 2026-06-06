@@ -1,4 +1,5 @@
 # pylint: disable=duplicate-code,missing-module-docstring
+import asyncio
 import struct
 from unittest.mock import AsyncMock, Mock
 
@@ -110,7 +111,8 @@ def test_from_payload_mech_setting_invalid() -> None:
         _sesame5.Sesame5MechSetting.from_payload(b"\x00")
 
 
-def test_on_published_mech_status(monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.mark.asyncio
+async def test_on_published_mech_status(monkeypatch: pytest.MonkeyPatch) -> None:
     """Updates mechanical status and invokes callbacks."""
     device, _ = make_sesame5(monkeypatch)
     callback = Mock()
@@ -122,6 +124,7 @@ def test_on_published_mech_status(monkeypatch: pytest.MonkeyPatch) -> None:
             mech_status_payload(target=5, position=4),
         )
     )
+    await asyncio.sleep(0)
 
     assert device.mech_status.target == 5
     assert device.mech_status.position == 4
@@ -142,7 +145,8 @@ def test_on_published_mech_setting(monkeypatch: pytest.MonkeyPatch) -> None:
     assert device.mech_setting.auto_lock_duration == 7
 
 
-def test_register_mech_status_callback_unregistered(
+@pytest.mark.asyncio
+async def test_register_mech_status_callback_unregistered(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Does not invoke callbacks after unregister is called."""
@@ -157,6 +161,7 @@ def test_register_mech_status_callback_unregistered(
             mech_status_payload(),
         )
     )
+    await asyncio.sleep(0)
 
     callback.assert_not_called()
 

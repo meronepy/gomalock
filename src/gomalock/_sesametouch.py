@@ -4,6 +4,7 @@ This module contains the SesameTouch class, which extends the base OS3 lock
 functionality to parse mechanical status for Sesame Touch and Touch Pro devices.
 """
 
+import asyncio
 import struct
 from dataclasses import dataclass
 from typing import Self
@@ -98,8 +99,9 @@ class SesameTouch(BaseSesameOS3Lock["SesameTouch", SesameTouchMechStatus]):
                 self._mech_status = SesameTouchMechStatus.from_payload(
                     publish_data.payload
                 )
+                loop = asyncio.get_running_loop()
                 for callback in tuple(self._mech_status_callbacks.values()):
-                    callback(self, self._mech_status)
+                    loop.call_soon(callback, self, self._mech_status)
             case _:
                 self._handle_unsupported_publish(publish_data)
         if not self._login_completed.is_set() and self._mech_status is not None:

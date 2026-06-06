@@ -81,11 +81,13 @@ def make_ble_advertisement(manufacturer_data: bytes) -> tuple[Mock, Mock]:
     return ble_device, advertisement
 
 
-def test_detected_devices_supported_model() -> None:
+@pytest.mark.asyncio
+async def test_detected_devices_supported_model() -> None:
     """Stores scanned Sesame devices keyed by device address."""
     sesame_scanner = _scanner.SesameScanner()
 
     FakeBleakScanner.instances[-1].emit(make_manufacturer_data())
+    await asyncio.sleep(0)
 
     scanned_device = sesame_scanner.detected_devices[TEST_ADDRESS]
     assert scanned_device.address == TEST_ADDRESS
@@ -104,12 +106,14 @@ def test_detected_devices_unsupported_model() -> None:
     callback.assert_not_called()
 
 
-def test_register_detection_callback_invoked() -> None:
+@pytest.mark.asyncio
+async def test_register_detection_callback_invoked() -> None:
     """Calls registered callbacks with a scanned Sesame device."""
     callback = Mock()
     _scanner.SesameScanner(callback)
 
     FakeBleakScanner.instances[-1].emit(make_manufacturer_data())
+    await asyncio.sleep(0)
 
     callback.assert_called_once()
     scanned_device = callback.call_args.args[0]
@@ -117,7 +121,8 @@ def test_register_detection_callback_invoked() -> None:
     assert scanned_device.advertisement_data == make_advertisement()
 
 
-def test_register_detection_callback_unregistered() -> None:
+@pytest.mark.asyncio
+async def test_register_detection_callback_unregistered() -> None:
     """Stops invoking callbacks after unregister is called."""
     callback = Mock()
     sesame_scanner = _scanner.SesameScanner()
@@ -125,6 +130,7 @@ def test_register_detection_callback_unregistered() -> None:
 
     unregister()
     FakeBleakScanner.instances[-1].emit(make_manufacturer_data())
+    await asyncio.sleep(0)
 
     callback.assert_not_called()
 
@@ -272,10 +278,12 @@ async def test_discover_returns_detected_devices(
     assert result == detected
 
 
-def test_detected_devices_copy() -> None:
+@pytest.mark.asyncio
+async def test_detected_devices_copy() -> None:
     """Returns a copy of the internal detections dictionary."""
     sesame_scanner = _scanner.SesameScanner()
     FakeBleakScanner.instances[-1].emit(make_manufacturer_data())
+    await asyncio.sleep(0)
 
     detected = sesame_scanner.detected_devices
     detected["new"] = make_scanned_device("00:00:00:00:00:00")

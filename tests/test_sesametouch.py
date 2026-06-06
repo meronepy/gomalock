@@ -1,4 +1,5 @@
 # pylint: disable=duplicate-code,missing-module-docstring
+import asyncio
 import struct
 from unittest.mock import AsyncMock, Mock
 
@@ -81,7 +82,8 @@ def test_is_battery_critical_false() -> None:
     assert status.is_battery_critical is False
 
 
-def test_on_published_mech_status(monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.mark.asyncio
+async def test_on_published_mech_status(monkeypatch: pytest.MonkeyPatch) -> None:
     """Updates mechanical status and invokes callbacks."""
     device, _ = make_touch(monkeypatch)
     callback = Mock()
@@ -93,6 +95,7 @@ def test_on_published_mech_status(monkeypatch: pytest.MonkeyPatch) -> None:
             touch_status_payload(cards=1, fingerprints=2, passwords=3),
         )
     )
+    await asyncio.sleep(0)
 
     assert device.mech_status.card_count == 1
     assert device.mech_status.fingerprint_count == 2
@@ -112,7 +115,8 @@ def test_on_published_unhandled(monkeypatch: pytest.MonkeyPatch) -> None:
         _ = device.mech_status
 
 
-def test_register_mech_status_callback_unregistered(
+@pytest.mark.asyncio
+async def test_register_mech_status_callback_unregistered(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Does not invoke callbacks after unregister is called."""
@@ -127,6 +131,7 @@ def test_register_mech_status_callback_unregistered(
             touch_status_payload(),
         )
     )
+    await asyncio.sleep(0)
 
     callback.assert_not_called()
 

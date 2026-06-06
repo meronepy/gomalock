@@ -5,6 +5,7 @@ functionality to send commands such as lock, unlock, and toggle, and to parse
 the mechanical status and settings for Sesame 5 locks.
 """
 
+import asyncio
 import logging
 import struct
 from dataclasses import dataclass
@@ -169,8 +170,9 @@ class Sesame5(BaseSesameOS3Lock["Sesame5", Sesame5MechStatus]):
         match publish_data.item_code:
             case ItemCode.MECH_STATUS:
                 self._mech_status = Sesame5MechStatus.from_payload(publish_data.payload)
+                loop = asyncio.get_running_loop()
                 for callback in tuple(self._mech_status_callbacks.values()):
-                    callback(self, self._mech_status)
+                    loop.call_soon(callback, self, self._mech_status)
             case ItemCode.MECH_SETTING:
                 self._mech_setting = Sesame5MechSetting.from_payload(
                     publish_data.payload
