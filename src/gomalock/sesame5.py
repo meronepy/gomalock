@@ -126,11 +126,12 @@ class Sesame5(BaseSesameOS3Lock["Sesame5", Sesame5MechStatus]):
     def __init__(
         self,
         address_or_device: str | ScannedSesameDevice,
+        *,
         secret_key: str | None = None,
         mech_status_callback: (
             Callable[["Sesame5", Sesame5MechStatus], None] | None
         ) = None,
-        auto_reconnection_limit: int = 0,
+        reconnect_attempts: int = 0,
     ) -> None:
         """Initializes the Sesame 5 device handler.
 
@@ -140,17 +141,17 @@ class Sesame5(BaseSesameOS3Lock["Sesame5", Sesame5MechStatus]):
             secret_key: The hex-encoded secret key used for login.
             mech_status_callback: A function called whenever the device publishes
                 a new mechanical status.
-            auto_reconnection_limit: The maximum number of consecutive auto-reconnection
+            reconnect_attempts: The maximum number of consecutive auto-reconnection
                 attempts.
 
         Raises:
             ValueError: If the ScannedSesameDevice is not a Sesame 5 model.
         """
         super().__init__(
-            address_or_device,
-            secret_key,
-            mech_status_callback,
-            auto_reconnection_limit,
+            address_or_device=address_or_device,
+            secret_key=secret_key,
+            mech_status_callback=mech_status_callback,
+            reconnect_attempts=reconnect_attempts,
         )
         self._mech_setting: Sesame5MechSetting | None = None
 

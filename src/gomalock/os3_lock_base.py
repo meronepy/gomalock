@@ -53,9 +53,10 @@ class BaseSesameOS3Lock[LockSelfT: "BaseSesameOS3Lock", MechStatusT](ABC):
     def __init__(
         self,
         address_or_device: str | ScannedSesameDevice,
+        *,
         secret_key: str | None = None,
         mech_status_callback: Callable[[LockSelfT, MechStatusT], None] | None = None,
-        auto_reconnection_limit: int = 0,
+        reconnect_attempts: int = 0,
     ) -> None:
         """Initializes the base lock interface.
 
@@ -66,7 +67,7 @@ class BaseSesameOS3Lock[LockSelfT: "BaseSesameOS3Lock", MechStatusT](ABC):
             secret_key: The hex-encoded secret key used for authentication.
             mech_status_callback: A function invoked when the mechanical status
                 is updated.
-            auto_reconnection_limit: The maximum number of consecutive attempts
+            reconnect_attempts: The maximum number of consecutive attempts
                 to automatically reconnect to the device.
         """
         if (
@@ -81,7 +82,7 @@ class BaseSesameOS3Lock[LockSelfT: "BaseSesameOS3Lock", MechStatusT](ABC):
             self.on_unexpected_disconnect,
         )
         self._secret_key = secret_key
-        self._auto_reconnection_limit = auto_reconnection_limit
+        self._reconnect_attempts = reconnect_attempts
         self._reconnect_task: asyncio.Task | None = None
         self._mech_status: MechStatusT | None = None
         self._login_completed = asyncio.Event()
@@ -119,7 +120,7 @@ class BaseSesameOS3Lock[LockSelfT: "BaseSesameOS3Lock", MechStatusT](ABC):
         """
         logger.error("Unexpected Sesame disconnection [address=%s]", self.address)
         self._cleanup()
-        if self._auto_reconnection_limit and not self.is_background_reconnecting:
+        if self._reconnect_attempts and not self.is_background_reconnecting:
             self._reconnect_task = asyncio.create_task(self._auto_reconnect())
 
     async def _auto_reconnect(self) -> None:
@@ -127,14 +128,14 @@ class BaseSesameOS3Lock[LockSelfT: "BaseSesameOS3Lock", MechStatusT](ABC):
 
         Uses an exponential backoff strategy for consecutive reconnection attempts.
         """
-        for attempt in range(self._auto_reconnection_limit):
+        for attempt in range(self._reconnect_attempts):
             delay = min(2**attempt + random.random(), RECONNECT_MAX_BACKOFF)
             logger.info(
                 "Auto-reconnection will be attempted after delay "
                 "[address=%s, attempt=%d/%d, delay=%.1fs]",
                 self.address,
                 attempt + 1,
-                self._auto_reconnection_limit,
+                self._reconnect_attempts,
                 delay,
             )
             await asyncio.sleep(delay)

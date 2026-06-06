@@ -39,7 +39,7 @@ def make_lock(
     lock = DummyLock(
         TEST_ADDRESS,
         secret_key=secret_key,
-        auto_reconnection_limit=auto_reconnection_limit,
+        reconnect_attempts=auto_reconnection_limit,
     )
     return lock, os3_device
 
