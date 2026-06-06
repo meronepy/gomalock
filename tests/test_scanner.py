@@ -65,9 +65,11 @@ def make_scanned_device(
     advertisement: protocol_types.SesameAdvertisementData | None = None,
 ) -> protocol_types.ScannedSesameDevice:
     """Creates a scanned Sesame device test double."""
+    ble_device = Mock(address=address)
     return protocol_types.ScannedSesameDevice(
-        Mock(address=address),
+        address,
         advertisement or make_advertisement(),
+        ble_device,
     )
 
 

@@ -14,13 +14,13 @@ Sesame固有のアドバタイズ情報と、BLEの接続情報を含みます
 
 ### デバイス情報
 
+#### `ScannedSesameDevice.mac_address: str`
+
+- 検出したSesameのMACアドレス
+
 #### `ScannedSesameDevice.sesame_advertisement_data: SesameAdvertisementData`
 
 - Sesameがアドバタイズしている情報
-
-#### `property ScannedSesameDevice.mac_address: str`
-
-- 検出したSesameのMACアドレス
 
 ---
 
