@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 
 
 # Holds device state, so pylint: disable=too-many-instance-attributes
-class BaseSesameOS3Lock[LockSelfT, MechStatusT](ABC):
+class BaseSesameOS3Lock[LockSelfT: "BaseSesameOS3Lock", MechStatusT](ABC):
     """Abstract base class for interacting with Sesame OS3 devices.
 
     Provides common functionality such as connecting, logging in, handling
