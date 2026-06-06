@@ -17,6 +17,7 @@ from .exc import SesameConnectionError
 from .protocol_types import (
     ReceivedSesamePacket,
     ScannedSesameDevice,
+    ScannedSesameWithBLE,
     SesameAdvertisementData,
 )
 from .scanner import SesameScanner
@@ -176,7 +177,7 @@ class SesameBLETransport:
         )
         self._received_data_callback(self._rx_buffer, packet.is_encrypted)
 
-    async def _get_scanned_sesame_device(self) -> ScannedSesameDevice:
+    async def _get_scanned_sesame_with_ble(self) -> ScannedSesameWithBLE:
         """Scans for and retrieves the Sesame device.
 
         Returns:
@@ -191,6 +192,10 @@ class SesameBLETransport:
         )
         if found_device is None:
             raise SesameConnectionError("Device not found")
+        if not isinstance(found_device, ScannedSesameWithBLE):
+            raise SesameConnectionError(
+                "Scanned device does not include BLE information"
+            )
         return found_device
 
     def cleanup(self) -> None:
@@ -210,11 +215,10 @@ class SesameBLETransport:
             "Initiating communication with Sesame device [address=%s]",
             self.mac_address,
         )
-        if isinstance(self._identifier, str):
-            self._identifier = await self._get_scanned_sesame_device()
-        # Private to callers; shared inside gomalock, so pylint: disable=protected-access
+        if not isinstance(self._identifier, ScannedSesameWithBLE):
+            self._identifier = await self._get_scanned_sesame_with_ble()
         self._bleak_client = BleakClient(
-            self._identifier._ble_device, self.on_disconnect
+            self._identifier.ble_device, self.on_disconnect
         )
         logger.debug("Initiating BLE connection [address=%s]", self.mac_address)
         try:

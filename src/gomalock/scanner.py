@@ -15,7 +15,11 @@ from bleak.backends.device import BLEDevice
 from bleak.backends.scanner import AdvertisementData
 
 from .const import COMPANY_ID, SCAN_TIMEOUT, UUID_SERVICE
-from .protocol_types import ScannedSesameDevice, SesameAdvertisementData
+from .protocol_types import (
+    ScannedSesameDevice,
+    ScannedSesameWithBLE,
+    SesameAdvertisementData,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +61,7 @@ class SesameScanner:
             )
         except (ValueError, KeyError, struct.error):
             return
-        scanned_sesame = ScannedSesameDevice(device.address, sesame_adv_data, device)
+        scanned_sesame = ScannedSesameWithBLE(device.address, sesame_adv_data, device)
         logger.debug(
             "Detected Sesame device [address=%s, model=%s]",
             device.address,

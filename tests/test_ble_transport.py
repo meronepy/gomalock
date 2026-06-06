@@ -74,10 +74,10 @@ def make_transport(
 
 def make_scanned_device(
     advertisement_data: protocol_types.SesameAdvertisementData,
-) -> protocol_types.ScannedSesameDevice:
+) -> protocol_types.ScannedSesameWithBLE:
     """Creates a scanned Sesame device test double."""
     ble_device = Mock(address=TEST_ADDRESS)
-    return protocol_types.ScannedSesameDevice(
+    return protocol_types.ScannedSesameWithBLE(
         TEST_ADDRESS,
         advertisement_data,
         ble_device,
@@ -221,7 +221,7 @@ async def test_connect_and_start_notification_success(
 
     finder.assert_awaited_once_with(TEST_ADDRESS, timeout=const.SCAN_TIMEOUT)
     bleak_client.assert_called_once_with(
-        scanned_device._ble_device, transport.on_disconnect
+        scanned_device.ble_device, transport.on_disconnect
     )
     client.connect.assert_awaited_once()
     client.start_notify.assert_awaited_once_with(
@@ -262,7 +262,7 @@ async def test_connect_and_start_notification_with_scanned_device_skips_scan(
 
     finder.assert_not_awaited()
     bleak_client.assert_called_once_with(
-        scanned_device._ble_device,
+        scanned_device.ble_device,
         transport.on_disconnect,
     )
     client.connect.assert_awaited_once_with(timeout=const.SCAN_TIMEOUT)
