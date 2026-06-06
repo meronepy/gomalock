@@ -19,6 +19,7 @@ from ._const import (
     ModelGroup,
 )
 from ._exc import SesameConnectionError, SesameLoginError
+from ._os3_cipher import convert_secret_key
 from ._os3_protocol import OS3QRCode, SesameOS3Protocol
 from ._protocol_types import (
     ReceivedSesamePublish,
@@ -77,7 +78,11 @@ class BaseSesameOS3Lock[LockSelfT: "BaseSesameOS3Lock", MechStatusT](ABC):
             self.on_published,
             self.on_unexpected_disconnect,
         )
-        self._secret_key = secret_key
+        if secret_key is not None:
+            bytes_key = convert_secret_key(secret_key)
+        else:
+            bytes_key = None
+        self._secret_key = bytes_key
         self._reconnect_attempts = reconnect_attempts
         self._reconnect_task: asyncio.Task | None = None
         self._mech_status: MechStatusT | None = None
@@ -281,13 +286,12 @@ class BaseSesameOS3Lock[LockSelfT: "BaseSesameOS3Lock", MechStatusT](ABC):
             )
         if self.is_logged_in:
             raise SesameLoginError("Already logged in")
-        secret_key = secret_key or self._secret_key
-        if secret_key is None:
+        if secret_key is not None:
+            bytes_key = convert_secret_key(secret_key)
+        elif self._secret_key is not None:
+            bytes_key = self._secret_key
+        else:
             raise SesameLoginError("A secret key is required for login")
-        try:
-            bytes_key = bytes.fromhex(secret_key)
-        except ValueError as e:
-            raise SesameLoginError("Invalid secret key format") from e
         logger.info("Logging in to Sesame [address=%s]", self.address)
         self._device_status = DeviceStatus.LOGGING_IN
         try:
@@ -352,15 +356,18 @@ class BaseSesameOS3Lock[LockSelfT: "BaseSesameOS3Lock", MechStatusT](ABC):
                 device has not been scanned yet.
             SesameLoginError: If the secret key is missing.
         """
-        secret_key = secret_key or self._secret_key
-        if secret_key is None:
+        if secret_key is not None:
+            bytes_key = convert_secret_key(secret_key)
+        elif self._secret_key is not None:
+            bytes_key = self._secret_key
+        else:
             raise SesameLoginError("A secret key is required for QR code generation")
         info = OS3QRCode(
             device_name,
             key_level,
             self.advertisement_data.product_model,
             self.advertisement_data.device_uuid,
-            bytes.fromhex(secret_key),
+            bytes_key,
         )
         return info.qr_url
 
