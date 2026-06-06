@@ -29,7 +29,7 @@
 - `timeout`秒以内に見つからなかった場合、`None`を返します
 - 引数
   - filter_func: `ScannedSesameDevice`を引数に取り、条件に合致すれば`True`を返す関数
-  - timeout: 探索する時間の上限 (秒単位, デフォルトは`10.0`秒)
+  - timeout: 探索する時間の上限 (秒単位, デフォルトは`30`秒)
 
 #### `classmethod async SesameScanner.find_device_by_address(address: str, timeout: float = SCAN_TIMEOUT) -> ScannedSesameDevice | None`
 
@@ -38,7 +38,7 @@
 - `timeout`秒以内に見つからなかった場合、`None`を返します
 - 引数
   - address: 目的のデバイスのMACアドレス
-  - timeout: 探索する時間の上限 (秒単位, デフォルトは`10.0`秒)
+  - timeout: 探索する時間の上限 (秒単位, デフォルトは`30`秒)
 
 #### `classmethod async SesameScanner.find_device_by_uuid(uuid: uuid.UUID, timeout: float = SCAN_TIMEOUT) -> ScannedSesameDevice | None`
 
@@ -47,13 +47,13 @@
 - `timeout`秒以内に見つからなかった場合、`None`を返します
 - 引数
   - uuid: 目的のデバイスのUUID
-  - timeout: 探索する時間の上限 (秒単位, デフォルトは`10.0`秒)
+  - timeout: 探索する時間の上限 (秒単位, デフォルトは`30`秒)
 
 #### `classmethod async SesameScanner.discover(timeout: float = SCAN_TIMEOUT) -> dict[str, ScannedSesameDevice]`
 
 - 周囲の全てのSesameデバイスをスキャンし、タイムアウト後に結果を返します
 - 引数
-  - timeout: 探索する時間 (秒単位, デフォルトは`10.0`秒)
+  - timeout: 探索する時間 (秒単位, デフォルトは`30`秒)
 - 返り値:
   - スキャン中に検出したSesameデバイスの一覧の辞書
   - キーはMACアドレス、値は`ScannedSesameDevice`です
