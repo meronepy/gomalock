@@ -22,11 +22,11 @@ from .const import (
     PUBLISH_TIMEOUT,
     RESPONSE_TIMEOUT,
     VOLTAGE_LEVELS,
-    ItemCodes,
-    KeyLevels,
-    OpCodes,
-    ProductModels,
-    ResultCodes,
+    ItemCode,
+    KeyLevel,
+    OpCode,
+    ProductModel,
+    ResultCode,
 )
 from .exc import (
     SesameConnectionError,
@@ -119,8 +119,8 @@ class OS3QRCode:
     """
 
     device_name: str
-    key_level: KeyLevels
-    product_model: ProductModels
+    key_level: KeyLevel
+    product_model: ProductModel
     device_uuid: UUID
     secret_key: bytes
     registration_session_token: bytes = bytes(4)
@@ -143,7 +143,7 @@ class OS3QRCode:
         """
         query = parse.parse_qs(parse.urlparse(qr_url).query)
         key_level_value = int(query.get("l", ["0"])[0])
-        if key_level_value not in KeyLevels:
+        if key_level_value not in KeyLevel:
             raise SesameError("Key level other than owner/manager are not supported")
         device_name = query.get("n", [""])[0]
         shared_key = base64.b64decode(query.get("sk", [""])[0])
@@ -152,8 +152,8 @@ class OS3QRCode:
         )
         return cls(
             device_name=device_name,
-            key_level=KeyLevels(key_level_value),
-            product_model=ProductModels(product_model_value),
+            key_level=KeyLevel(key_level_value),
+            product_model=ProductModel(product_model_value),
             device_uuid=UUID(bytes=uuid_value),
             secret_key=secret_key,
             registration_session_token=public_key,
@@ -220,7 +220,7 @@ class SesameOS3Protocol:
         self._publish_data_callback = publish_data_callback
         self._send_lock = asyncio.Lock()
         self._response_futures: dict[
-            ItemCodes, asyncio.Future[ReceivedSesameResponse]
+            ItemCode, asyncio.Future[ReceivedSesameResponse]
         ] = {}
         self._session_token_future: asyncio.Future[bytes] | None = None
         self._cipher: OS3Cipher | None = None
@@ -252,7 +252,7 @@ class SesameOS3Protocol:
             logger.exception("Received unknown opcode or empty reassembled data")
             return
         match sesame_message.op_code:
-            case OpCodes.RESPONSE:
+            case OpCode.RESPONSE:
                 try:
                     response_data = ReceivedSesameResponse.from_sesame_message(
                         sesame_message.payload
@@ -263,7 +263,7 @@ class SesameOS3Protocol:
                     )
                     return
                 self._handle_response(response_data)
-            case OpCodes.PUBLISH:
+            case OpCode.PUBLISH:
                 try:
                     publish_data = ReceivedSesamePublish.from_sesame_message(
                         sesame_message.payload
@@ -310,7 +310,7 @@ class SesameOS3Protocol:
         logger.debug(
             "Received publish notification [item=%s]", publish_data.item_code.name
         )
-        if publish_data.item_code == ItemCodes.INITIAL:
+        if publish_data.item_code == ItemCode.INITIAL:
             if self._session_token_future is None or self._session_token_future.done():
                 logger.warning(
                     "Received initial publish data without a pending session token request"
@@ -385,7 +385,7 @@ class SesameOS3Protocol:
                 response_future.cancel()
                 self._response_futures.pop(command.item_code, None)
                 raise
-            if response.result_code != ResultCodes.SUCCESS:
+            if response.result_code != ResultCode.SUCCESS:
                 raise SesameOperationError(
                     f"Operation failed: {response.result_code.name}",
                     response.result_code,
@@ -430,7 +430,7 @@ class SesameOS3Protocol:
         app_protocol_public_key, app_private_key = generate_app_keys()
         timestamp = int(time.time()).to_bytes(4, "little")
         response = await self.send_command(
-            SesameCommand(ItemCodes.REGISTRATION, app_protocol_public_key + timestamp),
+            SesameCommand(ItemCode.REGISTRATION, app_protocol_public_key + timestamp),
             False,
         )
         device_protocol_public_key = response.payload[13:77]
@@ -465,7 +465,7 @@ class SesameOS3Protocol:
         self._cipher = OS3Cipher(self._session_token_future.result(), session_key)
         logger.debug("Session cipher initialized")
         response = await self.send_command(
-            SesameCommand(ItemCodes.LOGIN, session_key[:4]), False
+            SesameCommand(ItemCode.LOGIN, session_key[:4]), False
         )
         return int.from_bytes(response.payload, "little")
 

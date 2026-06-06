@@ -10,7 +10,7 @@ import struct
 from dataclasses import dataclass
 from typing import Callable, Self
 
-from .const import ItemCodes, MechStatusBitFlags, ModelGroups
+from .const import ItemCode, MechStatusBitFlag, ModelGroup
 from .exc import SesameLoginError
 from .os3_lock_base import BaseSesameOS3Lock
 from .os3_protocol import calculate_battery_percentage, create_history_tag
@@ -52,22 +52,22 @@ class Sesame5MechStatus:
     @property
     def is_in_lock_range(self) -> bool:
         """Indicates if the current position is considered locked."""
-        return bool(self._status_flags & MechStatusBitFlags.IS_IN_LOCK_RANGE)
+        return bool(self._status_flags & MechStatusBitFlag.IS_IN_LOCK_RANGE)
 
     @property
     def is_in_unlock_range(self) -> bool:
         """Indicates if the current position is considered unlocked."""
-        return bool(self._status_flags & MechStatusBitFlags.IS_IN_UNLOCK_RANGE)
+        return bool(self._status_flags & MechStatusBitFlag.IS_IN_UNLOCK_RANGE)
 
     @property
     def is_battery_critical(self) -> bool:
         """Indicates if the battery voltage has dropped below critical levels."""
-        return bool(self._status_flags & MechStatusBitFlags.IS_BATTERY_CRITICAL)
+        return bool(self._status_flags & MechStatusBitFlag.IS_BATTERY_CRITICAL)
 
     @property
     def is_stop(self) -> bool:
         """Indicates if the motor is currently idle (not moving)."""
-        return bool(self._status_flags & MechStatusBitFlags.IS_STOP)
+        return bool(self._status_flags & MechStatusBitFlag.IS_STOP)
 
     @property
     def battery_voltage(self) -> float:
@@ -121,7 +121,7 @@ class Sesame5(BaseSesameOS3Lock["Sesame5", Sesame5MechStatus]):
     either a MAC address string or a ScannedSesameDevice for Sesame 5 models.
     """
 
-    _VALID_MODEL_GROUPS = ModelGroups.SESAME5
+    _VALID_MODEL_GROUPS = ModelGroup.SESAME5
 
     def __init__(
         self,
@@ -165,11 +165,11 @@ class Sesame5(BaseSesameOS3Lock["Sesame5", Sesame5MechStatus]):
             publish_data: The parsed publish notification from the device.
         """
         match publish_data.item_code:
-            case ItemCodes.MECH_STATUS:
+            case ItemCode.MECH_STATUS:
                 self._mech_status = Sesame5MechStatus.from_payload(publish_data.payload)
                 for callback in tuple(self._mech_status_callbacks.values()):
                     callback(self, self._mech_status)
-            case ItemCodes.MECH_SETTING:
+            case ItemCode.MECH_SETTING:
                 self._mech_setting = Sesame5MechSetting.from_payload(
                     publish_data.payload
                 )
@@ -200,7 +200,7 @@ class Sesame5(BaseSesameOS3Lock["Sesame5", Sesame5MechStatus]):
         if not self.is_logged_in:
             raise SesameLoginError("Login is required to send lock/unlock commands")
         tag = create_history_tag(history_name)
-        item_code = ItemCodes.LOCK if locked else ItemCodes.UNLOCK
+        item_code = ItemCode.LOCK if locked else ItemCode.UNLOCK
         action = "lock" if locked else "unlock"
         logger.info(
             "Executing %s command [address=%s, history=%s]",
@@ -242,7 +242,7 @@ class Sesame5(BaseSesameOS3Lock["Sesame5", Sesame5MechStatus]):
             unlock_position,
         )
         await self._os3_device.send_command(
-            SesameCommand(ItemCodes.MECH_SETTING, payload), should_encrypt=True
+            SesameCommand(ItemCode.MECH_SETTING, payload), should_encrypt=True
         )
 
     async def set_auto_lock_duration(self, auto_lock_duration: int) -> None:
@@ -269,7 +269,7 @@ class Sesame5(BaseSesameOS3Lock["Sesame5", Sesame5MechStatus]):
             auto_lock_duration,
         )
         await self._os3_device.send_command(
-            SesameCommand(ItemCodes.AUTOLOCK, payload), should_encrypt=True
+            SesameCommand(ItemCode.AUTOLOCK, payload), should_encrypt=True
         )
 
     async def lock(self, history_name: str) -> None:

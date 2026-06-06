@@ -13,7 +13,7 @@ def test_from_manufacturer_data_registered() -> None:
         make_manufacturer_data()
     )
 
-    assert result.product_model == const.ProductModels.SESAME5
+    assert result.product_model == const.ProductModel.SESAME5
     assert result.is_registered is True
     assert result.device_uuid == TEST_UUID
 
@@ -58,11 +58,11 @@ def test_from_ble_data_empty() -> None:
 @pytest.mark.parametrize(
     ("header", "is_beginning", "is_end", "is_encrypted"),
     [
-        (const.PacketTypes.BEGINNING, True, False, False),
-        (const.PacketTypes.PLAINTEXT_END, False, True, False),
-        (const.PacketTypes.ENCRYPTED_END, False, True, True),
+        (const.PacketType.BEGINNING, True, False, False),
+        (const.PacketType.PLAINTEXT_END, False, True, False),
+        (const.PacketType.ENCRYPTED_END, False, True, True),
         (
-            const.PacketTypes.BEGINNING | const.PacketTypes.ENCRYPTED_END,
+            const.PacketType.BEGINNING | const.PacketType.ENCRYPTED_END,
             True,
             True,
             True,
@@ -70,7 +70,7 @@ def test_from_ble_data_empty() -> None:
     ],
 )
 def test_packet_properties_flags(
-    header: const.PacketTypes,
+    header: const.PacketType,
     is_beginning: bool,
     is_end: bool,
     is_encrypted: bool,
@@ -86,10 +86,10 @@ def test_packet_properties_flags(
 def test_from_reassembled_data_valid() -> None:
     """Parses an opcode and message payload."""
     result = protocol_types.ReceivedSesameMessage.from_reassembled_data(
-        bytes([const.OpCodes.PUBLISH.value]) + b"payload"
+        bytes([const.OpCode.PUBLISH.value]) + b"payload"
     )
 
-    assert result.op_code == const.OpCodes.PUBLISH
+    assert result.op_code == const.OpCode.PUBLISH
     assert result.payload == b"payload"
 
 
@@ -108,12 +108,12 @@ def test_from_reassembled_data_unknown_opcode() -> None:
 def test_from_sesame_message_response_success() -> None:
     """Parses response item, result, and payload."""
     result = protocol_types.ReceivedSesameResponse.from_sesame_message(
-        bytes([const.ItemCodes.LOGIN.value, const.ResultCodes.SUCCESS.value])
+        bytes([const.ItemCode.LOGIN.value, const.ResultCode.SUCCESS.value])
         + b"payload"
     )
 
-    assert result.item_code == const.ItemCodes.LOGIN
-    assert result.result_code == const.ResultCodes.SUCCESS
+    assert result.item_code == const.ItemCode.LOGIN
+    assert result.result_code == const.ResultCode.SUCCESS
     assert result.payload == b"payload"
 
 
@@ -132,10 +132,10 @@ def test_from_sesame_message_response_unknown_item() -> None:
 def test_from_sesame_message_publish_success() -> None:
     """Parses publish item code and payload."""
     result = protocol_types.ReceivedSesamePublish.from_sesame_message(
-        bytes([const.ItemCodes.MECH_STATUS.value]) + b"payload"
+        bytes([const.ItemCode.MECH_STATUS.value]) + b"payload"
     )
 
-    assert result.item_code == const.ItemCodes.MECH_STATUS
+    assert result.item_code == const.ItemCode.MECH_STATUS
     assert result.payload == b"payload"
 
 
@@ -147,15 +147,15 @@ def test_from_sesame_message_publish_empty() -> None:
 
 def test_transmission_data_with_payload() -> None:
     """Prefixes command payloads with the item code."""
-    command = protocol_types.SesameCommand(const.ItemCodes.LOGIN, b"payload")
+    command = protocol_types.SesameCommand(const.ItemCode.LOGIN, b"payload")
 
     assert (
-        command.transmission_data == bytes([const.ItemCodes.LOGIN.value]) + b"payload"
+        command.transmission_data == bytes([const.ItemCode.LOGIN.value]) + b"payload"
     )
 
 
 def test_transmission_data_empty_payload() -> None:
     """Returns only the item code for empty command payloads."""
-    command = protocol_types.SesameCommand(const.ItemCodes.LOCK, b"")
+    command = protocol_types.SesameCommand(const.ItemCode.LOCK, b"")
 
-    assert command.transmission_data == bytes([const.ItemCodes.LOCK.value])
+    assert command.transmission_data == bytes([const.ItemCode.LOCK.value])

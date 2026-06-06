@@ -12,7 +12,7 @@ from bleak import BleakClient
 from bleak.backends.characteristic import BleakGATTCharacteristic
 from bleak.exc import BleakDeviceNotFoundError
 
-from .const import MTU_SIZE, SCAN_TIMEOUT, UUID_NOTIFICATION, UUID_WRITE, PacketTypes
+from .const import MTU_SIZE, SCAN_TIMEOUT, UUID_NOTIFICATION, UUID_WRITE, PacketType
 from .exc import SesameConnectionError
 from .protocol_types import (
     ReceivedSesamePacket,
@@ -41,10 +41,10 @@ def generate_header(is_beginning: bool, is_end: bool, is_encrypted: bool) -> byt
     """
     header = 0
     if is_beginning:
-        header |= PacketTypes.BEGINNING
+        header |= PacketType.BEGINNING
     if is_end:
         header |= (
-            PacketTypes.ENCRYPTED_END if is_encrypted else PacketTypes.PLAINTEXT_END
+            PacketType.ENCRYPTED_END if is_encrypted else PacketType.PLAINTEXT_END
         )
     return header.to_bytes(1, byteorder="little")
 

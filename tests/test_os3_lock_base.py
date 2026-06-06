@@ -12,7 +12,7 @@ from tests.conftest import TEST_ADDRESS, TEST_UUID, make_mock_os3_device
 class DummyLock(os3_lock_base.BaseSesameOS3Lock["DummyLock", int]):
     """Minimal concrete lock used to exercise the base class."""
 
-    _VALID_MODEL_GROUPS = const.ModelGroups.SESAME5
+    _VALID_MODEL_GROUPS = const.ModelGroup.SESAME5
 
     def on_published(self, publish_data: protocol_types.ReceivedSesamePublish) -> None:
         """Updates status and completes login from public publish handling."""
@@ -48,7 +48,7 @@ def publish_status(lock: DummyLock, value: int = 7) -> None:
     """Publishes a mechanical status to the test lock."""
     lock.on_published(
         protocol_types.ReceivedSesamePublish(
-            const.ItemCodes.MECH_STATUS,
+            const.ItemCode.MECH_STATUS,
             value.to_bytes(1, "little"),
         )
     )
@@ -358,8 +358,8 @@ def test_generate_qr_url_owner(monkeypatch: pytest.MonkeyPatch) -> None:
         lock.generate_qr_url("Base")
         == os3_protocol.OS3QRCode(
             "Base",
-            const.KeyLevels.OWNER,
-            const.ProductModels.SESAME5,
+            const.KeyLevel.OWNER,
+            const.ProductModel.SESAME5,
             TEST_UUID,
             bytes.fromhex("00" * 16),
         ).qr_url
@@ -373,8 +373,8 @@ def test_generate_qr_url_manager(monkeypatch: pytest.MonkeyPatch) -> None:
     assert lock.generate_qr_url("Base", generate_owner_key=False) == (
         os3_protocol.OS3QRCode(
             "Base",
-            const.KeyLevels.MANAGER,
-            const.ProductModels.SESAME5,
+            const.KeyLevel.MANAGER,
+            const.ProductModel.SESAME5,
             TEST_UUID,
             bytes.fromhex("00" * 16),
         ).qr_url
@@ -388,8 +388,8 @@ def test_generate_qr_url_explicit_secret(monkeypatch: pytest.MonkeyPatch) -> Non
     assert lock.generate_qr_url("Base", secret_key="ff" * 16) == (
         os3_protocol.OS3QRCode(
             "Base",
-            const.KeyLevels.OWNER,
-            const.ProductModels.SESAME5,
+            const.KeyLevel.OWNER,
+            const.ProductModel.SESAME5,
             TEST_UUID,
             bytes.fromhex("ff" * 16),
         ).qr_url

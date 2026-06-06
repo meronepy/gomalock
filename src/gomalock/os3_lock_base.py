@@ -15,8 +15,8 @@ from .const import (
     PUBLISH_TIMEOUT,
     RECONNECT_MAX_BACKOFF,
     DeviceStatus,
-    KeyLevels,
-    ModelGroups,
+    KeyLevel,
+    ModelGroup,
 )
 from .exc import SesameConnectionError, SesameLoginError
 from .os3_protocol import OS3QRCode, SesameOS3Protocol
@@ -39,7 +39,7 @@ class BaseSesameOS3Lock[LockSelfT: "BaseSesameOS3Lock", MechStatusT](ABC):
     devices passed to the constructor.
     """
 
-    _VALID_MODEL_GROUPS: ModelGroups
+    _VALID_MODEL_GROUPS: ModelGroup
 
     def __init_subclass__(cls, **kwargs):
         """Ensures that subclasses define the required class variable."""
@@ -336,7 +336,7 @@ class BaseSesameOS3Lock[LockSelfT: "BaseSesameOS3Lock", MechStatusT](ABC):
             raise SesameLoginError("A secret key is required for QR code generation")
         info = OS3QRCode(
             device_name,
-            KeyLevels.OWNER if generate_owner_key else KeyLevels.MANAGER,
+            KeyLevel.OWNER if generate_owner_key else KeyLevel.MANAGER,
             self.sesame_advertisement_data.product_model,
             self.sesame_advertisement_data.device_uuid,
             bytes.fromhex(secret_key),
@@ -407,7 +407,7 @@ class BaseSesameOS3Lock[LockSelfT: "BaseSesameOS3Lock", MechStatusT](ABC):
         Returns:
             True if logged in, False otherwise.
         """
-        return self._device_status in DeviceStatus.AUTHENTICATED
+        return self._device_status == DeviceStatus.LOGGED_IN
 
     @property
     def device_status(self) -> DeviceStatus:

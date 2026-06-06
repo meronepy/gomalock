@@ -52,7 +52,7 @@ def fake_bleak_scanner(monkeypatch: pytest.MonkeyPatch):
 
 
 def make_advertisement(
-    model: const.ProductModels = const.ProductModels.SESAME5,
+    model: const.ProductModel = const.ProductModel.SESAME5,
 ) -> protocol_types.SesameAdvertisementData:
     """Creates parsed advertisement data."""
     return protocol_types.SesameAdvertisementData.from_manufacturer_data(
@@ -170,8 +170,8 @@ async def test_stop_success() -> None:
 @pytest.mark.asyncio
 async def test_find_device_by_filter_match(monkeypatch: pytest.MonkeyPatch) -> None:
     """Returns the first detected device matching the filter."""
-    first = make_advertisement(const.ProductModels.SESAME5)
-    second = make_advertisement(const.ProductModels.SESAME5_PRO)
+    first = make_advertisement(const.ProductModel.SESAME5)
+    second = make_advertisement(const.ProductModel.SESAME5_PRO)
     matching_device = make_scanned_device(TEST_ADDRESS, second)
 
     async def fake_generator(_self):
@@ -242,7 +242,7 @@ async def test_find_device_by_uuid_match(monkeypatch: pytest.MonkeyPatch) -> Non
         filter_func(
             make_scanned_device(
                 advertisement=protocol_types.SesameAdvertisementData(
-                    const.ProductModels.SESAME5,
+                    const.ProductModel.SESAME5,
                     True,
                     UUID("abcdef01-2345-6789-abcd-ef0123456789"),
                 )

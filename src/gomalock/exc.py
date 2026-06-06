@@ -4,7 +4,7 @@ This module contains custom exceptions for handling errors related to device
 operations, BLE connections, and authentication with Sesame devices.
 """
 
-from .const import ResultCodes
+from .const import ResultCode
 
 
 class SesameError(Exception):
@@ -22,7 +22,7 @@ class SesameLoginError(SesameError):
 class SesameOperationError(SesameError):
     """Exception raised when the device returns an error response to a command."""
 
-    def __init__(self, message: str, result_code: ResultCodes) -> None:
+    def __init__(self, message: str, result_code: ResultCode) -> None:
         """Initializes the exception with the device's result code.
 
         Args:

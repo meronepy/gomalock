@@ -20,7 +20,7 @@ def make_protocol(
     """Creates a protocol instance with a mocked BLE transport."""
     advertisement = Mock(
         is_registered=is_registered,
-        product_model=const.ProductModels.SESAME5,
+        product_model=const.ProductModel.SESAME5,
         device_uuid=TEST_UUID,
     )
     ble_device = mock_ble_device(
@@ -43,20 +43,20 @@ def make_protocol(
 
 
 def response_message(
-    item_code: const.ItemCodes,
-    result_code: const.ResultCodes = const.ResultCodes.SUCCESS,
+    item_code: const.ItemCode,
+    result_code: const.ResultCode = const.ResultCode.SUCCESS,
     payload: bytes = b"",
 ) -> bytes:
     """Builds a reassembled response message."""
     return (
-        bytes([const.OpCodes.RESPONSE.value, item_code.value, result_code.value])
+        bytes([const.OpCode.RESPONSE.value, item_code.value, result_code.value])
         + payload
     )
 
 
-def publish_message(item_code: const.ItemCodes, payload: bytes = b"") -> bytes:
+def publish_message(item_code: const.ItemCode, payload: bytes = b"") -> bytes:
     """Builds a reassembled publish message."""
-    return bytes([const.OpCodes.PUBLISH.value, item_code.value]) + payload
+    return bytes([const.OpCode.PUBLISH.value, item_code.value]) + payload
 
 
 @pytest.mark.parametrize(
@@ -122,8 +122,8 @@ def test_from_qr_url_roundtrip() -> None:
     """Parses a generated QR URL back into the same key data."""
     qr_code = os3_protocol.OS3QRCode(
         "Front Door",
-        const.KeyLevels.OWNER,
-        const.ProductModels.SESAME5,
+        const.KeyLevel.OWNER,
+        const.ProductModel.SESAME5,
         TEST_UUID,
         b"\x01" * 16,
         b"\x02" * 4,
@@ -139,7 +139,7 @@ def test_from_qr_url_invalid_key_level() -> None:
     """Raises SesameError for unsupported key levels."""
     shared_key = struct.pack(
         ">B16s4s2s16s",
-        const.ProductModels.SESAME5.value,
+        const.ProductModel.SESAME5.value,
         b"\x01" * 16,
         b"\x02" * 4,
         b"\x03\x04",
@@ -157,8 +157,8 @@ def test_qr_url_format() -> None:
     """Generates official Sesame QR URL scheme."""
     qr_code = os3_protocol.OS3QRCode(
         "Sesame",
-        const.KeyLevels.MANAGER,
-        const.ProductModels.SESAME5,
+        const.KeyLevel.MANAGER,
+        const.ProductModel.SESAME5,
         TEST_UUID,
         b"\x00" * 16,
     )
@@ -169,12 +169,12 @@ def test_qr_url_format() -> None:
 def test_on_received_publish_dispatches(monkeypatch: pytest.MonkeyPatch) -> None:
     """Dispatches non-initial publish messages to the callback."""
     protocol, _, publish_callback, _ = make_protocol(monkeypatch)
-    publish = publish_message(const.ItemCodes.MECH_STATUS, b"payload")
+    publish = publish_message(const.ItemCode.MECH_STATUS, b"payload")
 
     protocol.on_received(publish, is_encrypted=False)
 
     publish_callback.assert_called_once_with(
-        protocol_types.ReceivedSesamePublish(const.ItemCodes.MECH_STATUS, b"payload")
+        protocol_types.ReceivedSesamePublish(const.ItemCode.MECH_STATUS, b"payload")
     )
 
 
@@ -191,13 +191,13 @@ def test_on_received_encrypted_without_login(monkeypatch: pytest.MonkeyPatch) ->
 async def test_send_command_success(monkeypatch: pytest.MonkeyPatch) -> None:
     """Sends a command and returns a successful response."""
     protocol, ble_device, _, _ = make_protocol(monkeypatch)
-    command = protocol_types.SesameCommand(const.ItemCodes.LOGIN, b"data")
+    command = protocol_types.SesameCommand(const.ItemCode.LOGIN, b"data")
 
     async def write_gatt(send_data: bytes, is_encrypted: bool) -> None:
         assert send_data == command.transmission_data
         assert is_encrypted is False
         protocol.on_received(
-            response_message(const.ItemCodes.LOGIN, payload=b"ok"), False
+            response_message(const.ItemCode.LOGIN, payload=b"ok"), False
         )
 
     ble_device.write_gatt.side_effect = write_gatt
@@ -205,8 +205,8 @@ async def test_send_command_success(monkeypatch: pytest.MonkeyPatch) -> None:
     response = await protocol.send_command(command, should_encrypt=False)
 
     assert response == protocol_types.ReceivedSesameResponse(
-        const.ItemCodes.LOGIN,
-        const.ResultCodes.SUCCESS,
+        const.ItemCode.LOGIN,
+        const.ResultCode.SUCCESS,
         b"ok",
     )
 
@@ -215,12 +215,12 @@ async def test_send_command_success(monkeypatch: pytest.MonkeyPatch) -> None:
 async def test_send_command_operation_error(monkeypatch: pytest.MonkeyPatch) -> None:
     """Raises SesameOperationError when a response result is not success."""
     protocol, ble_device, _, _ = make_protocol(monkeypatch)
-    command = protocol_types.SesameCommand(const.ItemCodes.LOGIN, b"data")
+    command = protocol_types.SesameCommand(const.ItemCode.LOGIN, b"data")
 
     async def write_gatt(send_data: bytes, is_encrypted: bool) -> None:
         del send_data, is_encrypted
         protocol.on_received(
-            response_message(const.ItemCodes.LOGIN, const.ResultCodes.INVALID_ACTION),
+            response_message(const.ItemCode.LOGIN, const.ResultCode.INVALID_ACTION),
             False,
         )
 
@@ -229,7 +229,7 @@ async def test_send_command_operation_error(monkeypatch: pytest.MonkeyPatch) -> 
     with pytest.raises(exc.SesameOperationError) as error_info:
         await protocol.send_command(command, should_encrypt=False)
 
-    assert error_info.value.result_code == const.ResultCodes.INVALID_ACTION
+    assert error_info.value.result_code == const.ResultCode.INVALID_ACTION
 
 
 @pytest.mark.asyncio
@@ -241,7 +241,7 @@ async def test_send_command_encrypt_without_login(
 
     with pytest.raises(exc.SesameLoginError):
         await protocol.send_command(
-            protocol_types.SesameCommand(const.ItemCodes.LOCK, b""),
+            protocol_types.SesameCommand(const.ItemCode.LOCK, b""),
             should_encrypt=True,
         )
 
@@ -254,7 +254,7 @@ async def test_send_command_timeout(monkeypatch: pytest.MonkeyPatch) -> None:
 
     with pytest.raises(asyncio.TimeoutError):
         await protocol.send_command(
-            protocol_types.SesameCommand(const.ItemCodes.LOGIN, b""),
+            protocol_types.SesameCommand(const.ItemCode.LOGIN, b""),
             should_encrypt=False,
         )
 
@@ -266,7 +266,7 @@ async def test_connect_success(monkeypatch: pytest.MonkeyPatch) -> None:
 
     async def connect_and_start_notification() -> None:
         protocol.on_received(
-            publish_message(const.ItemCodes.INITIAL, b"\x01\x02\x03\x04"),
+            publish_message(const.ItemCode.INITIAL, b"\x01\x02\x03\x04"),
             False,
         )
 
@@ -309,8 +309,8 @@ async def test_register_success(monkeypatch: pytest.MonkeyPatch) -> None:
         "send_command",
         AsyncMock(
             return_value=protocol_types.ReceivedSesameResponse(
-                const.ItemCodes.REGISTRATION,
-                const.ResultCodes.SUCCESS,
+                const.ItemCode.REGISTRATION,
+                const.ResultCode.SUCCESS,
                 b"\x00" * 13 + b"b" * 64,
             )
         ),
@@ -336,13 +336,13 @@ async def test_login_success(monkeypatch: pytest.MonkeyPatch) -> None:
     protocol, ble_device, _, _ = make_protocol(monkeypatch)
 
     async def connect_and_start_notification() -> None:
-        protocol.on_received(publish_message(const.ItemCodes.INITIAL, b"tokn"), False)
+        protocol.on_received(publish_message(const.ItemCode.INITIAL, b"tokn"), False)
 
     async def write_gatt(send_data: bytes, is_encrypted: bool) -> None:
         del send_data, is_encrypted
         protocol.on_received(
             response_message(
-                const.ItemCodes.LOGIN,
+                const.ItemCode.LOGIN,
                 payload=(123456).to_bytes(4, "little"),
             ),
             False,

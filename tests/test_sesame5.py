@@ -47,13 +47,13 @@ async def login_device(device: sesame5.Sesame5) -> None:
     """Completes the public login flow for command tests."""
     device.on_published(
         protocol_types.ReceivedSesamePublish(
-            const.ItemCodes.MECH_STATUS,
-            mech_status_payload(flags=const.MechStatusBitFlags.IS_IN_LOCK_RANGE),
+            const.ItemCode.MECH_STATUS,
+            mech_status_payload(flags=const.MechStatusBitFlag.IS_IN_LOCK_RANGE),
         )
     )
     device.on_published(
         protocol_types.ReceivedSesamePublish(
-            const.ItemCodes.MECH_SETTING,
+            const.ItemCode.MECH_SETTING,
             mech_setting_payload(),
         )
     )
@@ -63,9 +63,9 @@ async def login_device(device: sesame5.Sesame5) -> None:
 def test_from_payload_mech_status_valid() -> None:
     """Parses Sesame 5 mechanical status fields and flags."""
     flags = (
-        const.MechStatusBitFlags.IS_IN_LOCK_RANGE
-        | const.MechStatusBitFlags.IS_BATTERY_CRITICAL
-        | const.MechStatusBitFlags.IS_STOP
+        const.MechStatusBitFlag.IS_IN_LOCK_RANGE
+        | const.MechStatusBitFlag.IS_BATTERY_CRITICAL
+        | const.MechStatusBitFlag.IS_STOP
     )
 
     status = sesame5.Sesame5MechStatus.from_payload(
@@ -111,7 +111,7 @@ def test_on_published_mech_status(monkeypatch: pytest.MonkeyPatch) -> None:
 
     device.on_published(
         protocol_types.ReceivedSesamePublish(
-            const.ItemCodes.MECH_STATUS,
+            const.ItemCode.MECH_STATUS,
             mech_status_payload(target=5, position=4),
         )
     )
@@ -127,7 +127,7 @@ def test_on_published_mech_setting(monkeypatch: pytest.MonkeyPatch) -> None:
 
     device.on_published(
         protocol_types.ReceivedSesamePublish(
-            const.ItemCodes.MECH_SETTING,
+            const.ItemCode.MECH_SETTING,
             mech_setting_payload(auto_lock_duration=7),
         )
     )
@@ -146,7 +146,7 @@ def test_register_mech_status_callback_unregistered(
     unregister()
     device.on_published(
         protocol_types.ReceivedSesamePublish(
-            const.ItemCodes.MECH_STATUS,
+            const.ItemCode.MECH_STATUS,
             mech_status_payload(),
         )
     )
@@ -200,13 +200,13 @@ async def test_login_with_secret(monkeypatch: pytest.MonkeyPatch) -> None:
     device, os3_device = make_sesame5(monkeypatch)
     device.on_published(
         protocol_types.ReceivedSesamePublish(
-            const.ItemCodes.MECH_STATUS,
+            const.ItemCode.MECH_STATUS,
             mech_status_payload(),
         )
     )
     device.on_published(
         protocol_types.ReceivedSesamePublish(
-            const.ItemCodes.MECH_SETTING,
+            const.ItemCode.MECH_SETTING,
             mech_setting_payload(),
         )
     )
@@ -280,7 +280,7 @@ async def test_lock_logged_in(monkeypatch: pytest.MonkeyPatch) -> None:
 
     os3_device.send_command.assert_awaited_once_with(
         protocol_types.SesameCommand(
-            const.ItemCodes.LOCK,
+            const.ItemCode.LOCK,
             os3_protocol.create_history_tag("history"),
         ),
         should_encrypt=True,
@@ -297,7 +297,7 @@ async def test_unlock_logged_in(monkeypatch: pytest.MonkeyPatch) -> None:
 
     os3_device.send_command.assert_awaited_once_with(
         protocol_types.SesameCommand(
-            const.ItemCodes.UNLOCK,
+            const.ItemCode.UNLOCK,
             os3_protocol.create_history_tag("history"),
         ),
         should_encrypt=True,
@@ -319,8 +319,8 @@ async def test_toggle_locked(monkeypatch: pytest.MonkeyPatch) -> None:
     device, _ = make_sesame5(monkeypatch)
     device.on_published(
         protocol_types.ReceivedSesamePublish(
-            const.ItemCodes.MECH_STATUS,
-            mech_status_payload(flags=const.MechStatusBitFlags.IS_IN_LOCK_RANGE),
+            const.ItemCode.MECH_STATUS,
+            mech_status_payload(flags=const.MechStatusBitFlag.IS_IN_LOCK_RANGE),
         )
     )
     unlock_mock = AsyncMock()
@@ -340,8 +340,8 @@ async def test_toggle_unlocked(monkeypatch: pytest.MonkeyPatch) -> None:
     device, _ = make_sesame5(monkeypatch)
     device.on_published(
         protocol_types.ReceivedSesamePublish(
-            const.ItemCodes.MECH_STATUS,
-            mech_status_payload(flags=const.MechStatusBitFlags.IS_IN_UNLOCK_RANGE),
+            const.ItemCode.MECH_STATUS,
+            mech_status_payload(flags=const.MechStatusBitFlag.IS_IN_UNLOCK_RANGE),
         )
     )
     unlock_mock = AsyncMock()
@@ -365,7 +365,7 @@ async def test_set_lock_position_logged_in(monkeypatch: pytest.MonkeyPatch) -> N
 
     os3_device.send_command.assert_awaited_once_with(
         protocol_types.SesameCommand(
-            const.ItemCodes.MECH_SETTING,
+            const.ItemCode.MECH_SETTING,
             struct.pack("<hh", -1, 1),
         ),
         should_encrypt=True,
@@ -383,7 +383,7 @@ async def test_set_auto_lock_duration_logged_in(
     await device.set_auto_lock_duration(15)
 
     os3_device.send_command.assert_awaited_once_with(
-        protocol_types.SesameCommand(const.ItemCodes.AUTOLOCK, struct.pack("<H", 15)),
+        protocol_types.SesameCommand(const.ItemCode.AUTOLOCK, struct.pack("<H", 15)),
         should_encrypt=True,
     )
 
@@ -396,8 +396,8 @@ def test_generate_qr_url_owner(monkeypatch: pytest.MonkeyPatch) -> None:
         device.generate_qr_url("Sesame")
         == os3_protocol.OS3QRCode(
             "Sesame",
-            const.KeyLevels.OWNER,
-            const.ProductModels.SESAME5,
+            const.KeyLevel.OWNER,
+            const.ProductModel.SESAME5,
             TEST_UUID,
             bytes.fromhex("00" * 16),
         ).qr_url
@@ -411,8 +411,8 @@ def test_generate_qr_url_manager(monkeypatch: pytest.MonkeyPatch) -> None:
     assert device.generate_qr_url("Sesame", generate_owner_key=False) == (
         os3_protocol.OS3QRCode(
             "Sesame",
-            const.KeyLevels.MANAGER,
-            const.ProductModels.SESAME5,
+            const.KeyLevel.MANAGER,
+            const.ProductModel.SESAME5,
             TEST_UUID,
             bytes.fromhex("00" * 16),
         ).qr_url

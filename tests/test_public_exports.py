@@ -1,4 +1,6 @@
 # pylint: disable=missing-module-docstring
+from enum import Enum
+
 from gomalock import (
     DeviceStatus,
     ScannedSesameDevice,
@@ -31,3 +33,10 @@ def test_exports_importable() -> None:
     assert SesameScanner.__name__ == "SesameScanner"
     assert SesameTouch.__name__ == "SesameTouch"
     assert SesameTouchMechStatus.__name__ == "SesameTouchMechStatus"
+
+
+def test_device_status_is_single_state_enum() -> None:
+    """DeviceStatus exposes only concrete device states."""
+    assert issubclass(DeviceStatus, Enum)
+    assert not hasattr(DeviceStatus, "AUTHENTICATED")
+    assert not hasattr(DeviceStatus, "UNAUTHENTICATED")

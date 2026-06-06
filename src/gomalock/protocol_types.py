@@ -11,7 +11,7 @@ from uuid import UUID
 
 from bleak.backends.device import BLEDevice
 
-from .const import ItemCodes, OpCodes, PacketTypes, ProductModels, ResultCodes
+from .const import ItemCode, OpCode, PacketType, ProductModel, ResultCode
 
 
 @dataclass(frozen=True)
@@ -24,7 +24,7 @@ class SesameAdvertisementData:
         device_uuid: The unique UUID broadcasted by the device.
     """
 
-    product_model: ProductModels
+    product_model: ProductModel
     is_registered: bool
     device_uuid: UUID
 
@@ -45,7 +45,7 @@ class SesameAdvertisementData:
         model_value, registered_value, uuid_value = struct.unpack(
             "<HB16s", manufacturer_data
         )
-        product_model = ProductModels(model_value)
+        product_model = ProductModel(model_value)
         is_registered = bool(registered_value)
         device_uuid = UUID(bytes=uuid_value)
         return cls(product_model, is_registered, device_uuid)
@@ -108,19 +108,19 @@ class ReceivedSesamePacket:
     @property
     def is_beginning(self) -> bool:
         """Indicates whether this packet is the start of a sequence."""
-        return bool(self.header & PacketTypes.BEGINNING)
+        return bool(self.header & PacketType.BEGINNING)
 
     @property
     def is_end(self) -> bool:
         """Indicates whether this packet concludes a sequence."""
         return bool(
-            self.header & (PacketTypes.PLAINTEXT_END | PacketTypes.ENCRYPTED_END)
+            self.header & (PacketType.PLAINTEXT_END | PacketType.ENCRYPTED_END)
         )
 
     @property
     def is_encrypted(self) -> bool:
         """Indicates whether the payload content is encrypted."""
-        return bool(self.header & PacketTypes.ENCRYPTED_END)
+        return bool(self.header & PacketType.ENCRYPTED_END)
 
 
 @dataclass(frozen=True)
@@ -132,7 +132,7 @@ class ReceivedSesameMessage:
         payload: The remaining bytes representing the specific message content.
     """
 
-    op_code: OpCodes
+    op_code: OpCode
     payload: bytes
 
     @classmethod
@@ -149,7 +149,7 @@ class ReceivedSesameMessage:
             IndexError: If the provided byte string is empty.
             ValueError: If the extracted opcode is unknown.
         """
-        op_code = OpCodes(reassembled_data[0])
+        op_code = OpCode(reassembled_data[0])
         payload = reassembled_data[1:]
         return cls(op_code, payload)
 
@@ -164,8 +164,8 @@ class ReceivedSesameResponse:
         payload: Any additional data returned by the device.
     """
 
-    item_code: ItemCodes
-    result_code: ResultCodes
+    item_code: ItemCode
+    result_code: ResultCode
     payload: bytes
 
     @classmethod
@@ -182,8 +182,8 @@ class ReceivedSesameResponse:
             IndexError: If the payload is too short to contain the required headers.
             ValueError: If the item code or result code are unknown.
         """
-        item_code = ItemCodes(message_payload[0])
-        result_code = ResultCodes(message_payload[1])
+        item_code = ItemCode(message_payload[0])
+        result_code = ResultCode(message_payload[1])
         payload = message_payload[2:]
         return cls(item_code, result_code, payload)
 
@@ -197,7 +197,7 @@ class ReceivedSesamePublish:
         payload: The actual data content of the notification.
     """
 
-    item_code: ItemCodes
+    item_code: ItemCode
     payload: bytes
 
     @classmethod
@@ -214,7 +214,7 @@ class ReceivedSesamePublish:
             IndexError: If the payload is empty.
             ValueError: If the item code is unknown.
         """
-        item_code = ItemCodes(message_payload[0])
+        item_code = ItemCode(message_payload[0])
         payload = message_payload[1:]
         return cls(item_code, payload)
 
@@ -228,7 +228,7 @@ class SesameCommand:
         payload: The specific data parameters for the command.
     """
 
-    item_code: ItemCodes
+    item_code: ItemCode
     payload: bytes
 
     @property

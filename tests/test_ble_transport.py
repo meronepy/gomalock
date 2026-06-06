@@ -12,20 +12,20 @@ from tests.conftest import TEST_ADDRESS
 @pytest.mark.parametrize(
     ("is_beginning", "is_end", "is_encrypted", "expected"),
     [
-        (True, False, False, const.PacketTypes.BEGINNING),
-        (False, True, False, const.PacketTypes.PLAINTEXT_END),
-        (False, True, True, const.PacketTypes.ENCRYPTED_END),
+        (True, False, False, const.PacketType.BEGINNING),
+        (False, True, False, const.PacketType.PLAINTEXT_END),
+        (False, True, True, const.PacketType.ENCRYPTED_END),
         (
             True,
             True,
             False,
-            const.PacketTypes.BEGINNING | const.PacketTypes.PLAINTEXT_END,
+            const.PacketType.BEGINNING | const.PacketType.PLAINTEXT_END,
         ),
         (
             True,
             True,
             True,
-            const.PacketTypes.BEGINNING | const.PacketTypes.ENCRYPTED_END,
+            const.PacketType.BEGINNING | const.PacketType.ENCRYPTED_END,
         ),
         (False, False, False, 0),
     ],
@@ -99,7 +99,7 @@ def test_on_notification_plaintext_complete() -> None:
     packet = bytearray(
         bytes(
             [
-                const.PacketTypes.BEGINNING | const.PacketTypes.PLAINTEXT_END,
+                const.PacketType.BEGINNING | const.PacketType.PLAINTEXT_END,
             ]
         )
         + b"payload"
@@ -118,7 +118,7 @@ def test_on_notification_encrypted_fragments() -> None:
     transport.on_notification(Mock(), bytearray(b"\x00two-"))
     transport.on_notification(
         Mock(),
-        bytearray(bytes([const.PacketTypes.ENCRYPTED_END]) + b"three"),
+        bytearray(bytes([const.PacketType.ENCRYPTED_END]) + b"three"),
     )
 
     received_callback.assert_called_once_with(b"part-two-three", True)
@@ -332,7 +332,7 @@ async def test_write_gatt_single_packet() -> None:
     assert uuid == const.UUID_WRITE
     assert packet[1:] == data
     assert packet[0] == int(
-        const.PacketTypes.BEGINNING | const.PacketTypes.PLAINTEXT_END
+        const.PacketType.BEGINNING | const.PacketType.PLAINTEXT_END
     )
 
 
@@ -348,8 +348,8 @@ async def test_write_gatt_fragmented() -> None:
     assert client.write_gatt_char.await_count == 3
     first_packet = client.write_gatt_char.await_args_list[0].args[1]
     last_packet = client.write_gatt_char.await_args_list[-1].args[1]
-    assert first_packet[0] == int(const.PacketTypes.BEGINNING)
-    assert last_packet[0] == int(const.PacketTypes.ENCRYPTED_END)
+    assert first_packet[0] == int(const.PacketType.BEGINNING)
+    assert last_packet[0] == int(const.PacketType.ENCRYPTED_END)
     assert last_packet[1:] == data[payload_size * 2 :]
 
 

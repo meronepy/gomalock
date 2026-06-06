@@ -4,17 +4,17 @@ This module provides the necessary enumerations, status flags, opcodes, and
 other constants required to interact with Sesame BLE devices.
 """
 
-from enum import Enum, Flag, IntFlag, auto
+from enum import Enum, IntFlag, auto
 
 
-class KeyLevels(Enum):
+class KeyLevel(Enum):
     """Represents the authorization levels for Sesame keys."""
 
     OWNER = 0
     MANAGER = 1
 
 
-class ProductModels(Enum):
+class ProductModel(Enum):
     """Enumerates the supported Sesame device models and their identifiers."""
 
     SESAME5 = 5
@@ -24,18 +24,18 @@ class ProductModels(Enum):
     SESAME5_USA = 16
 
 
-class ModelGroups(Enum):
+class ModelGroup(Enum):
     """Groups of product models for categorization purposes."""
 
     SESAME5 = {
-        ProductModels.SESAME5,
-        ProductModels.SESAME5_PRO,
-        ProductModels.SESAME5_USA,
+        ProductModel.SESAME5,
+        ProductModel.SESAME5_PRO,
+        ProductModel.SESAME5_USA,
     }
-    SESAME_TOUCH = {ProductModels.SESAME_TOUCH, ProductModels.SESAME_TOUCH_PRO}
+    SESAME_TOUCH = {ProductModel.SESAME_TOUCH, ProductModel.SESAME_TOUCH_PRO}
 
 
-class PacketTypes(IntFlag):
+class PacketType(IntFlag):
     """Flags for the 1-byte header in BLE communication packets."""
 
     BEGINNING = 0b001
@@ -43,7 +43,7 @@ class PacketTypes(IntFlag):
     ENCRYPTED_END = 0b100
 
 
-class MechStatusBitFlags(IntFlag):
+class MechStatusBitFlag(IntFlag):
     """Flags indicating the mechanical state and errors of the Sesame device."""
 
     IS_CLUTCH_FAILED = 0b00000001
@@ -55,7 +55,7 @@ class MechStatusBitFlags(IntFlag):
     IS_CLOCKWISE = 0b01000000
 
 
-class DeviceStatus(Flag):
+class DeviceStatus(Enum):
     """Represents the connection and authentication state of the device."""
 
     DISCONNECTED = auto()
@@ -65,11 +65,8 @@ class DeviceStatus(Flag):
     LOGGED_IN = auto()
     DISCONNECTING = auto()
 
-    UNAUTHENTICATED = DISCONNECTED | CONNECTING | CONNECTED | LOGGING_IN | DISCONNECTING
-    AUTHENTICATED = LOGGED_IN
 
-
-class ItemCodes(Enum):
+class ItemCode(Enum):
     """Codes representing specific commands, settings, or data types."""
 
     NONE = 0
@@ -221,7 +218,7 @@ class ItemCodes(Enum):
     HUB3_ITEM_CODE_NETWORK_TYPE = 209
 
 
-class OpCodes(Enum):
+class OpCode(Enum):
     """Operation codes indicating the type of message being transmitted."""
 
     CREATE = 0x01
@@ -235,7 +232,7 @@ class OpCodes(Enum):
     UNDEFINE = 0x10
 
 
-class ResultCodes(Enum):
+class ResultCode(Enum):
     """Codes indicating the success or specific failure reason of a command."""
 
     SUCCESS = 0

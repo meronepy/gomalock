@@ -9,7 +9,7 @@ import struct
 from dataclasses import dataclass
 from typing import Self
 
-from .const import ItemCodes, MechStatusBitFlags, ModelGroups
+from .const import ItemCode, MechStatusBitFlag, ModelGroup
 from .os3_lock_base import BaseSesameOS3Lock
 from .os3_protocol import calculate_battery_percentage
 from .protocol_types import ReceivedSesamePublish
@@ -62,7 +62,7 @@ class SesameTouchMechStatus:
     @property
     def is_battery_critical(self) -> bool:
         """Checks if the battery voltage is below the critical threshold."""
-        return bool(self._status_flags & MechStatusBitFlags.IS_BATTERY_CRITICAL)
+        return bool(self._status_flags & MechStatusBitFlag.IS_BATTERY_CRITICAL)
 
     @property
     def battery_voltage(self) -> float:
@@ -83,7 +83,7 @@ class SesameTouch(BaseSesameOS3Lock["SesameTouch", SesameTouchMechStatus]):
     MAC address string or a ScannedSesameDevice for Sesame Touch models.
     """
 
-    _VALID_MODEL_GROUPS = ModelGroups.SESAME_TOUCH
+    _VALID_MODEL_GROUPS = ModelGroup.SESAME_TOUCH
 
     def on_published(self, publish_data: ReceivedSesamePublish) -> None:
         """Processes published status updates from the device.
@@ -95,7 +95,7 @@ class SesameTouch(BaseSesameOS3Lock["SesameTouch", SesameTouchMechStatus]):
             publish_data: The parsed publish notification from the device.
         """
         match publish_data.item_code:
-            case ItemCodes.MECH_STATUS:
+            case ItemCode.MECH_STATUS:
                 self._mech_status = SesameTouchMechStatus.from_payload(
                     publish_data.payload
                 )
