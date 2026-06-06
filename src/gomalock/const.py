@@ -21,7 +21,7 @@ class ProductModel(Enum):
     SESAME_5_PRO = 7
     SESAME_TOUCH_PRO = 9
     SESAME_TOUCH = 10
-    SESAME_5_USA = 16
+    SESAME_5_US = 16
 
 
 class ModelGroup(Enum):
@@ -30,7 +30,7 @@ class ModelGroup(Enum):
     SESAME_5 = {
         ProductModel.SESAME_5,
         ProductModel.SESAME_5_PRO,
-        ProductModel.SESAME_5_USA,
+        ProductModel.SESAME_5_US,
     }
     SESAME_TOUCH = {ProductModel.SESAME_TOUCH, ProductModel.SESAME_TOUCH_PRO}
 
