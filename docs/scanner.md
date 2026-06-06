@@ -60,13 +60,13 @@ asyncio.run(main())
 
 検出コールバックを追加します。戻り値の関数を呼ぶと登録を解除できます。
 
-### `detected_devices_generator() -> AsyncGenerator[ScannedSesameDevice, None]`
+### `detections() -> AsyncGenerator[ScannedSesameDevice, None]`
 
 検出デバイスを非同期ジェネレータとして受け取ります。
 
 ```python
 async with gomalock.SesameScanner() as scanner:
-    async for device in scanner.detected_devices_generator():
+    async for device in scanner.detections():
         print(device.address)
 ```
 
