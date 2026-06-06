@@ -34,7 +34,7 @@ def make_touch(
     """Creates a SesameTouch instance with the OS3 protocol replaced by a mock."""
     os3_device = make_mock_os3_device(
         is_connected=is_connected,
-        product_model=const.ProductModel.SESAME_TOUCH,
+        product_model=const.ProductModel.SESAME_TOUCH_1,
         secret_key=b"\x22" * 16,
     )
     monkeypatch.setattr(
@@ -190,7 +190,7 @@ async def test_login_with_secret(monkeypatch: pytest.MonkeyPatch) -> None:
 @pytest.mark.asyncio
 async def test_login_without_secret(monkeypatch: pytest.MonkeyPatch) -> None:
     """Raises SesameLoginError when no secret key is available."""
-    os3_device = make_mock_os3_device(product_model=const.ProductModel.SESAME_TOUCH)
+    os3_device = make_mock_os3_device(product_model=const.ProductModel.SESAME_TOUCH_1)
     monkeypatch.setattr(
         os3_lock_base,
         "SesameOS3Protocol",
@@ -226,7 +226,7 @@ async def test_disconnect_disconnected(monkeypatch: pytest.MonkeyPatch) -> None:
 @pytest.mark.asyncio
 async def test_context_manager_without_secret(monkeypatch: pytest.MonkeyPatch) -> None:
     """Connects and disconnects without logging in when no secret is configured."""
-    os3_device = make_mock_os3_device(product_model=const.ProductModel.SESAME_TOUCH)
+    os3_device = make_mock_os3_device(product_model=const.ProductModel.SESAME_TOUCH_1)
     monkeypatch.setattr(
         os3_lock_base,
         "SesameOS3Protocol",
@@ -256,7 +256,7 @@ def test_generate_qr_url_owner(monkeypatch: pytest.MonkeyPatch) -> None:
         == os3_protocol.OS3QRCode(
             "Touch",
             const.KeyLevel.OWNER,
-            const.ProductModel.SESAME_TOUCH,
+            const.ProductModel.SESAME_TOUCH_1,
             TEST_UUID,
             bytes.fromhex("11" * 16),
         ).qr_url
@@ -271,7 +271,7 @@ def test_generate_qr_url_manager(monkeypatch: pytest.MonkeyPatch) -> None:
         os3_protocol.OS3QRCode(
             "Touch",
             const.KeyLevel.MANAGER,
-            const.ProductModel.SESAME_TOUCH,
+            const.ProductModel.SESAME_TOUCH_1,
             TEST_UUID,
             bytes.fromhex("11" * 16),
         ).qr_url
@@ -280,7 +280,7 @@ def test_generate_qr_url_manager(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def test_generate_qr_url_without_secret(monkeypatch: pytest.MonkeyPatch) -> None:
     """Raises SesameLoginError when no secret key is available."""
-    os3_device = make_mock_os3_device(product_model=const.ProductModel.SESAME_TOUCH)
+    os3_device = make_mock_os3_device(product_model=const.ProductModel.SESAME_TOUCH_1)
     monkeypatch.setattr(
         os3_lock_base,
         "SesameOS3Protocol",

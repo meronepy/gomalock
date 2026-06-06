@@ -18,10 +18,28 @@ class ProductModel(Enum):
     """Enumerates the supported Sesame device models and their identifiers."""
 
     SESAME_5 = 5
+    SESAME_BIKE_2 = 6
     SESAME_5_PRO = 7
-    SESAME_TOUCH_PRO = 9
-    SESAME_TOUCH = 10
+    SESAME_TOUCH_1_PRO = 9
+    SESAME_TOUCH_1 = 10
     SESAME_5_US = 16
+    SESAME_BOT_2 = 17
+    SESAME_FACE_1_PRO = 18
+    SESAME_FACE_1 = 19
+    SESAME_6 = 20
+    SESAME_6_PRO = 21
+    SESAME_FACE_1_PRO_AI = 22
+    SESAME_FACE_1_AI = 23
+    SESAME_TOUCH_2 = 25
+    SESAME_TOUCH_2_PRO = 26
+    SESAME_FACE_2 = 27
+    SESAME_FACE_2_PRO = 28
+    SESAME_MIWA = 29
+    SESAME_FACE_2_AI = 30
+    SESAME_FACE_2_PRO_AI = 31
+    SESAME_6_PRO_SLIDINGDOOR = 32
+    SESAME_BIKE_3 = 33
+    SESAME_BOT_3 = 35
 
 
 class ModelGroup(Enum):
@@ -32,7 +50,12 @@ class ModelGroup(Enum):
         ProductModel.SESAME_5_PRO,
         ProductModel.SESAME_5_US,
     }
-    SESAME_TOUCH = {ProductModel.SESAME_TOUCH, ProductModel.SESAME_TOUCH_PRO}
+    SESAME_TOUCH = {
+        ProductModel.SESAME_TOUCH_1,
+        ProductModel.SESAME_TOUCH_1_PRO,
+        ProductModel.SESAME_TOUCH_2,
+        ProductModel.SESAME_TOUCH_2_PRO,
+    }
 
 
 class PacketType(IntFlag):
