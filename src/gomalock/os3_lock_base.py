@@ -52,7 +52,7 @@ class BaseSesameOS3Lock[LockSelfT: "BaseSesameOS3Lock", MechStatusT](ABC):
 
     def __init__(
         self,
-        mac_address_or_scanned_sesame: str | ScannedSesameDevice,
+        address_or_device: str | ScannedSesameDevice,
         secret_key: str | None = None,
         mech_status_callback: Callable[[LockSelfT, MechStatusT], None] | None = None,
         auto_reconnection_limit: int = 0,
@@ -60,8 +60,8 @@ class BaseSesameOS3Lock[LockSelfT: "BaseSesameOS3Lock", MechStatusT](ABC):
         """Initializes the base lock interface.
 
         Args:
-            mac_address_or_scanned_sesame: The BLE MAC address or scanned Sesame
-                device. Passing a ScannedSesameDevice skips the discovery scan
+            address_or_device: The device address or scanned Sesame device.
+                Passing a ScannedSesameDevice skips the discovery scan
                 performed before connection.
             secret_key: The hex-encoded secret key used for authentication.
             mech_status_callback: A function invoked when the mechanical status
@@ -70,13 +70,13 @@ class BaseSesameOS3Lock[LockSelfT: "BaseSesameOS3Lock", MechStatusT](ABC):
                 to automatically reconnect to the device.
         """
         if (
-            isinstance(mac_address_or_scanned_sesame, ScannedSesameDevice)
-            and mac_address_or_scanned_sesame.sesame_advertisement_data.product_model
+            isinstance(address_or_device, ScannedSesameDevice)
+            and address_or_device.sesame_advertisement_data.product_model
             not in type(self)._VALID_MODEL_GROUPS.value
         ):
             raise ValueError("An invalid model ScannedSesameDevice was provided")
         self._os3_device = SesameOS3Protocol(
-            mac_address_or_scanned_sesame,
+            address_or_device,
             self.on_published,
             self.on_unexpected_disconnect,
         )
@@ -117,7 +117,7 @@ class BaseSesameOS3Lock[LockSelfT: "BaseSesameOS3Lock", MechStatusT](ABC):
 
         Initiates cleanup and schedules an auto-reconnection task if configured.
         """
-        logger.error("Unexpected Sesame disconnection [address=%s]", self.mac_address)
+        logger.error("Unexpected Sesame disconnection [address=%s]", self.address)
         self._cleanup()
         if self._auto_reconnection_limit and not self.is_background_reconnecting:
             self._reconnect_task = asyncio.create_task(self._auto_reconnect())
@@ -132,7 +132,7 @@ class BaseSesameOS3Lock[LockSelfT: "BaseSesameOS3Lock", MechStatusT](ABC):
             logger.info(
                 "Auto-reconnection will be attempted after delay "
                 "[address=%s, attempt=%d/%d, delay=%.1fs]",
-                self.mac_address,
+                self.address,
                 attempt + 1,
                 self._auto_reconnection_limit,
                 delay,
@@ -144,14 +144,14 @@ class BaseSesameOS3Lock[LockSelfT: "BaseSesameOS3Lock", MechStatusT](ABC):
                     await self.login()
             except (SesameConnectionError, asyncio.TimeoutError):
                 logger.exception(
-                    "Auto-reconnection attempt failed [address=%s]", self.mac_address
+                    "Auto-reconnection attempt failed [address=%s]", self.address
                 )
                 self._cleanup()
                 continue
             return
         logger.error(
             "Auto-reconnection failed [address=%s]",
-            self.mac_address,
+            self.address,
         )
 
     async def _wait_for_reconnection(self) -> None:
@@ -173,7 +173,7 @@ class BaseSesameOS3Lock[LockSelfT: "BaseSesameOS3Lock", MechStatusT](ABC):
         """Handles publish notifications unsupported by the concrete device."""
         logger.debug(
             "Received unhandled publish notification [address=%s, item=%s]",
-            self.mac_address,
+            self.address,
             publish_data.item_code.name,
         )
 
@@ -210,7 +210,7 @@ class BaseSesameOS3Lock[LockSelfT: "BaseSesameOS3Lock", MechStatusT](ABC):
             )
         if self.is_connected:
             raise SesameConnectionError("Already connected")
-        logger.info("Connecting to Sesame [address=%s]", self.mac_address)
+        logger.info("Connecting to Sesame [address=%s]", self.address)
         self._device_status = DeviceStatus.CONNECTING
         try:
             await self._os3_device.connect()
@@ -221,7 +221,7 @@ class BaseSesameOS3Lock[LockSelfT: "BaseSesameOS3Lock", MechStatusT](ABC):
                 self._cleanup()
             raise
         self._device_status = DeviceStatus.CONNECTED
-        logger.info("Connected to Sesame [address=%s]", self.mac_address)
+        logger.info("Connected to Sesame [address=%s]", self.address)
 
     async def register(self) -> str:
         """Registers the device to obtain its secret key.
@@ -238,7 +238,7 @@ class BaseSesameOS3Lock[LockSelfT: "BaseSesameOS3Lock", MechStatusT](ABC):
         await self._wait_for_reconnection()
         if not self.is_connected:
             raise SesameConnectionError("Not connected")
-        logger.info("Starting device registration [address=%s]", self.mac_address)
+        logger.info("Starting device registration [address=%s]", self.address)
         secret_key = await self._os3_device.register()
         return secret_key.hex()
 
@@ -268,7 +268,7 @@ class BaseSesameOS3Lock[LockSelfT: "BaseSesameOS3Lock", MechStatusT](ABC):
         secret_key = secret_key or self._secret_key
         if secret_key is None:
             raise SesameLoginError("A secret key is required for login")
-        logger.info("Logging in to Sesame [address=%s]", self.mac_address)
+        logger.info("Logging in to Sesame [address=%s]", self.address)
         self._device_status = DeviceStatus.LOGGING_IN
         try:
             timestamp = await self._os3_device.login(bytes.fromhex(secret_key))
@@ -284,7 +284,7 @@ class BaseSesameOS3Lock[LockSelfT: "BaseSesameOS3Lock", MechStatusT](ABC):
         self._device_status = DeviceStatus.LOGGED_IN
         logger.info(
             "Logged in to Sesame [address=%s, timestamp=%d]",
-            self.mac_address,
+            self.address,
             timestamp,
         )
         return timestamp
@@ -298,17 +298,17 @@ class BaseSesameOS3Lock[LockSelfT: "BaseSesameOS3Lock", MechStatusT](ABC):
             except asyncio.CancelledError:
                 pass
         if self.is_connected:
-            logger.info("Disconnecting from Sesame [address=%s]", self.mac_address)
+            logger.info("Disconnecting from Sesame [address=%s]", self.address)
             self._device_status = DeviceStatus.DISCONNECTING
             try:
                 await self._os3_device.disconnect()
             finally:
                 self._cleanup()
-            logger.info("Disconnected from Sesame [address=%s]", self.mac_address)
+            logger.info("Disconnected from Sesame [address=%s]", self.address)
         else:
             logger.debug(
                 "Skipping disconnect, device not connected [address=%s]",
-                self.mac_address,
+                self.address,
             )
 
     def generate_qr_url(
@@ -369,13 +369,13 @@ class BaseSesameOS3Lock[LockSelfT: "BaseSesameOS3Lock", MechStatusT](ABC):
         )
 
     @property
-    def mac_address(self) -> str:
-        """The MAC address of the device.
+    def address(self) -> str:
+        """The address of the device.
 
         Returns:
-            The BLE MAC address as a string.
+            The device address as a string.
         """
-        return self._os3_device.mac_address
+        return self._os3_device.address
 
     @property
     def mech_status(self) -> MechStatusT:
@@ -426,7 +426,7 @@ class BaseSesameOS3Lock[LockSelfT: "BaseSesameOS3Lock", MechStatusT](ABC):
             The advertisement data object.
 
         Raises:
-            SesameConnectionError: If initialized with only a MAC address and the
+            SesameConnectionError: If initialized with only an address and the
                 device has not been scanned yet.
         """
         return self._os3_device.sesame_advertisement_data

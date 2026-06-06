@@ -56,11 +56,11 @@ class ScannedSesameDevice:
     """Represents a Sesame device detected during scanning.
 
     Attributes:
-        mac_address: The BLE MAC address of the detected device.
+        address: The address of the detected device.
         sesame_advertisement_data: The Sesame-specific advertisement data.
     """
 
-    mac_address: str
+    address: str
     sesame_advertisement_data: SesameAdvertisementData
 
 

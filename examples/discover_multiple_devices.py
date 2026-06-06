@@ -12,7 +12,7 @@ TARGET_DEVICE_DICT = {
 def on_mech_status_changed(
     sesame5: gomalock.Sesame5, mech_status: gomalock.Sesame5MechStatus
 ):
-    print(f"Device {sesame5.mac_address} is ", end="")
+    print(f"Device {sesame5.address} is ", end="")
     if mech_status.is_in_lock_range:
         print("LOCKED")
     else:
@@ -24,10 +24,10 @@ async def discover_together(*args: str) -> set[gomalock.ScannedSesameDevice]:
     discovered_devices = set()
     async with gomalock.SesameScanner() as scanner:
         async for scanned_sesame in scanner.detected_devices_generator():
-            if scanned_sesame.mac_address in pending_targets:
-                print(f"Device {scanned_sesame.mac_address} found")
+            if scanned_sesame.address in pending_targets:
+                print(f"Device {scanned_sesame.address} found")
                 discovered_devices.add(scanned_sesame)
-                pending_targets.remove(scanned_sesame.mac_address)
+                pending_targets.remove(scanned_sesame.address)
                 if not pending_targets:
                     print("All target devices discovered")
                     break
@@ -46,7 +46,7 @@ async def main():
         # By scanning all devices together and connecting to each target device
         # using ScannedSesameDevice instead of mac_address, the scanning process
         # for each device is skipped, and a connection can be established immediately.
-        secret_key = TARGET_DEVICE_DICT[device.mac_address]
+        secret_key = TARGET_DEVICE_DICT[device.address]
         async with gomalock.Sesame5(device, secret_key, on_mech_status_changed):
             pass
 

@@ -141,7 +141,7 @@ class SesameScanner:
         """A dictionary of all devices detected during the current scanning session.
 
         Returns:
-            A mapping of MAC addresses to ScannedSesameDevice objects.
+            A mapping of addresses to ScannedSesameDevice objects.
         """
         return dict(self._seen_devices)
 
@@ -169,7 +169,7 @@ class SesameScanner:
                     if filter_func(scanned_sesame):
                         logger.info(
                             "Found matching device [address=%s, model=%s]",
-                            scanned_sesame.mac_address,
+                            scanned_sesame.address,
                             scanned_sesame.sesame_advertisement_data.product_model.name,
                         )
                         return scanned_sesame
@@ -185,19 +185,17 @@ class SesameScanner:
     async def find_device_by_address(
         cls, address: str, timeout: float = SCAN_TIMEOUT
     ) -> ScannedSesameDevice | None:
-        """Scans for a device matching a specific MAC address.
+        """Scans for a device matching a specific address.
 
         Args:
-            address: The target BLE MAC address string.
+            address: The target BLE address string.
             timeout: The maximum duration in seconds to scan.
 
         Returns:
             The scanned Sesame device if found, or None if the timeout expires.
         """
         return await cls.find_device_by_filter(
-            lambda scanned_sesame: (
-                scanned_sesame.mac_address.lower() == address.lower()
-            ),
+            lambda scanned_sesame: scanned_sesame.address.lower() == address.lower(),
             timeout,
         )
 
@@ -231,7 +229,7 @@ class SesameScanner:
             timeout: The duration in seconds to actively scan.
 
         Returns:
-            A dictionary mapping MAC addresses to ScannedSesameDevice objects for all
+            A dictionary mapping addresses to ScannedSesameDevice objects for all
             discovered devices.
         """
         logger.info("Starting discovery [timeout=%s]", timeout)

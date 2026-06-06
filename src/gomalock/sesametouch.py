@@ -79,8 +79,8 @@ class SesameTouch(BaseSesameOS3Lock["SesameTouch", SesameTouchMechStatus]):
     """Controls and monitors a Sesame Touch device.
 
     Handles connection, authentication, and the tracking of the device's
-    battery and operational status. The inherited constructor accepts either a
-    MAC address string or a ScannedSesameDevice for Sesame Touch models.
+    battery and operational status. The inherited constructor accepts either
+    an address string or a ScannedSesameDevice for Sesame Touch models.
     """
 
     _VALID_MODEL_GROUPS = ModelGroup.SESAME_TOUCH

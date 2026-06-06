@@ -395,6 +395,6 @@ def test_properties_delegate(monkeypatch: pytest.MonkeyPatch) -> None:
     """Exposes BLE transport address, connection state, and advertisement data."""
     protocol, ble_device, _, _ = make_protocol(monkeypatch, is_connected=True)
 
-    assert protocol.mac_address == TEST_ADDRESS
+    assert protocol.address == TEST_ADDRESS
     assert protocol.is_connected is True
     assert protocol.sesame_advertisement_data == ble_device.sesame_advertisement_data

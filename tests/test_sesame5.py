@@ -393,7 +393,7 @@ def test_generate_qr_url_owner(monkeypatch: pytest.MonkeyPatch) -> None:
     device, _ = make_sesame5(monkeypatch)
 
     assert (
-        device.generate_qr_url("Sesame")
+        device.generate_qr_url("Sesame", const.KeyLevel.OWNER)
         == os3_protocol.OS3QRCode(
             "Sesame",
             const.KeyLevel.OWNER,
@@ -408,7 +408,7 @@ def test_generate_qr_url_manager(monkeypatch: pytest.MonkeyPatch) -> None:
     """Generates manager QR URLs when requested."""
     device, _ = make_sesame5(monkeypatch)
 
-    assert device.generate_qr_url("Sesame", generate_owner_key=False) == (
+    assert device.generate_qr_url("Sesame", const.KeyLevel.MANAGER) == (
         os3_protocol.OS3QRCode(
             "Sesame",
             const.KeyLevel.MANAGER,
@@ -430,14 +430,14 @@ def test_generate_qr_url_without_secret(monkeypatch: pytest.MonkeyPatch) -> None
     device = sesame5.Sesame5(TEST_ADDRESS)
 
     with pytest.raises(exc.SesameLoginError):
-        device.generate_qr_url("Sesame")
+        device.generate_qr_url("Sesame", const.KeyLevel.OWNER)
 
 
 def test_properties_initial(monkeypatch: pytest.MonkeyPatch) -> None:
     """Reports initial public state before login."""
     device, _ = make_sesame5(monkeypatch)
 
-    assert device.mac_address == TEST_ADDRESS
+    assert device.address == TEST_ADDRESS
     assert device.is_connected is False
     assert device.is_logged_in is False
     assert device.device_status == const.DeviceStatus.DISCONNECTED

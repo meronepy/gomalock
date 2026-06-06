@@ -118,14 +118,14 @@ class Sesame5(BaseSesameOS3Lock["Sesame5", Sesame5MechStatus]):
 
     Provides methods to lock, unlock, toggle, and configure the device, while
     tracking its current mechanical status and settings. The constructor accepts
-    either a MAC address string or a ScannedSesameDevice for Sesame 5 models.
+    either an address string or a ScannedSesameDevice for Sesame 5 models.
     """
 
     _VALID_MODEL_GROUPS = ModelGroup.SESAME5
 
     def __init__(
         self,
-        mac_address_or_scanned_sesame: str | ScannedSesameDevice,
+        address_or_device: str | ScannedSesameDevice,
         secret_key: str | None = None,
         mech_status_callback: (
             Callable[["Sesame5", Sesame5MechStatus], None] | None
@@ -135,9 +135,8 @@ class Sesame5(BaseSesameOS3Lock["Sesame5", Sesame5MechStatus]):
         """Initializes the Sesame 5 device handler.
 
         Args:
-            mac_address_or_scanned_sesame: The BLE MAC address of the device or
-                a scanned Sesame device object. Passing a ScannedSesameDevice
-                skips the discovery scan performed before connection.
+            address_or_scanned_sesame: The address of the device or a scanned Sesame device object.
+                Passing a ScannedSesameDevice skips the discovery scan performed before connection.
             secret_key: The hex-encoded secret key used for login.
             mech_status_callback: A function called whenever the device publishes
                 a new mechanical status.
@@ -148,7 +147,7 @@ class Sesame5(BaseSesameOS3Lock["Sesame5", Sesame5MechStatus]):
             ValueError: If the ScannedSesameDevice is not a Sesame 5 model.
         """
         super().__init__(
-            mac_address_or_scanned_sesame,
+            address_or_device,
             secret_key,
             mech_status_callback,
             auto_reconnection_limit,
@@ -205,7 +204,7 @@ class Sesame5(BaseSesameOS3Lock["Sesame5", Sesame5MechStatus]):
         logger.info(
             "Executing %s command [address=%s, history=%s]",
             action,
-            self.mac_address,
+            self.address,
             history_name,
         )
         await self._os3_device.send_command(
@@ -237,7 +236,7 @@ class Sesame5(BaseSesameOS3Lock["Sesame5", Sesame5MechStatus]):
         payload = struct.pack("<hh", lock_position, unlock_position)
         logger.info(
             "Setting lock positions [address=%s, lock_position=%d, unlock_position=%d]",
-            self.mac_address,
+            self.address,
             lock_position,
             unlock_position,
         )
@@ -265,7 +264,7 @@ class Sesame5(BaseSesameOS3Lock["Sesame5", Sesame5MechStatus]):
         payload = struct.pack("<H", auto_lock_duration)
         logger.info(
             "Setting auto lock duration [address=%s, auto_lock_duration=%d]",
-            self.mac_address,
+            self.address,
             auto_lock_duration,
         )
         await self._os3_device.send_command(

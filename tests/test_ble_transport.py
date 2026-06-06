@@ -375,7 +375,7 @@ def test_properties_available(advertisement_data) -> None:
     transport, _, _, _ = make_transport(is_connected=True)
     transport._identifier = make_scanned_device(advertisement_data)
 
-    assert transport.mac_address == TEST_ADDRESS
+    assert transport.address == TEST_ADDRESS
     assert transport.is_connected is True
     assert transport.sesame_advertisement_data == advertisement_data
 

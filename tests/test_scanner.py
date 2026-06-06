@@ -88,7 +88,7 @@ def test_detected_devices_supported_model() -> None:
     FakeBleakScanner.instances[-1].emit(make_manufacturer_data())
 
     scanned_device = sesame_scanner.detected_devices[TEST_ADDRESS]
-    assert scanned_device.mac_address == TEST_ADDRESS
+    assert scanned_device.address == TEST_ADDRESS
     assert scanned_device.sesame_advertisement_data == make_advertisement()
 
 
@@ -113,7 +113,7 @@ def test_register_detection_callback_invoked() -> None:
 
     callback.assert_called_once()
     scanned_device = callback.call_args.args[0]
-    assert scanned_device.mac_address == TEST_ADDRESS
+    assert scanned_device.address == TEST_ADDRESS
     assert scanned_device.sesame_advertisement_data == make_advertisement()
 
 
@@ -140,7 +140,7 @@ async def test_detected_devices_generator_yields() -> None:
     FakeBleakScanner.instances[-1].emit(make_manufacturer_data())
 
     scanned_device = await next_item
-    assert scanned_device.mac_address == TEST_ADDRESS
+    assert scanned_device.address == TEST_ADDRESS
     assert scanned_device.sesame_advertisement_data == make_advertisement()
     await generator.aclose()
 
@@ -185,7 +185,7 @@ async def test_find_device_by_filter_match(monkeypatch: pytest.MonkeyPatch) -> N
     monkeypatch.setattr(scanner.SesameScanner, "stop", AsyncMock())
 
     result = await scanner.SesameScanner.find_device_by_filter(
-        lambda scanned_device: scanned_device.mac_address == TEST_ADDRESS,
+        lambda scanned_device: scanned_device.address == TEST_ADDRESS,
         timeout=1,
     )
 

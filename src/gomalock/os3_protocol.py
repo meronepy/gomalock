@@ -197,15 +197,15 @@ class SesameOS3Protocol:
 
     def __init__(
         self,
-        mac_address_or_scanned_sesame: str | ScannedSesameDevice,
+        address_or_device: str | ScannedSesameDevice,
         publish_data_callback: Callable[[ReceivedSesamePublish], None],
         unexpected_disconnect_callback: Callable[[], None],
     ) -> None:
         """Initializes the OS3 protocol handler.
 
         Args:
-            mac_address_or_scanned_sesame: The BLE MAC address or scanned Sesame
-                device. Passing a ScannedSesameDevice skips the discovery scan
+            address_or_device: The device address or scanned Sesame device.
+                Passing a ScannedSesameDevice skips the discovery scan
                 performed before connection.
             publish_data_callback: A function called when publish notifications
                 are received from the device.
@@ -213,7 +213,7 @@ class SesameOS3Protocol:
                 connection drops unexpectedly.
         """
         self._ble_device = SesameBLETransport(
-            mac_address_or_scanned_sesame,
+            address_or_device,
             self.on_received,
             unexpected_disconnect_callback,
         )
@@ -475,13 +475,13 @@ class SesameOS3Protocol:
             await self._ble_device.disconnect()
 
     @property
-    def mac_address(self) -> str:
-        """The MAC address of the device.
+    def address(self) -> str:
+        """The address of the device.
 
         Returns:
-            The BLE MAC address as a string.
+            The device address as a string.
         """
-        return self._ble_device.mac_address
+        return self._ble_device.address
 
     @property
     def is_connected(self) -> bool:
@@ -500,7 +500,7 @@ class SesameOS3Protocol:
             The parsed advertisement data.
 
         Raises:
-            SesameConnectionError: If initialized with only a MAC address and the
+            SesameConnectionError: If initialized with only an address and the
                 device has not been scanned yet.
         """
         return self._ble_device.sesame_advertisement_data

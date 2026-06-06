@@ -46,7 +46,7 @@ def make_mock_os3_device(
     mock_os3.disconnect = AsyncMock()
     mock_os3.send_command = AsyncMock()
     type(mock_os3).is_connected = property(lambda _: is_connected)
-    type(mock_os3).mac_address = property(lambda _: TEST_ADDRESS)
+    type(mock_os3).address = property(lambda _: TEST_ADDRESS)
     type(mock_os3).sesame_advertisement_data = property(
         lambda _: protocol_types.SesameAdvertisementData(
             product_model,
@@ -68,7 +68,7 @@ def mock_ble_device(
     mock_ble.connect_and_start_notification = AsyncMock()
     mock_ble.disconnect = AsyncMock()
     type(mock_ble).is_connected = property(lambda _: is_connected)
-    type(mock_ble).mac_address = property(lambda _: TEST_ADDRESS)
+    type(mock_ble).address = property(lambda _: TEST_ADDRESS)
     type(mock_ble).sesame_advertisement_data = property(
         lambda _: (
             advertisement

@@ -15,7 +15,7 @@ def on_mechstatus_changed(
     sesame5: gomalock.Sesame5, status: gomalock.Sesame5MechStatus
 ) -> None:
     info = {
-        "Address": sesame5.mac_address,
+        "Address": sesame5.address,
         "Model": sesame5.sesame_advertisement_data.product_model.name,
         "Registered": sesame5.sesame_advertisement_data.is_registered,
         "UUID": sesame5.sesame_advertisement_data.device_uuid,
