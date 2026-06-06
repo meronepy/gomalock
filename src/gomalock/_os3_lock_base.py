@@ -70,12 +70,8 @@ class BaseSesameOS3Lock[LockSelfT: "BaseSesameOS3Lock", MechStatusT](ABC):
             reconnect_attempts: The maximum number of consecutive attempts
                 to automatically reconnect to the device.
         """
-        if (
-            isinstance(address_or_device, ScannedSesameDevice)
-            and address_or_device.advertisement_data.product_model
-            not in type(self)._VALID_MODEL_GROUPS.value
-        ):
-            raise ValueError("An invalid model ScannedSesameDevice was provided")
+        if isinstance(address_or_device, ScannedSesameDevice):
+            type(self)._validate_model(address_or_device.advertisement_data)
         self._os3_device = SesameOS3Protocol(
             address_or_device,
             self.on_published,
@@ -92,6 +88,22 @@ class BaseSesameOS3Lock[LockSelfT: "BaseSesameOS3Lock", MechStatusT](ABC):
         ] = {}
         if mech_status_callback is not None:
             self.register_mech_status_callback(mech_status_callback)
+
+    @classmethod
+    def _validate_model(cls, advertisement_data: SesameAdvertisementData) -> None:
+        """Validates that the device's model group is supported by this class.
+
+        Args:
+            advertisement_data: The advertisement data containing the product model.
+
+        Raises:
+            ValueError: If the product model is not in the valid model groups.
+        """
+        if advertisement_data.product_model not in cls._VALID_MODEL_GROUPS.value:
+            raise ValueError(
+                f"{cls.__name__} does not support "
+                f"{advertisement_data.product_model.name}"
+            )
 
     async def __aenter__(self) -> Self:
         """Connects and optionally logs in when entering the async context.
@@ -216,6 +228,7 @@ class BaseSesameOS3Lock[LockSelfT: "BaseSesameOS3Lock", MechStatusT](ABC):
         self._device_status = DeviceStatus.CONNECTING
         try:
             await self._os3_device.connect()
+            type(self)._validate_model(self.advertisement_data)
         except Exception:
             if self.is_connected:
                 await self.disconnect()
