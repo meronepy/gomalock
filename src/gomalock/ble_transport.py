@@ -28,13 +28,13 @@ logger = logging.getLogger(__name__)
 def generate_header(is_beginning: bool, is_end: bool, is_encrypted: bool) -> bytes:
     """Generates the 1-byte header for an outgoing BLE packet.
 
-    Constructs a header byte indicating if the packet is the beginning or end of a
-    sequence and if it is encrypted.
+    Constructs a header byte indicating whether the packet is the beginning or
+    end of a sequence and whether it is encrypted.
 
     Args:
-        is_beginning: Indicates if this packet starts a new message.
-        is_end: Indicates if this packet completes a message.
-        is_encrypted: Indicates if the message payload is encrypted.
+        is_beginning: Indicates whether this packet starts a new message.
+        is_end: Indicates whether this packet completes a message.
+        is_encrypted: Indicates whether the message payload is encrypted.
 
     Returns:
         A 1-byte bytes object representing the header.
@@ -101,17 +101,14 @@ class SesameBLETransport:
         )
 
     async def _handle_unexpected_disconnect(self, client: BleakClient) -> None:
-        """Performs cleanup after an unexpected disconnection.
+        """Cleans up the Bleak client after an unexpected disconnection.
 
         Explicitly calling `disconnect()` after an unexpected disconnection is
         necessary to clear the internal state of the Bleak client (especially
         on Windows). This prevents an 'unhandled services changed event'
-        error when `connect()` is called again. Also, it invokes the disconnect callback.
-
-        Raises:
-            RuntimeError: If retrieving the event loop fails.
-            BleakGATTProtocolError: If a D-Bus error occurs, typical on Linux platforms.
-            asyncio.TimeoutError: If the disconnect operation times out.
+        error when `connect()` is called again. The unexpected-disconnect
+        callback is invoked even if cleanup raises, and any exception is left
+        for the task completion callback to log.
         """
         try:
             await client.disconnect()
@@ -197,7 +194,7 @@ class SesameBLETransport:
         return found_device
 
     def cleanup(self) -> None:
-        """Resets internal buffers and state."""
+        """Resets the receive buffer."""
         self._rx_buffer = b""
 
     async def connect_and_start_notification(self) -> None:
@@ -241,7 +238,7 @@ class SesameBLETransport:
 
         Args:
             send_data: The data payload to transmit.
-            is_encrypted: Indicates if the data is encrypted.
+            is_encrypted: Indicates whether the data is encrypted.
 
         Raises:
             SesameConnectionError: If the device is not connected.
@@ -313,7 +310,7 @@ class SesameBLETransport:
 
     @property
     def is_connected(self) -> bool:
-        """Indicates if the BLE device is currently connected.
+        """Indicates whether the BLE device is currently connected.
 
         Returns:
             True if connected, False otherwise.

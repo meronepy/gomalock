@@ -15,7 +15,7 @@ class DummyLock(os3_lock_base.BaseSesameOS3Lock["DummyLock", int]):
     _VALID_MODEL_GROUPS = const.ModelGroup.SESAME5
 
     def on_published(self, publish_data: protocol_types.ReceivedSesamePublish) -> None:
-        """Updates status and completes login from public publish handling."""
+        """Updates status and completes login during publish handling."""
         self._mech_status = int.from_bytes(publish_data.payload, "little")
         for callback in self._mech_status_callbacks.values():
             callback(cast(Any, self), self._mech_status)

@@ -1,7 +1,7 @@
 """Provides control and status monitoring for Sesame 5 devices.
 
 This module contains the Sesame5 class, which extends the base OS3 lock
-functionality to provide specific commands (lock, unlock, toggle) and parse
+functionality to send commands such as lock, unlock, and toggle, and to parse
 the mechanical status and settings for Sesame 5 locks.
 """
 
@@ -51,22 +51,22 @@ class Sesame5MechStatus:
 
     @property
     def is_in_lock_range(self) -> bool:
-        """Indicates if the current position is considered locked."""
+        """Indicates whether the current position is considered locked."""
         return bool(self._status_flags & MechStatusBitFlag.IS_IN_LOCK_RANGE)
 
     @property
     def is_in_unlock_range(self) -> bool:
-        """Indicates if the current position is considered unlocked."""
+        """Indicates whether the current position is considered unlocked."""
         return bool(self._status_flags & MechStatusBitFlag.IS_IN_UNLOCK_RANGE)
 
     @property
     def is_battery_critical(self) -> bool:
-        """Indicates if the battery voltage has dropped below critical levels."""
+        """Indicates whether the battery voltage is critically low."""
         return bool(self._status_flags & MechStatusBitFlag.IS_BATTERY_CRITICAL)
 
     @property
     def is_stop(self) -> bool:
-        """Indicates if the motor is currently idle (not moving)."""
+        """Indicates whether the motor is currently idle."""
         return bool(self._status_flags & MechStatusBitFlag.IS_STOP)
 
     @property
@@ -136,8 +136,10 @@ class Sesame5(BaseSesameOS3Lock["Sesame5", Sesame5MechStatus]):
         """Initializes the Sesame 5 device handler.
 
         Args:
-            address_or_scanned_sesame: The address of the device or a scanned Sesame device object.
-                Passing a ScannedSesameDevice skips the discovery scan performed before connection.
+            address_or_device: The address of the device or a scanned Sesame
+                device object.
+                Passing a ScannedSesameDevice skips the discovery scan
+                performed before connection.
             secret_key: The hex-encoded secret key used for login.
             mech_status_callback: A function called whenever the device publishes
                 a new mechanical status.
@@ -145,7 +147,7 @@ class Sesame5(BaseSesameOS3Lock["Sesame5", Sesame5MechStatus]):
                 attempts.
 
         Raises:
-            ValueError: If the ScannedSesameDevice is not a Sesame 5 model.
+            ValueError: If a ScannedSesameDevice is not a Sesame 5 model.
         """
         super().__init__(
             address_or_device=address_or_device,
@@ -326,7 +328,7 @@ class Sesame5(BaseSesameOS3Lock["Sesame5", Sesame5MechStatus]):
             The mechanical setting object.
 
         Raises:
-            SesameLoginError: If the device is not logged in.
+            SesameLoginError: If mechanical settings have not been received yet.
         """
         if self._mech_setting is None:
             raise SesameLoginError("Login is required to access mechanical setting")

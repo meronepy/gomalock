@@ -21,7 +21,7 @@ class SesameAdvertisementData:
     Attributes:
         product_model: The identified hardware model of the device.
         is_registered: Indicates whether the device has already been registered.
-        device_uuid: The unique UUID broadcasted by the device.
+        device_uuid: The unique UUID broadcast by the device.
     """
 
     product_model: ProductModel
@@ -33,7 +33,8 @@ class SesameAdvertisementData:
         """Decodes the raw manufacturer data into an advertisement object.
 
         Args:
-            manufacturer_data: The manufacturer-specific byte string from the BLE ad.
+            manufacturer_data: The manufacturer-specific byte string from the BLE
+                advertisement.
 
         Returns:
             A populated SesameAdvertisementData instance.
@@ -117,7 +118,7 @@ class ReceivedSesamePacket:
 
     @property
     def is_encrypted(self) -> bool:
-        """Indicates whether the payload content is encrypted."""
+        """Indicates whether this packet marks the message as encrypted."""
         return bool(self.header & PacketType.ENCRYPTED_END)
 
 

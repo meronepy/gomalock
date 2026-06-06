@@ -154,7 +154,7 @@ def test_from_qr_url_invalid_key_level() -> None:
 
 
 def test_qr_url_format() -> None:
-    """Generates official Sesame QR URL scheme."""
+    """Generates a URL using the official Sesame QR URL scheme."""
     qr_code = os3_protocol.OS3QRCode(
         "Sesame",
         const.KeyLevel.MANAGER,

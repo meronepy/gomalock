@@ -10,7 +10,7 @@ import gomalock
 
 
 async def main():
-    """Scan for Sesame BLE devices and print their information."""
+    """Scans for Sesame BLE devices and prints their information."""
     print("-" * 50)
     devices = await gomalock.SesameScanner.discover(timeout=30)
     for scanned_device in devices.values():

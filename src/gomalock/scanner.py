@@ -1,7 +1,7 @@
 """Provides tools for discovering Sesame devices via BLE.
 
-This module contains the SesameScanner class, which leverages Bleak to scan
-for nearby Sesame locks and parse their broadcasted advertisement data.
+This module contains the SesameScanner class, which uses Bleak to scan
+for nearby Sesame devices and parse their broadcast advertisement data.
 """
 
 import asyncio
@@ -27,8 +27,8 @@ logger = logging.getLogger(__name__)
 class SesameScanner:
     """Scans for and tracks BLE advertisements from Sesame devices.
 
-    Maintains a dictionary of detected devices and allows registering callbacks
-    to process ScannedSesameDevice discoveries asynchronously.
+    Maintains a dictionary of detected devices and allows callbacks to be
+    registered for ScannedSesameDevice discoveries.
     """
 
     def __init__(
@@ -138,7 +138,7 @@ class SesameScanner:
 
     @property
     def detected_devices(self) -> dict[str, ScannedSesameDevice]:
-        """A dictionary of all devices detected during the current scanning session.
+        """Returns devices detected during the current scanning session.
 
         Returns:
             A mapping of addresses to ScannedSesameDevice objects.

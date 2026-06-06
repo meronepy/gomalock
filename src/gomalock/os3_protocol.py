@@ -59,13 +59,13 @@ def calculate_battery_percentage(battery_voltage: float) -> int:
     interpolation for the percentage.
 
     Args:
-        battery_voltage: The raw voltage reading from the device.
+        battery_voltage: The battery voltage reading in volts.
 
     Returns:
         The estimated battery percentage as an integer between 0 and 100.
 
     Raises:
-        ValueError: If an unexpected voltage value evades the bounds checks.
+        ValueError: If the voltage cannot be ordered against the lookup table.
     """
     if battery_voltage >= VOLTAGE_LEVELS[0]:
         return int(BATTERY_PERCENTAGES[0])
@@ -114,8 +114,9 @@ class OS3QRCode:
         product_model: The specific Sesame hardware model.
         device_uuid: The unique identifier for the device.
         secret_key: The 16-byte secret key used for session derivation.
-        registration_session_token: A placeholder for compatibility, typically zeroed.
-        key_index: A constant value maintained for key structure compatibility.
+        registration_session_token: The 4-byte registration-session field
+            included in the shared key.
+        key_index: The 2-byte key index included in the shared key.
     """
 
     device_name: str
@@ -128,7 +129,7 @@ class OS3QRCode:
 
     @classmethod
     def from_qr_url(cls, qr_url: str) -> Self:
-        """Instantiates an OS3QRCode from an official app's QR code URL.
+        """Parses an OS3QRCode from an official app's QR code URL.
 
         Args:
             qr_url: The full URL string encoded in the QR code.
@@ -230,7 +231,8 @@ class SesameOS3Protocol:
 
         Args:
             data: The fully reassembled payload from the device.
-            is_encrypted: Indicates if the data was received encrypted.
+            is_encrypted: Indicates whether the transport marked the message
+                as encrypted.
         """
         if is_encrypted:
             # after sending REGISTRATION command, for some reason sometimes receive
@@ -470,7 +472,7 @@ class SesameOS3Protocol:
         return int.from_bytes(response.payload, "little")
 
     async def disconnect(self) -> None:
-        """Terminates the BLE connection and cleans up session state."""
+        """Terminates the BLE connection if it is active."""
         if self.is_connected:
             await self._ble_device.disconnect()
 
@@ -485,7 +487,7 @@ class SesameOS3Protocol:
 
     @property
     def is_connected(self) -> bool:
-        """Indicates if the BLE connection is active.
+        """Indicates whether the BLE connection is active.
 
         Returns:
             True if connected, False otherwise.

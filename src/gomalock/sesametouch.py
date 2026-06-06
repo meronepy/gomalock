@@ -1,8 +1,7 @@
 """Provides control and status monitoring for Sesame Touch devices.
 
 This module contains the SesameTouch class, which extends the base OS3 lock
-functionality to handle the specific mechanical status parsing for Sesame Touch,
-Touch Pro, and Bike 2 devices.
+functionality to parse mechanical status for Sesame Touch and Touch Pro devices.
 """
 
 import struct
@@ -61,12 +60,12 @@ class SesameTouchMechStatus:
 
     @property
     def is_battery_critical(self) -> bool:
-        """Checks if the battery voltage is below the critical threshold."""
+        """Indicates whether the battery voltage is critically low."""
         return bool(self._status_flags & MechStatusBitFlag.IS_BATTERY_CRITICAL)
 
     @property
     def battery_voltage(self) -> float:
-        """Calculates the current battery voltage in volts."""
+        """Returns the estimated battery voltage in volts."""
         return self._raw_battery * 2 / 1000
 
     @property
@@ -78,9 +77,9 @@ class SesameTouchMechStatus:
 class SesameTouch(BaseSesameOS3Lock["SesameTouch", SesameTouchMechStatus]):
     """Controls and monitors a Sesame Touch device.
 
-    Handles connection, authentication, and the tracking of the device's
-    battery and operational status. The inherited constructor accepts either
-    an address string or a ScannedSesameDevice for Sesame Touch models.
+    Handles connection, authentication, battery status, and registered
+    credential counts. The inherited constructor accepts either an address
+    string or a ScannedSesameDevice for Sesame Touch models.
     """
 
     _VALID_MODEL_GROUPS = ModelGroup.SESAME_TOUCH

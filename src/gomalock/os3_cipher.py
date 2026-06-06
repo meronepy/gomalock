@@ -32,7 +32,7 @@ def generate_device_secret_key(
 
     Args:
         device_protocol_public_key: The device's 64-byte public key without the
-            uncompressed 0x04 flag.
+            uncompressed 0x04 prefix.
         app_private_key: The application's ECC private key.
 
     Returns:
@@ -55,7 +55,7 @@ def generate_device_secret_key(
 
 
 def generate_session_key(secret_key: bytes, session_token: bytes) -> bytes:
-    """Computes a session key using CMAC-AES.
+    """Computes a session key using AES-CMAC.
 
     Args:
         secret_key: The 16-byte shared secret key.
@@ -97,10 +97,10 @@ class OS3Cipher:
         """Constructs an AES-CCM nonce from the counter and session token.
 
         Args:
-            counter: The 64-bit message sequence counter.
+            counter: The 64-bit message counter.
 
         Returns:
-            A 13-byte nonce string.
+            A 13-byte nonce byte string.
         """
         return counter.to_bytes(8, "little") + b"\x00" + self._session_token
 

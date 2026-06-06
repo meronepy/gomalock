@@ -32,7 +32,7 @@ def make_sesame5(
     *,
     is_connected: bool = False,
 ) -> tuple[sesame5.Sesame5, Mock]:
-    """Creates Sesame5 with the OS3 protocol replaced by a mock."""
+    """Creates a Sesame5 instance with the OS3 protocol replaced by a mock."""
     os3_device = make_mock_os3_device(is_connected=is_connected)
     monkeypatch.setattr(
         os3_lock_base,
@@ -389,7 +389,7 @@ async def test_set_auto_lock_duration_logged_in(
 
 
 def test_generate_qr_url_owner(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Generates owner QR URLs from the device advertisement data."""
+    """Generates an owner QR URL from the device advertisement data."""
     device, _ = make_sesame5(monkeypatch)
 
     assert (
@@ -405,7 +405,7 @@ def test_generate_qr_url_owner(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_generate_qr_url_manager(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Generates manager QR URLs when requested."""
+    """Generates a manager QR URL when requested."""
     device, _ = make_sesame5(monkeypatch)
 
     assert device.create_share_url("Sesame", const.KeyLevel.MANAGER) == (

@@ -42,7 +42,7 @@ class BaseSesameOS3Lock[LockSelfT: "BaseSesameOS3Lock", MechStatusT](ABC):
     _VALID_MODEL_GROUPS: ModelGroup
 
     def __init_subclass__(cls, **kwargs):
-        """Ensures that subclasses define the required class variable."""
+        """Ensures that subclasses define the required model group."""
         super().__init_subclass__(**kwargs)
         if not hasattr(cls, "_VALID_MODEL_GROUPS"):
             raise TypeError(
@@ -184,7 +184,8 @@ class BaseSesameOS3Lock[LockSelfT: "BaseSesameOS3Lock", MechStatusT](ABC):
         """Registers a function to be called upon mechanical status updates.
 
         Args:
-            callback: The function to invoke with the new mechanical status.
+            callback: The function to invoke with this lock instance and the
+                new mechanical status.
 
         Returns:
             A function that unregisters the callback when invoked.
@@ -329,7 +330,8 @@ class BaseSesameOS3Lock[LockSelfT: "BaseSesameOS3Lock", MechStatusT](ABC):
             A string containing the generated QR code URL.
 
         Raises:
-            SesameConnectionError: If the device is not connected.
+            SesameConnectionError: If initialized with only an address and the
+                device has not been scanned yet.
             SesameLoginError: If the secret key is missing.
         """
         secret_key = secret_key or self._secret_key
@@ -357,7 +359,7 @@ class BaseSesameOS3Lock[LockSelfT: "BaseSesameOS3Lock", MechStatusT](ABC):
 
     @property
     def is_background_reconnecting(self) -> bool:
-        """Returns True if a reconnection task is running in the background.
+        """Indicates whether a reconnection task is running in the background.
 
         Returns:
             False if no task exists, the task has completed,
@@ -386,7 +388,7 @@ class BaseSesameOS3Lock[LockSelfT: "BaseSesameOS3Lock", MechStatusT](ABC):
             The mechanical status object.
 
         Raises:
-            SesameLoginError: If the device is not logged in.
+            SesameLoginError: If mechanical status has not been received yet.
         """
         if self._mech_status is None:
             raise SesameLoginError("Login is required to access mechanical status")
@@ -394,7 +396,7 @@ class BaseSesameOS3Lock[LockSelfT: "BaseSesameOS3Lock", MechStatusT](ABC):
 
     @property
     def is_connected(self) -> bool:
-        """Indicates if there is an active BLE connection.
+        """Indicates whether there is an active BLE connection.
 
         Returns:
             True if connected, False otherwise.
@@ -403,7 +405,7 @@ class BaseSesameOS3Lock[LockSelfT: "BaseSesameOS3Lock", MechStatusT](ABC):
 
     @property
     def is_logged_in(self) -> bool:
-        """Indicates if the device has been successfully authenticated.
+        """Indicates whether the device has been successfully authenticated.
 
         Returns:
             True if logged in, False otherwise.

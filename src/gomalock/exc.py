@@ -16,7 +16,7 @@ class SesameConnectionError(SesameError):
 
 
 class SesameLoginError(SesameError):
-    """Exception raised when an operation requires an authenticated state."""
+    """Exception raised for authentication and authenticated-state errors."""
 
 
 class SesameOperationError(SesameError):

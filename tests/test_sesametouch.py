@@ -31,7 +31,7 @@ def make_touch(
     *,
     is_connected: bool = False,
 ) -> tuple[sesametouch.SesameTouch, Mock]:
-    """Creates SesameTouch with the OS3 protocol replaced by a mock."""
+    """Creates a SesameTouch instance with the OS3 protocol replaced by a mock."""
     os3_device = make_mock_os3_device(
         is_connected=is_connected,
         product_model=const.ProductModel.SESAME_TOUCH,
@@ -248,7 +248,7 @@ async def test_context_manager_without_secret(monkeypatch: pytest.MonkeyPatch) -
 
 
 def test_generate_qr_url_owner(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Generates owner QR URLs from the device advertisement data."""
+    """Generates an owner QR URL from the device advertisement data."""
     device, _ = make_touch(monkeypatch)
 
     assert (
@@ -264,7 +264,7 @@ def test_generate_qr_url_owner(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_generate_qr_url_manager(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Generates manager QR URLs when requested."""
+    """Generates a manager QR URL when requested."""
     device, _ = make_touch(monkeypatch)
 
     assert device.create_share_url("Touch", const.KeyLevel.MANAGER) == (

@@ -25,7 +25,7 @@ class ProductModel(Enum):
 
 
 class ModelGroup(Enum):
-    """Groups of product models for categorization purposes."""
+    """Groups product models for device compatibility checks."""
 
     SESAME5 = {
         ProductModel.SESAME5,
@@ -44,7 +44,7 @@ class PacketType(IntFlag):
 
 
 class MechStatusBitFlag(IntFlag):
-    """Flags indicating the mechanical state and errors of the Sesame device."""
+    """Flags indicating mechanical state, direction, and battery status."""
 
     IS_CLUTCH_FAILED = 0b00000001
     IS_IN_LOCK_RANGE = 0b00000010
@@ -298,7 +298,7 @@ UUID_NOTIFICATION = "16860003-a5ae-9856-b6d3-dbb4c676993e"
 HISTORY_TAG_MAX_LEN = 20
 """The maximum allowed byte length for a history tag."""
 MTU_SIZE = 20
-"""The Maximum Transmission Unit size used for chunking BLE packets."""
+"""The maximum transmission unit size used for chunking BLE packets."""
 
 SCAN_TIMEOUT = 30
 """The default duration in seconds to wait when scanning for devices."""

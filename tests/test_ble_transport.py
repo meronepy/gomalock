@@ -126,7 +126,7 @@ def test_on_notification_encrypted_fragments() -> None:
 
 @pytest.mark.asyncio
 async def test_on_disconnect_expected_disconnect() -> None:
-    """Ignores the callback raised by an expected disconnect."""
+    """Does not invoke the user callback for an expected disconnect."""
     transport, client, _, disconnect_callback = make_transport(is_connected=True)
 
     async def disconnect() -> None:
