@@ -214,6 +214,7 @@ class BaseSesameOS3Lock[LockSelfT: "BaseSesameOS3Lock", MechStatusT](ABC):
         """Establishes a BLE connection to the Sesame device.
 
         Raises:
+            ValueError: If this class does not support the device with the given address.
             asyncio.TimeoutError: If waiting for the session token times out.
             SesameConnectionError: If a connection or auto-reconnection is already
                 in progress, or if the device cannot be found.

@@ -26,11 +26,15 @@ def make_lock(
     monkeypatch: pytest.MonkeyPatch,
     *,
     is_connected: bool = False,
+    product_model: _const.ProductModel = _const.ProductModel.SESAME_5,
     secret_key: str | None = "00" * 16,
     auto_reconnection_limit: int = 0,
 ) -> tuple[DummyLock, Mock]:
     """Creates a test lock with the OS3 protocol replaced by a mock."""
-    os3_device = make_mock_os3_device(is_connected=is_connected)
+    os3_device = make_mock_os3_device(
+        is_connected=is_connected,
+        product_model=product_model,
+    )
     monkeypatch.setattr(
         _os3_lock_base,
         "SesameOS3Protocol",
@@ -62,6 +66,21 @@ def test_subclass_requires_valid_model_groups() -> None:
             (_os3_lock_base.BaseSesameOS3Lock,),
             {"on_published": lambda self, publish_data: None},
         )
+
+
+def test_constructor_rejects_invalid_scanned_device() -> None:
+    """Rejects scanned devices outside the lock class model group."""
+    scanned_device = _protocol_types.ScannedSesameDevice(
+        TEST_ADDRESS,
+        _protocol_types.SesameAdvertisementData(
+            _const.ProductModel.SESAME_TOUCH_1,
+            True,
+            TEST_UUID,
+        ),
+    )
+
+    with pytest.raises(ValueError, match="does not support"):
+        DummyLock(scanned_device)
 
 
 @pytest.mark.asyncio
@@ -141,6 +160,23 @@ async def test_connect_disconnected(monkeypatch: pytest.MonkeyPatch) -> None:
 
     os3_device.connect.assert_awaited_once_with()
     assert lock.device_status == _const.DeviceStatus.CONNECTED
+
+
+@pytest.mark.asyncio
+async def test_connect_rejects_invalid_model_from_address(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Rejects address-scanned devices outside the lock class model group."""
+    lock, os3_device = make_lock(
+        monkeypatch,
+        product_model=_const.ProductModel.SESAME_TOUCH_1,
+    )
+
+    with pytest.raises(ValueError, match="does not support"):
+        await lock.connect()
+
+    os3_device.connect.assert_awaited_once_with()
+    assert lock.device_status == _const.DeviceStatus.DISCONNECTED
 
 
 @pytest.mark.asyncio
