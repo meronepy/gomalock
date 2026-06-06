@@ -44,10 +44,14 @@ async def main():
         return
     for device in devices:
         # By scanning all devices together and connecting to each target device
-        # using ScannedSesameDevice instead of mac_address, the scanning process
+        # using ScannedSesameDevice instead of address, the scanning process
         # for each device is skipped, and a connection can be established immediately.
         secret_key = TARGET_DEVICE_DICT[device.address]
-        async with gomalock.Sesame5(device, secret_key, on_mech_status_changed):
+        async with gomalock.Sesame5(
+            device,
+            secret_key=secret_key,
+            mech_status_callback=on_mech_status_changed,
+        ):
             pass
 
 

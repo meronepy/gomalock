@@ -4,14 +4,14 @@ import qrcode
 
 import gomalock
 
-MAC_ADDRESS = "XX:XX:XX:XX:XX:XX"
+ADDRESS = "XX:XX:XX:XX:XX:XX"
 LOCK_POSITION = 0
 UNLOCK_POSITION = 90
 AUTOLOCK_DURATION = 5
 
 
 async def main():
-    async with gomalock.Sesame5(MAC_ADDRESS) as sesame5:
+    async with gomalock.Sesame5(ADDRESS) as sesame5:
         secret_key = await sesame5.register()
         print(secret_key)
 

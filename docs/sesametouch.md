@@ -1,169 +1,121 @@
-# Sesame Touch クラスリファレンス
+# SesameTouch クラスリファレンス
 
-## できること
+`gomalock.SesameTouch` は Sesame Touch / Sesame Touch Pro を BLE で監視するクラスです。バッテリー状態と登録済みカード、指紋、パスワード数を取得できます。
 
-- Sesame Touchの電池残量、電圧のリアルタイム取得
-- 登録済みの指紋、カード、パスワードの数の取得
+## コンストラクタ
 
----
+```python
+gomalock.SesameTouch(
+    address_or_device: str | ScannedSesameDevice,
+    *,
+    secret_key: str | None = None,
+    mech_status_callback: Callable[[SesameTouch, SesameTouchMechStatus], None] | None = None,
+    reconnect_attempts: int = 0,
+)
+```
 
-## `class gomalock.SesameTouch(mac_address_or_scanned_sesame: str | ScannedSesameDevice, secret_key: str | None = None, mech_status_callback: Callable[[SesameTouch, SesameTouchMechStatus], None] | None = None, auto_reconnection_limit: int = 0)`
+- `address_or_device`: BLE アドレス、または `SesameScanner` で取得した `ScannedSesameDevice` です。
+- `secret_key`: ログインに使う 16 バイトのシークレットキーを hex 文字列で指定します。
+- `mech_status_callback`: 機械状態を受信するたびに呼ばれるコールバックです。
+- `reconnect_attempts`: 予期しない切断後に自動再接続を試みる最大回数です。`0` で無効です。
 
-- Sesame Touchとの接続、ログイン、操作などを行うクラスです
-- 引数`secret_key`が与えられた場合は非同期コンテキストマネージャー(`async with`)はログインを自動的に行います
-- 引数`secret_key`が`None`の場合は非同期コンテキストマネージャーは接続のみ自動で行います
-- Sesame 5系など異なるモデルの`ScannedSesameDevice`を渡すと`ValueError`を送出します
+`secret_key` を指定して `async with` で使うと、接続後に自動でログインします。
 
-- 引数
-  - mac_address_or_scanned_sesame: 接続するSesame TouchのMACアドレス、または`SesameScanner`で取得した`ScannedSesameDevice`
-  - secret_key: 接続するSesame Touchのシークレットキー
-  - mech_status_callback: 器械状態の変化時に呼び出されるコールバック関数
-  - auto_reconnection_limit: 再接続の試行回数の上限 (デフォルトは`0`で無効)
+```python
+async with gomalock.SesameTouch(ADDRESS, secret_key=SECRET_KEY) as touch:
+    print(touch.mech_status.card_count)
+```
 
-> `v1.0.0`以降では`SesameTouch`インスタンスと`SesameTouchMechStatus`インスタンスの両方をコールバックします
+## 接続と認証
 
----
+### `connect() -> None`
 
-## 自動再接続について
+Sesame Touch と BLE 接続します。接続後は `advertisement_data` を参照できます。
 
-- 自動再接続は、正常接続後の予期せぬ切断の場合に実行されます
-- 初回接続の失敗や、呼び出したメソッドの例外によって切断された場合は自動再接続は行いません
-  > 例えば`async SesameTouch.connect()`, `async SesameTouch.login()`などが予期せぬ切断によって実行に失敗し、例外が発生した場合は自動再接続の対象外です  
-  > 呼び出し元で`try-except`を用いて、例外が伝播しないよう適切にエラーハンドリングを行ってください
-- 下記のメソッドを除き、再接続中に`async SesameTouch.lock()`や`async SesameTouch.unlock()`などの非同期メソッドが実行されると、再接続を待ってから実行されます
-- `async SesameTouch.disconnect()`を実行すると自動再接続を終了します
-- 自動再接続中に`async SesameTouch.connect()`または`async SesameTouch.login()`を手動で呼び出すと例外を送出します
+### `disconnect() -> None`
 
-### 操作
+BLE 接続を切断します。自動再接続中の場合は再接続タスクも終了します。
 
-#### `async SesameTouch.connect() -> None`
+### `register() -> str`
 
-- Sesame TouchとBLEで接続します
-- `SesameTouch.sesame_advertisement_data`が利用可能になります
+未登録の Sesame Touch を登録し、以後のログインに必要な `secret_key` を hex 文字列で返します。登録済みデバイスには実行できません。
 
-#### `async SesameTouch.disconnect() -> None`
+### `login(secret_key: str | None = None) -> int`
 
-- Sesame TouchとのBLE接続を切断します
+Sesame Touch にログインし、ステータス監視を可能にします。引数の `secret_key` が優先され、省略時はコンストラクタで指定した値を使います。
 
-#### `async SesameTouch.register() -> str`
+### `register_mech_status_callback(callback) -> Callable[[], None]`
 
-- リセット済みのSesame Touchの登録(初期設定)を行います
-- セットアップ済みのSesame Touchには実行できません
-- Sesame Touchに接続してからでないと実行できません
-- 返り値は次回以降のログインに必要な`secret_key`です
+機械状態を受信するたびに呼ばれるコールバックを追加します。戻り値の関数を呼ぶと解除できます。コールバックには `SesameTouch` インスタンスと `SesameTouchMechStatus` が渡されます。
 
-#### `async SesameTouch.login(secret_key: str | None = None) -> int`
+### `create_share_url(device_name: str, key_level: KeyLevel, secret_key: str | None = None) -> str`
 
-- Sesame Touchにログインして、ステータス監視を可能にします
-- `SesameTouch.mech_status`が利用可能になります
-- 引数`secret_key`を優先的に使用してログインをします
-- 引数`secret_key`が与えられない場合は`__init__`の`secret_key`を使用してログインします
-- 引数`secret_key`と`__init__`の`secret_key`の両方が`None`の場合は`SesameLoginError`を送出します
-- 操作に失敗した場合は自動的にSesameTouchとのBLE接続が切断されてから例外を送出します
+公式アプリで読み取れる共有用 QR URL を生成します。
 
-- 引数
-  - secret_key: 接続するSesame Touchのシークレットキー
+```python
+url = touch.create_share_url(
+    "玄関タッチ",
+    gomalock.KeyLevel.MANAGER,
+    secret_key=SECRET_KEY,
+)
+```
 
-#### `SesameTouch.register_mech_status_callback(callback: Callable[[SesameTouch, SesameTouchMechStatus], None]) -> Callable[[], None]`
+## プロパティ
 
-- [Sesame Touchの器械状態](#sesametouchmechstatusクラス)の変化時にリアルタイムで受け取るためのコールバックを設定します
-- 返り値として、登録したコールバックを解除する関数を返します
-- 複数のコールバックを登録可能です
+### `address: str`
 
-- 引数
-  - callback: 器械状態の変化時に呼び出されるコールバック関数
+接続対象の BLE アドレスです。
 
-> `v1.0.0`以降では`SesameTouch`インスタンスと`SesameTouchMechStatus`インスタンスの両方をコールバックします  
-> `v0.4.0`以前の`set_mech_status_callback()`からリネームされ、`call_immediately`引数は削除されました  
-> ログイン時に受信する初回の器械状態を取得したい場合は、`SesameTouch`クラスをインスタンス化する時の引数で登録してください
+### `is_connected: bool`
 
-#### `SesameTouch.generate_qr_url(device_name: str, generate_owner_key: bool = True, secret_key: str | None = None) -> str`
+BLE 接続中なら `True` です。
 
-- Sesame TouchのQRコードURLを生成します
-- 生成されたURLを基にQRコードを作成し、公式アプリでスキャンして鍵を共有できます
-- MACアドレス文字列で初期化した場合は接続後、`ScannedSesameDevice`で初期化した場合は接続前でも利用できます
+### `is_logged_in: bool`
 
-- 引数
-  - device_name: 公式アプリに表示するデバイスの名前
-  - generate_owner_key: `True`でオーナーキー、`False`でマネージャーキーを生成
-  - secret_key: QRコードに含めるシークレットキー、`None`の場合は`__init__`の`secret_key`を使用
+ログイン済みなら `True` です。
 
-- 返り値
-  - 生成されたQRコードURL
+### `device_status: DeviceStatus`
 
-- 例外
-  - `SesameConnectionError`: 接続されていない場合
-  - `SesameLoginError`: 引数`secret_key`と`__init__`の`secret_key`の両方が`None`の場合
+現在の接続状態です。詳細は [DeviceStatus](devicestatus.md) を参照してください。
 
----
+### `advertisement_data: SesameAdvertisementData`
 
-### デバイス情報と設定
+デバイスの広告データです。`ScannedSesameDevice` で初期化した場合は接続前でも参照できます。
 
-#### `property SesameTouch.mac_address: str`
+### `mech_status: SesameTouchMechStatus`
 
-- Sesame TouchのMACアドレス
+最後に受信した機械状態です。ログイン前に参照すると `SesameLoginError` を送出します。
 
-#### `property SesameTouch.is_connected: bool`
+## SesameTouchMechStatus
 
-- Sesame Touchと接続中か否か
+```python
+@dataclass(frozen=True)
+class gomalock.SesameTouchMechStatus:
+    card_count: int
+    fingerprint_count: int
+    password_count: int
+```
 
-#### `property SesameTouch.is_logged_in: bool`
+### `card_count: int`
 
-- Sesame Touchにログイン済みか否か
+登録済みカード数です。
 
-> `v1.0.0`以降`SesameTouch.login_status`は削除され、`SesameTouch.is_logged_in`に変更されました
+### `fingerprint_count: int`
 
-#### `property SesameTouch.sesame_advertisement_data: SesameAdvertisementData`
+登録済み指紋数です。
 
-- Sesame Touchが[アドバタイズしている情報](sesame_advertisement_data.md)
-- `ScannedSesameDevice`で初期化した場合は接続前でも参照できます
-- MACアドレス文字列で初期化した場合は、スキャンが完了するまで`SesameConnectionError`を送出します
+### `password_count: int`
 
-#### `property SesameTouch.device_status: DeviceStatus`
+登録済みパスワード数です。
 
-- Sesame Touchの接続試行中やログイン試行中などの状態
-  - DISCONNECTED
-  - CONNECTING
-  - CONNECTED
-  - LOGGING_IN
-  - LOGGED_IN
-  - DISCONNECTING
+### `is_battery_critical: bool`
 
-#### `property SesameTouch.mech_status: SesameTouchMechStatus`
+バッテリーが5V以下の場合に `True` です。
 
-- キャッシュされた最新の[Sesame Touchの器械状態](#sesametouchmechstatusクラス)
-- ログイン前に参照しようとすると、`SesameLoginError`を送出します
+### `battery_voltage: float`
 
----
+バッテリー電圧です。
 
-## SesameTouchMechStatusクラス
+### `battery_percentage: int`
 
-## `dataclass(frozen=True) class gomalock.SesameTouchMechStatus`
-
----
-
-### 器械状態
-
-#### `SesameTouchMechStatus.cards_number: int`
-
-- Sesame Touchに登録済みのカードの枚数
-
-#### `SesameTouchMechStatus.fingerprints_number: int`
-
-- Sesame Touchに登録済みの指紋の数
-
-#### `SesameTouchMechStatus.passwords_number: int`
-
-- Sesame Touchに登録済みのパスワードの数
-
-#### `property SesameTouchMechStatus.is_battery_critical: bool`
-
-- 電池電圧が5V以下か否か
-
-#### `property SesameTouchMechStatus.battery_voltage: float`
-
-- 電池電圧
-
-#### `property SesameTouchMechStatus.battery_percentage: int`
-
-- 電池残量のパーセンテージ
+バッテリー残量です。

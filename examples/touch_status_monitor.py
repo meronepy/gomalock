@@ -2,7 +2,7 @@ import asyncio
 
 import gomalock
 
-MAC_ADDRESS = "XX:XX:XX:XX:XX:XX"
+ADDRESS = "XX:XX:XX:XX:XX:XX"
 SECRET_KEY = "0123456789abcdef0123456789abcdef"
 
 
@@ -29,7 +29,11 @@ def on_mechstatus_changed(
 
 
 async def main():
-    async with gomalock.SesameTouch(MAC_ADDRESS, SECRET_KEY, on_mechstatus_changed):
+    async with gomalock.SesameTouch(
+        ADDRESS,
+        secret_key=SECRET_KEY,
+        mech_status_callback=on_mechstatus_changed,
+    ):
         while True:
             await asyncio.sleep(10)
 

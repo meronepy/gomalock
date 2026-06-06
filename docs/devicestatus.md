@@ -1,35 +1,29 @@
-# DeviceStatus クラスリファレンス
+# DeviceStatus リファレンス
 
-## `enum.Enum class gomalock.DeviceStatus`
+`gomalock.DeviceStatus` は `Sesame5` / `SesameTouch` の接続とログイン状態を表す列挙型です。
 
-`Sesame5` や `SesameTouch` の現在の接続状態を表す列挙型です。
+## 値
 
-`DeviceStatus` は単一の状態だけを表します。ログイン済みかどうかを判定する場合は、`Sesame5.is_logged_in` または `SesameTouch.is_logged_in` を使用してください。
+### `DISCONNECTED`
 
----
+BLE 接続がない状態です。
 
-## 状態
+### `CONNECTING`
 
-### `DISCONNECTED = auto()`
+BLE 接続を開始している状態です。
 
-デバイスと BLE 接続していない状態です。
+### `CONNECTED`
 
-### `CONNECTING = auto()`
+BLE 接続は完了していますが、まだログインしていない状態です。
 
-BLE 接続を試行している状態です。
+### `LOGGING_IN`
 
-### `CONNECTED = auto()`
+ログイン処理中の状態です。
 
-BLE 接続が完了し、ログイン前の状態です。
+### `LOGGED_IN`
 
-### `LOGGING_IN = auto()`
+ログイン済みで、施錠や解錠などの認証が必要な操作を実行できる状態です。
 
-ログインを試行している状態です。
+### `DISCONNECTING`
 
-### `LOGGED_IN = auto()`
-
-ログイン済みの状態です。
-
-### `DISCONNECTING = auto()`
-
-BLE 接続の切断処理中の状態です。
+BLE 切断処理中の状態です。

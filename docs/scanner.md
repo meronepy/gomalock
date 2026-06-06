@@ -1,99 +1,77 @@
 # SesameScanner クラスリファレンス
 
-## できること
+`gomalock.SesameScanner` は周囲の Sesame デバイスを BLE でスキャンし、検出したデバイスを `ScannedSesameDevice` として返すクラスです。
 
-- 周囲のSesameデバイスをスキャンし、`ScannedSesameDevice`を取得
-- 任意のMACアドレス、UUID、または条件に合致するSesameデバイスを探索
-- スキャン済みデバイスを`Sesame5`や`SesameTouch`へ渡して、接続前の再スキャンを省略
+## コンストラクタ
 
----
+```python
+gomalock.SesameScanner(
+    callback: Callable[[ScannedSesameDevice], None] | None = None,
+)
+```
 
-## `class gomalock.SesameScanner(callback: Callable[[ScannedSesameDevice], None] | None = None)`
+- `callback`: Sesame デバイスを検出するたびに呼ばれるコールバックです。同じデバイスでも複数回呼ばれることがあります。
 
-- 周囲のSesameデバイスをスキャンするクラスです
-- `async with` による非同期コンテキストマネージャーでの利用に対応しています
-- 引数
-  - callback:
-    - Sesameデバイスが見つかるたびにリアルタイムで呼び出されるコールバックです
-    - `ScannedSesameDevice`を1つだけ引数に渡します
-    - 同一デバイスが複数回呼ばれる可能性があります
+## 使い方
 
----
+```python
+import asyncio
+import gomalock
 
-### 簡単なメソッド
 
-#### `classmethod async SesameScanner.find_device_by_filter(filter_func: Callable[[ScannedSesameDevice], bool], timeout: float = SCAN_TIMEOUT) -> ScannedSesameDevice | None`
+async def main():
+    devices = await gomalock.SesameScanner.discover(timeout=30)
+    for address, device in devices.items():
+        print(address, device.advertisement_data.product_model.name)
 
-- 任意の条件（フィルタ関数）に合致するSesameデバイスを探索し、見つかるとすぐに返します
-- 返り値は`ScannedSesameDevice`です
-- `timeout`秒以内に見つからなかった場合、`None`を返します
-- 引数
-  - filter_func: `ScannedSesameDevice`を引数に取り、条件に合致すれば`True`を返す関数
-  - timeout: 探索する時間の上限 (秒単位, デフォルトは`30`秒)
 
-#### `classmethod async SesameScanner.find_device_by_address(address: str, timeout: float = SCAN_TIMEOUT) -> ScannedSesameDevice | None`
+asyncio.run(main())
+```
 
-- 指定したMACアドレスのSesameデバイスを探索し、見つかるとすぐに返します
-- 返り値は`ScannedSesameDevice`です
-- `timeout`秒以内に見つからなかった場合、`None`を返します
-- 引数
-  - address: 目的のデバイスのMACアドレス
-  - timeout: 探索する時間の上限 (秒単位, デフォルトは`30`秒)
+## クラスメソッド
 
-#### `classmethod async SesameScanner.find_device_by_uuid(uuid: uuid.UUID, timeout: float = SCAN_TIMEOUT) -> ScannedSesameDevice | None`
+### `find_device_by_filter(filter_func, timeout=SCAN_TIMEOUT) -> ScannedSesameDevice | None`
 
-- 指定したUUIDのSesameデバイスを探索し、見つかるとすぐに返します
-- 返り値は`ScannedSesameDevice`です
-- `timeout`秒以内に見つからなかった場合、`None`を返します
-- 引数
-  - uuid: 目的のデバイスのUUID
-  - timeout: 探索する時間の上限 (秒単位, デフォルトは`30`秒)
+任意の条件に一致するデバイスを探します。一致するデバイスが見つかるとすぐに値が返されます。`filter_func` は `ScannedSesameDevice` を受け取り、目的のデバイスなら `True` を返します。時間内に見つからない場合は `None` を返します。
 
-#### `classmethod async SesameScanner.discover(timeout: float = SCAN_TIMEOUT) -> dict[str, ScannedSesameDevice]`
+### `find_device_by_address(address: str, timeout=SCAN_TIMEOUT) -> ScannedSesameDevice | None`
 
-- 周囲の全てのSesameデバイスをスキャンし、タイムアウト後に結果を返します
-- 引数
-  - timeout: 探索する時間 (秒単位, デフォルトは`30`秒)
-- 返り値:
-  - スキャン中に検出したSesameデバイスの一覧の辞書
-  - キーはMACアドレス、値は`ScannedSesameDevice`です
+指定した BLE アドレスのデバイスを探します。一致するデバイスが見つかるとすぐに値が返されます。
 
----
+### `find_device_by_uuid(uuid: uuid.UUID, timeout=SCAN_TIMEOUT) -> ScannedSesameDevice | None`
 
-### 操作
+指定した Sesame UUID のデバイスを探します。一致するデバイスが見つかるとすぐに値が返されます。
 
-#### `async SesameScanner.start() -> None`
+### `discover(timeout=SCAN_TIMEOUT) -> dict[str, ScannedSesameDevice]`
 
-- スキャンを開始するメソッドです
-- `SesameScanner.detected_devices`をリセットします
+指定秒数だけスキャンし、検出済みデバイスを `address` をキーにした辞書で返します。
 
-#### `async SesameScanner.stop() -> None`
+## インスタンスメソッド
 
-- スキャンを停止します
+### `start() -> None`
 
-#### `SesameScanner.register_detection_callback(callback: Callable[[ScannedSesameDevice], None]) -> Callable[[], None]`
+スキャンを開始します。開始時に `detected_devices` の内部キャッシュはクリアされます。
 
-- Sesameデバイスが見つかるたびにリアルタイムで呼び出されるコールバックを登録します
-- 返り値として、コールバックの解除用関数を渡します
-- 引数
-  - callback:
-    - Sesameデバイスが見つかるたびにリアルタイムで呼び出されるコールバックです
-    - `ScannedSesameDevice`を1つだけ引数に渡します
-    - 同一デバイスが複数回呼ばれる可能性があります
+### `stop() -> None`
 
----
+スキャンを停止します。
 
-### 情報
+### `register_detection_callback(callback) -> Callable[[], None]`
 
-#### `async SesameScanner.detected_devices_generator() -> AsyncGenerator[ScannedSesameDevice, None]`
+検出コールバックを追加します。戻り値の関数を呼ぶと登録を解除できます。
 
-- Sesameデバイスが見つかるたびにリアルタイムで更新される非同期ジェネレーターです
-- `ScannedSesameDevice`が渡されます
-- 同一デバイスが複数回呼ばれる可能性があります
-- スキャンを始めてからこのメソッドを使用してください
+### `detected_devices_generator() -> AsyncGenerator[ScannedSesameDevice, None]`
 
-#### `property SesameScanner.detected_devices: dict[str, ScannedSesameDevice]`
+検出デバイスを非同期ジェネレータとして受け取ります。
 
-- スキャン中に検出したSesameデバイスの一覧です
-- キーはMACアドレス、値は`ScannedSesameDevice`です
-- 同一デバイスの重複はありません
+```python
+async with gomalock.SesameScanner() as scanner:
+    async for device in scanner.detected_devices_generator():
+        print(device.address)
+```
+
+## プロパティ
+
+### `detected_devices: dict[str, ScannedSesameDevice]`
+
+スキャンで検出したデバイスの辞書です。キーは `ScannedSesameDevice.address` です。

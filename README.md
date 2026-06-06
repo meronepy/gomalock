@@ -5,49 +5,43 @@
 [![License](https://img.shields.io/badge/license-MIT-29b6ff)](LICENSE)
 [![Test](https://github.com/meronepy/gomalock/actions/workflows/test.yml/badge.svg)](https://github.com/meronepy/gomalock/actions/workflows/test.yml)
 
-SesameスマートロックをBluetooth Low Energyで操作するPythonライブラリ
+Sesame スマートロックを Bluetooth Low Energy で操作する Python ライブラリ。
 
-## 機能説明
+## 主な機能
 
-- Sesame 5 (Pro)の施錠、開錠
-- 施錠状態、電池残量などの変化をリアルタイムで受信
-- Sesame Touchの電池電圧、残量の変化をリアルタイムで受信
-- 周囲のSesameデバイスをスキャンして情報を取得
-- 新規Sesameデバイスの登録
-- 施錠、開錠角度の設定
-- オートロック秒数の設定
-- 共有用QRコードの作成
-- 自動再接続
+- Sesame 5 / Sesame 5 Pro / Sesame 5 USA の施錠、解錠、トグル操作
+- Sesame 5 系の角度、バッテリー残量、オートロック設定の取得と変更
+- Sesame Touch / Sesame Touch Pro のバッテリー残量と登録済みカード、指紋、パスワード数の取得
+- 周囲の Sesame デバイスのスキャン
+- 新規 Sesame デバイスの登録
+- 共有用 QR URL の作成
+- 予期しない切断後の自動再接続
 
 ## インストール
-
-通常のインストール
 
 ```console
 pip install gomalock
 ```
 
-最新のソースからインストール
+最新のソースからインストールする場合:
 
 ```console
 pip install git+https://github.com/meronepy/gomalock.git
 ```
 
-## 使用方法
-
-### 開錠例
+## クイックスタート
 
 ```python
 import asyncio
 
 import gomalock
 
-MAC_ADDRESS = "XX:XX:XX:XX:XX:XX"
+ADDRESS = "XX:XX:XX:XX:XX:XX"
 SECRET_KEY = "0123456789abcdef0123456789abcdef"
 
 
 async def main():
-    async with gomalock.Sesame5(MAC_ADDRESS, SECRET_KEY) as sesame5:
+    async with gomalock.Sesame5(ADDRESS, secret_key=SECRET_KEY) as sesame5:
         await sesame5.unlock("gomalock")
 
 
@@ -55,30 +49,22 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-- `MAC_ADDRESS`は[discover.py](examples/discover.py)で周囲のSesameをスキャンして取得できます。
-- `SECRET_KEY`はmochipon様作成の[QR Code Reader for SESAME](https://sesame-qr-reader.vercel.app/)を使用して、マネージャー権限以上のQRコードから抽出するか、[SESAME Biz](https://biz.candyhouse.co/)から取得できます。
-- 詳細な使用方法は[examples](examples)および[docs](docs)をご覧ください。
-
-### MQTTとブリッジするサンプルコード
-
-<https://github.com/meronepy/ssm2mqtt>
+- `ADDRESS` は [examples/discover.py](examples/discover.py) で周囲の Sesame をスキャンして取得できます。
+- `SECRET_KEY` は mochipon さん作成の [QR Code Reader for SESAME](https://sesame-qr-reader.vercel.app/) でマネージャー権限以上の QR コードから抽出するか、[SESAME Biz](https://biz.candyhouse.co/) から取得できます。
+- 詳しい使い方は [examples](examples) と [docs](docs) を参照してください。
 
 ## 注意事項
 
-- Raspberry Pi OSはデフォルトでBluetoothをブロックしていることがあります。  
-    `BleakBluetoothNotAvailableError`のようなエラーが出る場合は以下のコマンドでブロックを解除してください。
+- Raspberry Pi OS では Bluetooth がブロックされていることがあります。`BleakBluetoothNotAvailableError` が出る場合は、次を試してください。
 
-    ```bash
-    sudo rfkill unblock bluetooth
-    ```
+```bash
+sudo rfkill unblock bluetooth
+```
 
-- Bluetoothは距離が近いほど安定します。下記のような問題があるときは、Sesameとの距離を近づけて何度かやり直してみてください。公式アプリでSesameのBLE送信出力を上げることも有効です。
-  - `discover.py`でSesameが検出されない。
-  - `SesameConnectionError: Device not found"`や`SesameConnectionError: Failed to connect to device`等のエラーが出て接続に失敗する。
-  - 接続やログインは成功するが、`Sesame5.lock()`や`Sesame5.unlock()`などの操作に失敗する。
-- Linuxでは **BlueZ 5.82 (Raspberry Pi OS Trixie)以降が必要です。**
-- 履歴機能は公式アプリとの連携が困難であるため実装しておりません。
-- 非公式のライブラリです。動作保証はありません。自己責任でご使用ください。
+- Bluetooth は距離が近いほど安定します。スキャンできない、接続に失敗する、操作だけ失敗する場合は、デバイスとの距離を近づけて試してください。
+- Linux では **BlueZ 5.82 (Raspberry Pi OS Trixie) 以降** が必要です。
+- 履歴機能は公式アプリとの連携が難しいため実装していません。
+- 非公式ライブラリです。動作保証はありません。自己責任で使用してください。
 
 ## 開発環境
 
@@ -105,14 +91,10 @@ if __name__ == "__main__":
 
 ## 対応環境
 
-### OS
-
 |対応状況|OS|
 |:-:|:-:|
 |✅|Windows 11 version 22000 以降|
 |✅|Linux with BlueZ 5.82 以降|
 |⚠️|macOS 10.15 以降 (未検証)|
 
-### Python
-
-Python 3.12以降が必要です。
+Python 3.12 以降が必要です。

@@ -5,7 +5,7 @@ import qrcode
 
 import gomalock
 
-MAC_ADDRESS = "XX:XX:XX:XX:XX:XX"
+ADDRESS = "XX:XX:XX:XX:XX:XX"
 SECRET_KEY = "0123456789abcdef0123456789abcdef"
 HISTORY_TAG = "gomalock"
 DEVICE_NAME = "My Sesame5"
@@ -79,7 +79,7 @@ async def handle_auto_lock(sesame5: gomalock.Sesame5) -> None:
 
 def handle_display_qr(sesame5: gomalock.Sesame5) -> None:
     print("Displaying QR code...")
-    url = sesame5.create_share_url(DEVICE_NAME)
+    url = sesame5.create_share_url(DEVICE_NAME, gomalock.KeyLevel.MANAGER)
     qr = qrcode.QRCode()
     qr.add_data(url)
     qr.make()
@@ -103,7 +103,9 @@ q: Quit the program"""
 async def main() -> None:
     print("Connecting to Sesame5 device...")
     async with gomalock.Sesame5(
-        MAC_ADDRESS, SECRET_KEY, on_mechstatus_changed
+        ADDRESS,
+        secret_key=SECRET_KEY,
+        mech_status_callback=on_mechstatus_changed,
     ) as sesame5:
         while True:
             command = await asyncio.to_thread(input, "Enter command: ")
