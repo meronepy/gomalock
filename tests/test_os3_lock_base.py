@@ -355,7 +355,7 @@ def test_generate_qr_url_owner(monkeypatch: pytest.MonkeyPatch) -> None:
     lock, _ = make_lock(monkeypatch)
 
     assert (
-        lock.generate_qr_url("Base", const.KeyLevel.OWNER)
+        lock.create_share_url("Base", const.KeyLevel.OWNER)
         == os3_protocol.OS3QRCode(
             "Base",
             const.KeyLevel.OWNER,
@@ -370,7 +370,7 @@ def test_generate_qr_url_manager(monkeypatch: pytest.MonkeyPatch) -> None:
     """Generates a manager QR URL when requested."""
     lock, _ = make_lock(monkeypatch)
 
-    assert lock.generate_qr_url("Base", const.KeyLevel.MANAGER) == (
+    assert lock.create_share_url("Base", const.KeyLevel.MANAGER) == (
         os3_protocol.OS3QRCode(
             "Base",
             const.KeyLevel.MANAGER,
@@ -385,7 +385,7 @@ def test_generate_qr_url_explicit_secret(monkeypatch: pytest.MonkeyPatch) -> Non
     """Uses an explicit secret key when provided."""
     lock, _ = make_lock(monkeypatch)
 
-    assert lock.generate_qr_url(
+    assert lock.create_share_url(
         "Base",
         const.KeyLevel.OWNER,
         secret_key="ff" * 16,
@@ -405,7 +405,7 @@ def test_generate_qr_url_without_secret(monkeypatch: pytest.MonkeyPatch) -> None
     lock, _ = make_lock(monkeypatch, secret_key=None)
 
     with pytest.raises(exc.SesameLoginError):
-        lock.generate_qr_url("Base", const.KeyLevel.OWNER)
+        lock.create_share_url("Base", const.KeyLevel.OWNER)
 
 
 def test_properties_initial(monkeypatch: pytest.MonkeyPatch) -> None:

@@ -393,7 +393,7 @@ def test_generate_qr_url_owner(monkeypatch: pytest.MonkeyPatch) -> None:
     device, _ = make_sesame5(monkeypatch)
 
     assert (
-        device.generate_qr_url("Sesame", const.KeyLevel.OWNER)
+        device.create_share_url("Sesame", const.KeyLevel.OWNER)
         == os3_protocol.OS3QRCode(
             "Sesame",
             const.KeyLevel.OWNER,
@@ -408,7 +408,7 @@ def test_generate_qr_url_manager(monkeypatch: pytest.MonkeyPatch) -> None:
     """Generates manager QR URLs when requested."""
     device, _ = make_sesame5(monkeypatch)
 
-    assert device.generate_qr_url("Sesame", const.KeyLevel.MANAGER) == (
+    assert device.create_share_url("Sesame", const.KeyLevel.MANAGER) == (
         os3_protocol.OS3QRCode(
             "Sesame",
             const.KeyLevel.MANAGER,
@@ -430,7 +430,7 @@ def test_generate_qr_url_without_secret(monkeypatch: pytest.MonkeyPatch) -> None
     device = sesame5.Sesame5(TEST_ADDRESS)
 
     with pytest.raises(exc.SesameLoginError):
-        device.generate_qr_url("Sesame", const.KeyLevel.OWNER)
+        device.create_share_url("Sesame", const.KeyLevel.OWNER)
 
 
 def test_properties_initial(monkeypatch: pytest.MonkeyPatch) -> None:

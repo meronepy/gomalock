@@ -312,7 +312,7 @@ class BaseSesameOS3Lock[LockSelfT: "BaseSesameOS3Lock", MechStatusT](ABC):
                 self.address,
             )
 
-    def generate_qr_url(
+    def create_share_url(
         self,
         device_name: str,
         key_level: KeyLevel,
