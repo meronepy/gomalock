@@ -113,9 +113,7 @@ class ReceivedSesamePacket:
     @property
     def is_end(self) -> bool:
         """Indicates whether this packet concludes a sequence."""
-        return bool(
-            self.header & (PacketType.PLAINTEXT_END | PacketType.ENCRYPTED_END)
-        )
+        return bool(self.header & (PacketType.PLAINTEXT_END | PacketType.ENCRYPTED_END))
 
     @property
     def is_encrypted(self) -> bool:

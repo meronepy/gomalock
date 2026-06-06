@@ -108,8 +108,7 @@ def test_from_reassembled_data_unknown_opcode() -> None:
 def test_from_sesame_message_response_success() -> None:
     """Parses response item, result, and payload."""
     result = protocol_types.ReceivedSesameResponse.from_sesame_message(
-        bytes([const.ItemCode.LOGIN.value, const.ResultCode.SUCCESS.value])
-        + b"payload"
+        bytes([const.ItemCode.LOGIN.value, const.ResultCode.SUCCESS.value]) + b"payload"
     )
 
     assert result.item_code == const.ItemCode.LOGIN
@@ -149,9 +148,7 @@ def test_transmission_data_with_payload() -> None:
     """Prefixes command payloads with the item code."""
     command = protocol_types.SesameCommand(const.ItemCode.LOGIN, b"payload")
 
-    assert (
-        command.transmission_data == bytes([const.ItemCode.LOGIN.value]) + b"payload"
-    )
+    assert command.transmission_data == bytes([const.ItemCode.LOGIN.value]) + b"payload"
 
 
 def test_transmission_data_empty_payload() -> None:

@@ -43,9 +43,7 @@ def generate_header(is_beginning: bool, is_end: bool, is_encrypted: bool) -> byt
     if is_beginning:
         header |= PacketType.BEGINNING
     if is_end:
-        header |= (
-            PacketType.ENCRYPTED_END if is_encrypted else PacketType.PLAINTEXT_END
-        )
+        header |= PacketType.ENCRYPTED_END if is_encrypted else PacketType.PLAINTEXT_END
     return header.to_bytes(1, byteorder="little")
 
 

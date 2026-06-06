@@ -331,9 +331,7 @@ async def test_write_gatt_single_packet() -> None:
     uuid, packet = client.write_gatt_char.await_args.args
     assert uuid == const.UUID_WRITE
     assert packet[1:] == data
-    assert packet[0] == int(
-        const.PacketType.BEGINNING | const.PacketType.PLAINTEXT_END
-    )
+    assert packet[0] == int(const.PacketType.BEGINNING | const.PacketType.PLAINTEXT_END)
 
 
 @pytest.mark.asyncio
