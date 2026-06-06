@@ -5,6 +5,20 @@ description = "A Python library for controlling Sesame smart locks over Bluetoot
 authors = [{ name = "meronepy", email = "203420124+meronepy@users.noreply.github.com" }]
 requires-python = ">=3.12"
 readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+classifiers = [
+    "Framework :: AsyncIO",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: Microsoft :: Windows :: Windows 11",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS :: MacOS X",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Home Automation",
+    "Typing :: Typed",
+]
 dependencies = [
     "bleak>=3.0.2",
     "pycryptodome>=3.23.0",
