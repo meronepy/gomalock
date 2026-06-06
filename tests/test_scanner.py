@@ -133,7 +133,7 @@ def test_register_detection_callback_unregistered() -> None:
 async def test_detected_devices_generator_yields() -> None:
     """Yields device detections sent through the registered callback."""
     sesame_scanner = scanner.SesameScanner()
-    generator = sesame_scanner.detected_devices_generator()
+    generator = sesame_scanner.detections()
     next_item = asyncio.create_task(generator.__anext__())
     await asyncio.sleep(0)
 
@@ -179,7 +179,7 @@ async def test_find_device_by_filter_match(monkeypatch: pytest.MonkeyPatch) -> N
         yield matching_device
 
     monkeypatch.setattr(
-        scanner.SesameScanner, "detected_devices_generator", fake_generator
+        scanner.SesameScanner, "detections", fake_generator
     )
     monkeypatch.setattr(scanner.SesameScanner, "start", AsyncMock())
     monkeypatch.setattr(scanner.SesameScanner, "stop", AsyncMock())

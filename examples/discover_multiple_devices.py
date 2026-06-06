@@ -23,7 +23,7 @@ async def discover_together(*args: str) -> set[gomalock.ScannedSesameDevice]:
     pending_targets = set(args)
     discovered_devices = set()
     async with gomalock.SesameScanner() as scanner:
-        async for scanned_sesame in scanner.detected_devices_generator():
+        async for scanned_sesame in scanner.detections():
             if scanned_sesame.address in pending_targets:
                 print(f"Device {scanned_sesame.address} found")
                 discovered_devices.add(scanned_sesame)

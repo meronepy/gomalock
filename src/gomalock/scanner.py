@@ -118,7 +118,7 @@ class SesameScanner:
 
         return unregister
 
-    async def detected_devices_generator(
+    async def detections(
         self,
     ) -> AsyncGenerator[ScannedSesameDevice, None]:
         """Provides an asynchronous stream of detected device events.
@@ -165,7 +165,7 @@ class SesameScanner:
 
         async def find_task():
             async with cls() as scanner:
-                async for scanned_sesame in scanner.detected_devices_generator():
+                async for scanned_sesame in scanner.detections():
                     if filter_func(scanned_sesame):
                         logger.info(
                             "Found matching device [address=%s, model=%s]",
