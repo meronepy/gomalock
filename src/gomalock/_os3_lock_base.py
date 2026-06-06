@@ -284,10 +284,14 @@ class BaseSesameOS3Lock[LockSelfT: "BaseSesameOS3Lock", MechStatusT](ABC):
         secret_key = secret_key or self._secret_key
         if secret_key is None:
             raise SesameLoginError("A secret key is required for login")
+        try:
+            bytes_key = bytes.fromhex(secret_key)
+        except ValueError as e:
+            raise SesameLoginError("Invalid secret key format") from e
         logger.info("Logging in to Sesame [address=%s]", self.address)
         self._device_status = DeviceStatus.LOGGING_IN
         try:
-            timestamp = await self._os3_device.login(bytes.fromhex(secret_key))
+            timestamp = await self._os3_device.login(bytes_key)
             await asyncio.wait_for(
                 self._login_completed.wait(), timeout=PUBLISH_TIMEOUT
             )
