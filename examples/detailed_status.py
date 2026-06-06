@@ -16,9 +16,9 @@ def on_mechstatus_changed(
 ) -> None:
     info = {
         "Address": sesame5.address,
-        "Model": sesame5.sesame_advertisement_data.product_model.name,
-        "Registered": sesame5.sesame_advertisement_data.is_registered,
-        "UUID": sesame5.sesame_advertisement_data.device_uuid,
+        "Model": sesame5.advertisement_data.product_model.name,
+        "Registered": sesame5.advertisement_data.is_registered,
+        "UUID": sesame5.advertisement_data.device_uuid,
         "Connected": sesame5.is_connected,
         "Logged in": sesame5.is_logged_in,
         "Device status": sesame5.device_status.name,

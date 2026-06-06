@@ -425,7 +425,7 @@ class SesameOS3Protocol:
             SesameError: If the device indicates it is already registered.
             SesameOperationError: If the registration command is rejected.
         """
-        if self.sesame_advertisement_data.is_registered:
+        if self.advertisement_data.is_registered:
             raise SesameError("Device is already registered")
         app_protocol_public_key, app_private_key = generate_app_keys()
         timestamp = int(time.time()).to_bytes(4, "little")
@@ -493,7 +493,7 @@ class SesameOS3Protocol:
         return self._ble_device.is_connected
 
     @property
-    def sesame_advertisement_data(self) -> SesameAdvertisementData:
+    def advertisement_data(self) -> SesameAdvertisementData:
         """The advertisement data from the scanned Sesame device.
 
         Returns:
@@ -503,4 +503,4 @@ class SesameOS3Protocol:
             SesameConnectionError: If initialized with only an address and the
                 device has not been scanned yet.
         """
-        return self._ble_device.sesame_advertisement_data
+        return self._ble_device.advertisement_data

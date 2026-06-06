@@ -170,7 +170,7 @@ class SesameScanner:
                         logger.info(
                             "Found matching device [address=%s, model=%s]",
                             scanned_sesame.address,
-                            scanned_sesame.sesame_advertisement_data.product_model.name,
+                            scanned_sesame.advertisement_data.product_model.name,
                         )
                         return scanned_sesame
 
@@ -214,7 +214,7 @@ class SesameScanner:
         """
         return await cls.find_device_by_filter(
             lambda scanned_sesame: (
-                scanned_sesame.sesame_advertisement_data.device_uuid == uuid
+                scanned_sesame.advertisement_data.device_uuid == uuid
             ),
             timeout,
         )

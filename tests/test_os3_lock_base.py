@@ -416,7 +416,7 @@ def test_properties_initial(monkeypatch: pytest.MonkeyPatch) -> None:
     assert lock.is_connected is True
     assert lock.is_logged_in is False
     assert lock.device_status == const.DeviceStatus.DISCONNECTED
-    assert lock.sesame_advertisement_data == os3_device.sesame_advertisement_data
+    assert lock.advertisement_data == os3_device.advertisement_data
 
 
 def test_mech_status_unavailable(monkeypatch: pytest.MonkeyPatch) -> None:

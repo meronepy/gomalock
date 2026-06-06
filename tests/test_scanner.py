@@ -89,7 +89,7 @@ def test_detected_devices_supported_model() -> None:
 
     scanned_device = sesame_scanner.detected_devices[TEST_ADDRESS]
     assert scanned_device.address == TEST_ADDRESS
-    assert scanned_device.sesame_advertisement_data == make_advertisement()
+    assert scanned_device.advertisement_data == make_advertisement()
 
 
 def test_detected_devices_unsupported_model() -> None:
@@ -114,7 +114,7 @@ def test_register_detection_callback_invoked() -> None:
     callback.assert_called_once()
     scanned_device = callback.call_args.args[0]
     assert scanned_device.address == TEST_ADDRESS
-    assert scanned_device.sesame_advertisement_data == make_advertisement()
+    assert scanned_device.advertisement_data == make_advertisement()
 
 
 def test_register_detection_callback_unregistered() -> None:
@@ -141,7 +141,7 @@ async def test_detected_devices_generator_yields() -> None:
 
     scanned_device = await next_item
     assert scanned_device.address == TEST_ADDRESS
-    assert scanned_device.sesame_advertisement_data == make_advertisement()
+    assert scanned_device.advertisement_data == make_advertisement()
     await generator.aclose()
 
 

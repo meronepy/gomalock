@@ -15,13 +15,9 @@ async def main():
     devices = await gomalock.SesameScanner.discover(timeout=30)
     for scanned_device in devices.values():
         print(f"{'Address':11}: {scanned_device.address}")
-        print(
-            f"{'Model':11}: {scanned_device.sesame_advertisement_data.product_model.name}"
-        )
-        print(
-            f"{'Registered':11}: {scanned_device.sesame_advertisement_data.is_registered}"
-        )
-        print(f"{'UUID':11}: {scanned_device.sesame_advertisement_data.device_uuid}")
+        print(f"{'Model':11}: {scanned_device.advertisement_data.product_model.name}")
+        print(f"{'Registered':11}: {scanned_device.advertisement_data.is_registered}")
+        print(f"{'UUID':11}: {scanned_device.advertisement_data.device_uuid}")
         print("-" * 50)
 
 

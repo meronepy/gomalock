@@ -11,9 +11,9 @@ def on_mechstatus_changed(
 ) -> None:
     info = {
         "Address": sesametouch.address,
-        "Model": sesametouch.sesame_advertisement_data.product_model.name,
-        "Registered": sesametouch.sesame_advertisement_data.is_registered,
-        "UUID": sesametouch.sesame_advertisement_data.device_uuid,
+        "Model": sesametouch.advertisement_data.product_model.name,
+        "Registered": sesametouch.advertisement_data.is_registered,
+        "UUID": sesametouch.advertisement_data.device_uuid,
         "Connected": sesametouch.is_connected,
         "Logged in": sesametouch.is_logged_in,
         "Device status": sesametouch.device_status.name,

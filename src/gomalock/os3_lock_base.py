@@ -71,7 +71,7 @@ class BaseSesameOS3Lock[LockSelfT: "BaseSesameOS3Lock", MechStatusT](ABC):
         """
         if (
             isinstance(address_or_device, ScannedSesameDevice)
-            and address_or_device.sesame_advertisement_data.product_model
+            and address_or_device.advertisement_data.product_model
             not in type(self)._VALID_MODEL_GROUPS.value
         ):
             raise ValueError("An invalid model ScannedSesameDevice was provided")
@@ -337,8 +337,8 @@ class BaseSesameOS3Lock[LockSelfT: "BaseSesameOS3Lock", MechStatusT](ABC):
         info = OS3QRCode(
             device_name,
             key_level,
-            self.sesame_advertisement_data.product_model,
-            self.sesame_advertisement_data.device_uuid,
+            self.advertisement_data.product_model,
+            self.advertisement_data.device_uuid,
             bytes.fromhex(secret_key),
         )
         return info.qr_url
@@ -419,7 +419,7 @@ class BaseSesameOS3Lock[LockSelfT: "BaseSesameOS3Lock", MechStatusT](ABC):
         return self._device_status
 
     @property
-    def sesame_advertisement_data(self) -> SesameAdvertisementData:
+    def advertisement_data(self) -> SesameAdvertisementData:
         """The parsed advertisement data from the scanned Sesame device.
 
         Returns:
@@ -429,4 +429,4 @@ class BaseSesameOS3Lock[LockSelfT: "BaseSesameOS3Lock", MechStatusT](ABC):
             SesameConnectionError: If initialized with only an address and the
                 device has not been scanned yet.
         """
-        return self._os3_device.sesame_advertisement_data
+        return self._os3_device.advertisement_data

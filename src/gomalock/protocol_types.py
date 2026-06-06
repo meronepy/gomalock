@@ -57,11 +57,11 @@ class ScannedSesameDevice:
 
     Attributes:
         address: The address of the detected device.
-        sesame_advertisement_data: The Sesame-specific advertisement data.
+        advertisement_data: The Sesame-specific advertisement data.
     """
 
     address: str
-    sesame_advertisement_data: SesameAdvertisementData
+    advertisement_data: SesameAdvertisementData
 
 
 @dataclass(frozen=True)

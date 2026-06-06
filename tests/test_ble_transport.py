@@ -228,7 +228,7 @@ async def test_connect_and_start_notification_success(
         const.UUID_NOTIFICATION,
         transport.on_notification,
     )
-    assert transport.sesame_advertisement_data == advertisement_data
+    assert transport.advertisement_data == advertisement_data
 
 
 @pytest.mark.asyncio
@@ -270,7 +270,7 @@ async def test_connect_and_start_notification_with_scanned_device_skips_scan(
         const.UUID_NOTIFICATION,
         transport.on_notification,
     )
-    assert transport.sesame_advertisement_data == advertisement_data
+    assert transport.advertisement_data == advertisement_data
 
 
 @pytest.mark.asyncio
@@ -377,7 +377,7 @@ def test_properties_available(advertisement_data) -> None:
 
     assert transport.address == TEST_ADDRESS
     assert transport.is_connected is True
-    assert transport.sesame_advertisement_data == advertisement_data
+    assert transport.advertisement_data == advertisement_data
 
 
 def test_sesame_advertisement_data_missing() -> None:
@@ -385,4 +385,4 @@ def test_sesame_advertisement_data_missing() -> None:
     transport, _, _, _ = make_transport()
 
     with pytest.raises(exc.SesameConnectionError):
-        _ = transport.sesame_advertisement_data
+        _ = transport.advertisement_data

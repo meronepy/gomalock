@@ -397,4 +397,4 @@ def test_properties_delegate(monkeypatch: pytest.MonkeyPatch) -> None:
 
     assert protocol.address == TEST_ADDRESS
     assert protocol.is_connected is True
-    assert protocol.sesame_advertisement_data == ble_device.sesame_advertisement_data
+    assert protocol.advertisement_data == ble_device.advertisement_data

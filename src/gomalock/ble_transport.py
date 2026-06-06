@@ -297,7 +297,7 @@ class SesameBLETransport:
         return self._identifier.address
 
     @property
-    def sesame_advertisement_data(self) -> SesameAdvertisementData:
+    def advertisement_data(self) -> SesameAdvertisementData:
         """The advertisement data from the scanned Sesame device.
 
         Returns:
@@ -309,7 +309,7 @@ class SesameBLETransport:
         """
         if isinstance(self._identifier, str):
             raise SesameConnectionError("Not scanned yet")
-        return self._identifier.sesame_advertisement_data
+        return self._identifier.advertisement_data
 
     @property
     def is_connected(self) -> bool:
