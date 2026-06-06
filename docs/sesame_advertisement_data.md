@@ -1,6 +1,6 @@
-# SesameAdvertisementData クラスリファレンス
+# SesameAdvertisementDataクラスリファレンス
 
-`gomalock.SesameAdvertisementData` は Sesame デバイスの BLE 広告データから取り出した情報を表すデータクラスです。
+`gomalock.SesameAdvertisementData` はSesameデバイスのBLE広告データから取り出した情報を表すデータクラスです。
 
 ```python
 @dataclass(frozen=True)
@@ -22,4 +22,4 @@ class gomalock.SesameAdvertisementData:
 
 ### `device_uuid: uuid.UUID`
 
-Sesame デバイス固有の UUID です。`SesameScanner.find_device_by_uuid()` の検索条件として利用できます。
+Sesameデバイス固有のUUIDです。`SesameScanner.find_device_by_uuid()` の検索条件として利用できます。
