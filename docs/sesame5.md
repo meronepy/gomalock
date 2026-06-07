@@ -105,6 +105,7 @@ url = sesame5.create_share_url(
 ```
 
 `secret_key` を省略した場合はコンストラクタで指定した値を使います。利用できる権限は `KeyLevel.OWNER` と `KeyLevel.MANAGER` です。
+URL には `advertisement_data` のモデルとデバイス UUID を含めるため、アドレス文字列で初期化した場合は接続後、または `ScannedSesameDevice` で初期化した場合に生成できます。広告データが未取得の場合は `SesameConnectionError` を送出します。
 
 ## プロパティ
 
@@ -163,7 +164,7 @@ class gomalock.Sesame5MechStatus:
 
 ### `is_battery_critical: bool`
 
-バッテリーが5V以下の場合に `True` です。
+デバイスの機械状態にバッテリー低下フラグが含まれる場合に `True` です。
 
 ### `is_stop: bool`
 

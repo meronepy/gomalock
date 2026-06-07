@@ -1,6 +1,6 @@
 # SesameTouch クラスリファレンス
 
-`gomalock.SesameTouch` は Sesame Touch / Sesame Touch Pro を BLE で監視するクラスです。バッテリー状態と登録済みカード、指紋、パスワード数を取得できます。
+`gomalock.SesameTouch` は Sesame Touch / Sesame Touch Pro / Sesame Touch 2 / Sesame Touch 2 Pro を BLE で監視するクラスです。バッテリー状態と登録済みカード、指紋、パスワード数を取得できます。
 
 ## コンストラクタ
 
@@ -70,6 +70,9 @@ url = touch.create_share_url(
 )
 ```
 
+`secret_key` を省略した場合はコンストラクタで指定した値を使います。利用できる権限は `KeyLevel.OWNER` と `KeyLevel.MANAGER` です。
+URL には `advertisement_data` のモデルとデバイス UUID を含めるため、アドレス文字列で初期化した場合は接続後、または `ScannedSesameDevice` で初期化した場合に生成できます。広告データが未取得の場合は `SesameConnectionError` を送出します。
+
 ## プロパティ
 
 ### `address: str`
@@ -90,7 +93,7 @@ BLE 接続中なら `True` です。
 
 ### `advertisement_data: SesameAdvertisementData`
 
-デバイスの広告データです。`ScannedSesameDevice` で初期化した場合は接続前でも参照できます。
+デバイスの広告データです。`ScannedSesameDevice` で初期化した場合は接続前でも参照できます。アドレス文字列で初期化した場合は、接続時の探索が完了するまで参照できません。
 
 ### `mech_status: SesameTouchMechStatus`
 
@@ -120,7 +123,7 @@ class gomalock.SesameTouchMechStatus:
 
 ### `is_battery_critical: bool`
 
-バッテリーが5V以下の場合に `True` です。
+デバイスの機械状態にバッテリー低下フラグが含まれる場合に `True` です。
 
 ### `battery_voltage: float`
 
