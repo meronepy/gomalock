@@ -93,7 +93,7 @@ class ScannedSesameDevice:
 ```python
 devices = await SesameScanner.discover(timeout=30)
 
-for address: str, advertisement_data: SesameAdvertisementData in devices.items():
+for address, advertisement_data in devices.items():
     print(address)
     print(advertisement_data.product_model.name)
 ```
@@ -103,7 +103,7 @@ for address: str, advertisement_data: SesameAdvertisementData in devices.items()
 ```python
 devices = await gomalock.SesameScanner.discover(timeout=30)
 
-for address: str, scanned_device: ScannedSesameDevice in devices.items():
+for address, scanned_device in devices.items():
     print(address)
     print(scanned_device.address)
     print(scanned_device.advertisement_data.product_model.name)
