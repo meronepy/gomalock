@@ -200,7 +200,6 @@ class Sesame5(BaseSesameOS3Lock["Sesame5", Sesame5MechStatus]):
                 or connection is lost while waiting for response.
             SesameOperationError: If the command is rejected by the device.
         """
-        await self._wait_for_reconnection()
         if not self.is_logged_in:
             raise SesameLoginError("Login is required to send lock/unlock commands")
         tag = create_history_tag(history_name)
@@ -235,7 +234,6 @@ class Sesame5(BaseSesameOS3Lock["Sesame5", Sesame5MechStatus]):
             SesameLoginError: If the device is not logged in.
             SesameOperationError: If the command is rejected by the device.
         """
-        await self._wait_for_reconnection()
         if not self.is_logged_in:
             raise SesameLoginError("Login is required to set lock and unlock positions")
         payload = struct.pack("<hh", lock_position, unlock_position)
@@ -263,7 +261,6 @@ class Sesame5(BaseSesameOS3Lock["Sesame5", Sesame5MechStatus]):
             SesameLoginError: If the device is not logged in.
             SesameOperationError: If the command is rejected by the device.
         """
-        await self._wait_for_reconnection()
         if not self.is_logged_in:
             raise SesameLoginError("Login is required to set auto lock duration")
         payload = struct.pack("<H", auto_lock_duration)
@@ -316,7 +313,6 @@ class Sesame5(BaseSesameOS3Lock["Sesame5", Sesame5MechStatus]):
             SesameLoginError: If the device is not logged in.
             SesameOperationError: If the toggle command is rejected.
         """
-        await self._wait_for_reconnection()
         if self.mech_status.is_in_lock_range:
             await self.unlock(history_name)
         else:

@@ -12,11 +12,10 @@ async def main():
     ) as sesame5:
         while True:
             try:
-                # unlock() automatically waits for reconnection, so no manual delay is needed.
                 await sesame5.unlock("gomalock")
                 break
             except (asyncio.TimeoutError, gomalock.SesameConnectionError):
-                print("Failed to unlock, retrying...")
+                await sesame5.wait_for_reconnection()
 
 
 if __name__ == "__main__":

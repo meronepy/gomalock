@@ -85,6 +85,7 @@ class BaseSesameOS3Lock[LockSelfT: "BaseSesameOS3Lock", MechStatusT](ABC):
         self._secret_key = bytes_key
         self._reconnect_attempts = reconnect_attempts
         self._reconnect_task: asyncio.Task | None = None
+        self._reconnct_failure: SesameConnectionError | None = None
         self._mech_status: MechStatusT | None = None
         self._login_completed = asyncio.Event()
         self._device_status = DeviceStatus.DISCONNECTED
@@ -167,18 +168,21 @@ class BaseSesameOS3Lock[LockSelfT: "BaseSesameOS3Lock", MechStatusT](ABC):
                 self._cleanup()
                 continue
             return
+        self._reconnct_failure = SesameConnectionError(
+            f"Auto-reconnection failed after {self._reconnect_attempts} attempts"
+        )
         logger.error(
-            "Auto-reconnection failed [address=%s]",
+            "Auto-reconnection failed [address=%s, attempts=%d]",
             self.address,
+            self._reconnect_attempts,
         )
 
-    async def _wait_for_reconnection(self) -> None:
+    async def wait_for_reconnection(self) -> None:
         """Awaits the completion of an ongoing auto-reconnection task."""
         if self._reconnect_task is not None:
-            try:
-                await self._reconnect_task
-            except asyncio.CancelledError:
-                pass
+            await self._reconnect_task
+            if self._reconnct_failure is not None:
+                raise self._reconnct_failure
 
     def _cleanup(self) -> None:
         """Resets the device status, login state, and mechanical status."""
@@ -241,6 +245,7 @@ class BaseSesameOS3Lock[LockSelfT: "BaseSesameOS3Lock", MechStatusT](ABC):
             else:
                 self._cleanup()
             raise
+        self._reconnct_failure = None
         self._device_status = DeviceStatus.CONNECTED
         logger.info("Connected to Sesame [address=%s]", self.address)
 
@@ -256,7 +261,6 @@ class BaseSesameOS3Lock[LockSelfT: "BaseSesameOS3Lock", MechStatusT](ABC):
             SesameError: If the device is already registered.
             SesameOperationError: If the registration command fails.
         """
-        await self._wait_for_reconnection()
         if not self.is_connected:
             raise SesameConnectionError("Not connected")
         logger.info("Starting device registration [address=%s]", self.address)
