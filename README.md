@@ -52,6 +52,7 @@ if __name__ == "__main__":
 - `ADDRESS` は [examples/discover.py](examples/discover.py) で周囲の Sesame をスキャンして取得できます。
 - `SECRET_KEY` は mochipon さん作成の [QR Code Reader for SESAME](https://sesame-qr-reader.vercel.app/) でマネージャー権限以上の QR コードから抽出するか、[SESAME Biz](https://biz.candyhouse.co/) から取得できます。
 - 詳しい使い方は [examples](examples) と [docs](docs) を参照してください。
+- v1.1.2 以前から移行する場合は [v2.0.0 移行ガイド](docs/migration_v2.md) を参照してください。
 
 ## 注意事項
 

@@ -32,9 +32,9 @@ async with gomalock.Sesame5(ADDRESS, secret_key=SECRET_KEY) as sesame5:
 
 `reconnect_attempts` が `1` 以上の場合、正常接続後に予期しない切断が起きるとバックグラウンドで再接続を試みます。
 
-操作中に接続が失われた場合は `SesameConnectionError` が送出されることがあります。その場合は `wait_for_reconnection()` で再接続の完了を待ってから操作を再試行できます。再接続中に `connect()` や `login()` を手動で呼ぶと `SesameConnectionError` が送出されます。
+操作中に接続が失われた場合は `SesameConnectionError` が送出されることがあります。その場合は `wait_for_reconnect()` で再接続の完了を待ってから操作を再試行できます。再接続中に `connect()` や `login()` を手動で呼ぶと `SesameConnectionError` が送出されます。
 
-### `wait_for_reconnection() -> None`
+### `wait_for_reconnect() -> None`
 
 進行中の自動再接続があれば完了まで待ちます。再接続の試行回数を使い切って失敗した場合は `SesameConnectionError` を送出します。
 

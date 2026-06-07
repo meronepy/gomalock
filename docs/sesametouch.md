@@ -32,7 +32,7 @@ async with gomalock.SesameTouch(ADDRESS, secret_key=SECRET_KEY) as touch:
 
 `reconnect_attempts` が `1` 以上の場合、正常接続後に予期しない切断が起きるとバックグラウンドで再接続を試みます。
 
-### `wait_for_reconnection() -> None`
+### `wait_for_reconnect() -> None`
 
 進行中の自動再接続があれば完了まで待ちます。再接続の試行回数を使い切って失敗した場合は `SesameConnectionError` を送出します。
 
