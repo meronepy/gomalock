@@ -10,7 +10,7 @@ gomalock.SesameScanner(
 )
 ```
 
-- `callback`: Sesame デバイスを検出するたびに呼ばれるコールバックです。同じデバイスでも複数回呼ばれることがあります。
+- `callback`: Sesame デバイスを検出するたびに呼ばれるコールバックです。同じデバイスでも複数回呼ばれることがあります。コールバックはイベントループから呼び出されます。
 
 ## 使い方
 
@@ -58,7 +58,7 @@ asyncio.run(main())
 
 ### `register_detection_callback(callback) -> Callable[[], None]`
 
-検出コールバックを追加します。戻り値の関数を呼ぶと登録を解除できます。
+検出コールバックを追加します。戻り値の関数を呼ぶと登録を解除できます。コールバックはイベントループの次のタイミングで呼ばれます。
 
 ### `detections() -> AsyncGenerator[ScannedSesameDevice, None]`
 
