@@ -13,15 +13,15 @@ from typing import Callable, Self
 
 from ._const import ItemCode, MechStatusBitFlag, ModelGroup
 from ._exc import SesameLoginError
-from ._os3_lock_base import BaseSesameOS3Lock
-from ._os3_protocol import calculate_battery_percentage, create_history_tag
+from ._os3_lock_base import BaseOS3MechStatus, BaseOS3Lock
+from ._os3_protocol import create_history_tag
 from ._protocol_types import ReceivedSesamePublish, ScannedSesameDevice, SesameCommand
 
 logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
-class Sesame5MechStatus:
+class Sesame5MechStatus(BaseOS3MechStatus):
     """Represents the parsed mechanical status of a Sesame 5 device.
 
     Attributes:
@@ -29,8 +29,6 @@ class Sesame5MechStatus:
         target: The target angle the motor is attempting to reach.
     """
 
-    _raw_battery: int
-    _status_flags: int
     target: int
     position: int
 
@@ -61,24 +59,9 @@ class Sesame5MechStatus:
         return bool(self._status_flags & MechStatusBitFlag.IS_IN_UNLOCK_RANGE)
 
     @property
-    def is_battery_critical(self) -> bool:
-        """Indicates whether the battery voltage is critically low."""
-        return bool(self._status_flags & MechStatusBitFlag.IS_BATTERY_CRITICAL)
-
-    @property
     def is_stop(self) -> bool:
         """Indicates whether the motor is currently idle."""
         return bool(self._status_flags & MechStatusBitFlag.IS_STOP)
-
-    @property
-    def battery_voltage(self) -> float:
-        """The estimated battery voltage in volts."""
-        return self._raw_battery * 2 / 1000
-
-    @property
-    def battery_percentage(self) -> int:
-        """The estimated remaining battery capacity as a percentage."""
-        return calculate_battery_percentage(self.battery_voltage)
 
 
 @dataclass(frozen=True)
@@ -114,7 +97,7 @@ class Sesame5MechSetting:
         return cls(lock_position, unlock_position, auto_lock_duration)
 
 
-class Sesame5(BaseSesameOS3Lock["Sesame5", Sesame5MechStatus]):
+class Sesame5(BaseOS3Lock["Sesame5", Sesame5MechStatus]):
     """Controls and monitors a Sesame 5 device.
 
     Provides methods to lock, unlock, toggle, and configure the device, while

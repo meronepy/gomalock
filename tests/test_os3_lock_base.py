@@ -1,5 +1,6 @@
 # pylint: disable=missing-module-docstring,protected-access
 import asyncio
+from dataclasses import dataclass
 from typing import Any, cast
 from unittest.mock import AsyncMock, Mock
 
@@ -9,14 +10,22 @@ from gomalock import _const, _exc, _os3_lock_base, _os3_protocol, _protocol_type
 from tests.conftest import TEST_ADDRESS, TEST_UUID, make_mock_os3_device
 
 
-class DummyLock(_os3_lock_base.BaseSesameOS3Lock["DummyLock", int]):
+@dataclass(frozen=True)
+class DummyMechStatus(_os3_lock_base.BaseOS3MechStatus):
+    """Simple mechanical status for base class tests."""
+
+    value: int
+
+
+class DummyLock(_os3_lock_base.BaseOS3Lock["DummyLock", DummyMechStatus]):
     """Minimal concrete lock used to exercise the base class."""
 
     _VALID_MODEL_GROUPS = _const.ModelGroup.SESAME_5
 
     def on_published(self, publish_data: _protocol_types.ReceivedSesamePublish) -> None:
         """Updates status and completes login during publish handling."""
-        self._mech_status = int.from_bytes(publish_data.payload, "little")
+        value = int.from_bytes(publish_data.payload, "little")
+        self._mech_status = DummyMechStatus(0, 0, value)
         for callback in self._mech_status_callbacks.values():
             callback(cast(Any, self), self._mech_status)
         self._login_completed.set()
@@ -63,7 +72,7 @@ def test_subclass_requires_valid_model_groups() -> None:
     with pytest.raises(TypeError):
         type(
             "MissingValidModelGroups",
-            (_os3_lock_base.BaseSesameOS3Lock,),
+            (_os3_lock_base.BaseOS3Lock,),
             {"on_published": lambda self, publish_data: None},
         )
 
@@ -128,8 +137,8 @@ def test_on_published_status_invokes_callback(monkeypatch: pytest.MonkeyPatch) -
 
     publish_status(lock, 9)
 
-    assert lock.mech_status == 9
-    callback.assert_called_once_with(lock, 9)
+    assert lock.mech_status.value == 9
+    callback.assert_called_once_with(lock, DummyMechStatus(0, 0, 9))
     unregister()
 
 
@@ -148,7 +157,7 @@ def test_register_mech_status_callback_initial(
 
     publish_status(lock, 3)
 
-    callback.assert_called_once_with(lock, 3)
+    callback.assert_called_once_with(lock, DummyMechStatus(0, 0, 3))
 
 
 @pytest.mark.asyncio
@@ -503,7 +512,7 @@ async def test_on_unexpected_disconnect_reconnects(
     os3_device.connect.assert_awaited_once_with()
     os3_device.login.assert_awaited_once_with(bytes.fromhex("00" * 16))
     assert lock.device_status == _const.DeviceStatus.LOGGED_IN
-    assert lock.mech_status == 8
+    assert lock.mech_status.value == 8
 
 
 @pytest.mark.asyncio

@@ -9,6 +9,7 @@ import asyncio
 import logging
 import random
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from typing import Callable, Self
 
 from ._const import (
@@ -16,11 +17,12 @@ from ._const import (
     RECONNECT_MAX_BACKOFF,
     DeviceStatus,
     KeyLevel,
+    MechStatusBitFlag,
     ModelGroup,
 )
 from ._exc import SesameConnectionError, SesameLoginError
 from ._os3_cipher import convert_secret_key
-from ._os3_protocol import OS3QRCode, SesameOS3Protocol
+from ._os3_protocol import OS3QRCode, SesameOS3Protocol, calculate_battery_percentage
 from ._protocol_types import (
     ReceivedSesamePublish,
     ScannedSesameDevice,
@@ -30,8 +32,31 @@ from ._protocol_types import (
 logger = logging.getLogger(__name__)
 
 
+@dataclass(frozen=True)
+class BaseOS3MechStatus:
+    """Abstract base class representing the mechanical status of a Sesame OS3 device."""
+
+    _raw_battery: int
+    _status_flags: int
+
+    @property
+    def is_battery_critical(self) -> bool:
+        """Indicates whether the battery voltage is critically low."""
+        return bool(self._status_flags & MechStatusBitFlag.IS_BATTERY_CRITICAL)
+
+    @property
+    def battery_voltage(self) -> float:
+        """The estimated battery voltage in volts."""
+        return self._raw_battery * 2 / 1000
+
+    @property
+    def battery_percentage(self) -> int:
+        """The estimated remaining battery capacity as a percentage."""
+        return calculate_battery_percentage(self.battery_voltage)
+
+
 # Holds device state, so pylint: disable=too-many-instance-attributes
-class BaseSesameOS3Lock[LockSelfT: "BaseSesameOS3Lock", MechStatusT](ABC):
+class BaseOS3Lock[LockSelfT: "BaseOS3Lock", MechStatusT: BaseOS3MechStatus](ABC):
     """Abstract base class for interacting with Sesame OS3 devices.
 
     Provides common functionality such as connecting, logging in, handling

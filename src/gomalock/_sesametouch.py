@@ -9,14 +9,13 @@ import struct
 from dataclasses import dataclass
 from typing import Self
 
-from ._const import ItemCode, MechStatusBitFlag, ModelGroup
-from ._os3_lock_base import BaseSesameOS3Lock
-from ._os3_protocol import calculate_battery_percentage
+from ._const import ItemCode, ModelGroup
+from ._os3_lock_base import BaseOS3MechStatus, BaseOS3Lock
 from ._protocol_types import ReceivedSesamePublish
 
 
 @dataclass(frozen=True)
-class SesameTouchMechStatus:
+class SesameTouchMechStatus(BaseOS3MechStatus):
     """Represents the parsed mechanical status of a Sesame Touch device.
 
     Attributes:
@@ -25,8 +24,6 @@ class SesameTouchMechStatus:
         password_count: Number of passwords registered with Sesame Touch.
     """
 
-    _raw_battery: int
-    _status_flags: int
     card_count: int
     fingerprint_count: int
     password_count: int
@@ -59,23 +56,8 @@ class SesameTouchMechStatus:
             password_count,
         )
 
-    @property
-    def is_battery_critical(self) -> bool:
-        """Indicates whether the battery voltage is critically low."""
-        return bool(self._status_flags & MechStatusBitFlag.IS_BATTERY_CRITICAL)
 
-    @property
-    def battery_voltage(self) -> float:
-        """Returns the estimated battery voltage in volts."""
-        return self._raw_battery * 2 / 1000
-
-    @property
-    def battery_percentage(self) -> int:
-        """The estimated remaining battery capacity as a percentage."""
-        return calculate_battery_percentage(self.battery_voltage)
-
-
-class SesameTouch(BaseSesameOS3Lock["SesameTouch", SesameTouchMechStatus]):
+class SesameTouch(BaseOS3Lock["SesameTouch", SesameTouchMechStatus]):
     """Controls and monitors a Sesame Touch device.
 
     Handles connection, authentication, battery status, and registered
