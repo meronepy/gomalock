@@ -436,10 +436,7 @@ class SesameOS3Protocol:
             False,
         )
         device_protocol_public_key = response.payload[13:77]
-        secret_key = generate_device_secret_key(
-            device_protocol_public_key, app_private_key
-        )
-        return secret_key
+        return generate_device_secret_key(device_protocol_public_key, app_private_key)
 
     async def login(self, secret_key: bytes) -> int:
         """Performs the cryptographic login handshake to establish a secure session.
@@ -461,10 +458,9 @@ class SesameOS3Protocol:
             raise SesameLoginError("Already logged in")
         if self._session_token_future is None:
             raise SesameConnectionError("Connection has not been established")
-        session_key = generate_session_key(
-            secret_key, self._session_token_future.result()
-        )
-        self._cipher = OS3Cipher(self._session_token_future.result(), session_key)
+        session_token = self._session_token_future.result()
+        session_key = generate_session_key(secret_key, session_token)
+        self._cipher = OS3Cipher(session_token, session_key)
         logger.debug("Session cipher initialized")
         response = await self.send_command(
             SesameCommand(ItemCode.LOGIN, session_key[:4]), False

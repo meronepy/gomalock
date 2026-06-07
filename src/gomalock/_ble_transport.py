@@ -315,6 +315,4 @@ class SesameBLETransport:
         Returns:
             True if connected, False otherwise.
         """
-        if self._bleak_client is None:
-            return False
-        return self._bleak_client.is_connected
+        return self._bleak_client is not None and self._bleak_client.is_connected
