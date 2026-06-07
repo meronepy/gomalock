@@ -200,7 +200,7 @@ class BaseOS3Lock[LockSelfT: "BaseOS3Lock", MechStatusT: BaseOS3MechStatus](ABC)
             self._reconnect_attempts,
         )
 
-    async def wait_for_reconnection(self) -> None:
+    async def wait_for_reconnect(self) -> None:
         """Awaits the completion of an ongoing auto-reconnection task."""
         if self._reconnect_task is not None:
             await self._reconnect_task

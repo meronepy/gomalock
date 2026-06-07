@@ -15,7 +15,7 @@ async def main():
                 await sesame5.unlock("gomalock")
                 break
             except (asyncio.TimeoutError, gomalock.SesameConnectionError):
-                await sesame5.wait_for_reconnection()
+                await sesame5.wait_for_reconnect()
 
 
 if __name__ == "__main__":
