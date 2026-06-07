@@ -79,7 +79,7 @@ async def handle_auto_lock(sesame5: gomalock.Sesame5) -> None:
 
 def handle_display_qr(sesame5: gomalock.Sesame5) -> None:
     print("Displaying QR code...")
-    url = sesame5.create_share_url(DEVICE_NAME, gomalock.KeyLevel.MANAGER)
+    url = sesame5.generate_qr_url(DEVICE_NAME, gomalock.KeyLevel.MANAGER)
     qr = qrcode.QRCode()
     qr.add_data(url)
     qr.make()

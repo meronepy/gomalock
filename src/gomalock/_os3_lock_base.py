@@ -363,7 +363,7 @@ class BaseOS3Lock[LockSelfT: "BaseOS3Lock", MechStatusT: BaseOS3MechStatus](ABC)
                 self.address,
             )
 
-    def create_share_url(
+    def generate_qr_url(
         self,
         device_name: str,
         key_level: KeyLevel,
