@@ -23,5 +23,11 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Install dependencies
         run: uv sync
+      - name: Type check with mypy
+        run: uv run mypy src tests
+      - name: Lint with ruff
+        run: uv run ruff check src tests
+      - name: Lint with pylint
+        run: uv run pylint src tests
       - name: Test with pytest
         run: uv run pytest -v --cov=gomalock --cov-report=term-missing
