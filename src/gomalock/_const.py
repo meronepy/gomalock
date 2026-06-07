@@ -322,6 +322,8 @@ HISTORY_TAG_MAX_LEN = 20
 """The maximum allowed byte length for a history tag."""
 MTU_SIZE = 20
 """The maximum transmission unit size used for chunking BLE packets."""
+SECRET_KEY_LENGTH = 16
+"""The required byte length for the shared secret key used in encryption."""
 
 SCAN_TIMEOUT = 30
 """The default duration in seconds to wait when scanning for devices."""

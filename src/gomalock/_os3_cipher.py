@@ -9,6 +9,8 @@ from Crypto.Hash import CMAC
 from Crypto.Protocol.DH import key_agreement
 from Crypto.PublicKey import ECC
 
+from ._const import SECRET_KEY_LENGTH
+
 
 def convert_secret_key(secret_key: str) -> bytes:
     """Converts a hex-encoded secret key string to bytes.
@@ -20,14 +22,14 @@ def convert_secret_key(secret_key: str) -> bytes:
         The secret key as bytes.
 
     Raises:
-        ValueError: If the secret key is not a valid hex string or is not 16 bytes long.
+        ValueError: If the secret key is not a valid hex string or is the wrong length.
     """
     try:
         bytes_key = bytes.fromhex(secret_key)
     except ValueError as e:
         raise ValueError("Invalid secret key format") from e
-    if len(bytes_key) != 16:
-        raise ValueError("Secret key must be 16 bytes")
+    if len(bytes_key) != SECRET_KEY_LENGTH:
+        raise ValueError(f"Secret key must be {SECRET_KEY_LENGTH} bytes")
     return bytes_key
 
 
