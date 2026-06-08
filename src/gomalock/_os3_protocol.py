@@ -422,6 +422,8 @@ class SesameOS3Protocol:
 
         Raises:
             asyncio.TimeoutError: If the device fails to respond within the timeout.
+            ValueError: If the device returns an invalid response payload
+                that cannot be processed to derive the secret key.
             SesameConnectionError: If there is no active BLE connection
                 or connection is lost while waiting for response.
             SesameError: If the device indicates it is already registered.
@@ -435,8 +437,12 @@ class SesameOS3Protocol:
             SesameCommand(ItemCode.REGISTRATION, app_protocol_public_key + timestamp),
             False,
         )
-        device_protocol_public_key = response.payload[13:77]
-        return generate_device_secret_key(device_protocol_public_key, app_private_key)
+        if len(response.payload) == 64:  # in case of Sesame Touch series
+            return generate_device_secret_key(response.payload, app_private_key)
+        try:  # in case of Sesame 5 series
+            return generate_device_secret_key(response.payload[13:77], app_private_key)
+        except ValueError:  # in case of Bike 2 series
+            return generate_device_secret_key(response.payload[3:67], app_private_key)
 
     async def login(self, secret_key: bytes) -> int:
         """Performs the cryptographic login handshake to establish a secure session.
