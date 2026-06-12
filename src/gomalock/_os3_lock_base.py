@@ -16,6 +16,7 @@ from ._const import (
     PUBLISH_TIMEOUT,
     RECONNECT_MAX_BACKOFF,
     DeviceStatus,
+    ItemCode,
     KeyLevel,
     MechStatusBitFlag,
     ModelGroup,
@@ -27,6 +28,7 @@ from ._protocol_types import (
     ReceivedSesamePublish,
     ScannedSesameDevice,
     SesameAdvertisementData,
+    SesameCommand,
 )
 
 logger = logging.getLogger(__name__)
@@ -362,6 +364,26 @@ class BaseOS3Lock[LockSelfT: "BaseOS3Lock", MechStatusT: BaseOS3MechStatus](ABC)
                 "Skipping disconnect, device not connected [address=%s]",
                 self.address,
             )
+
+    async def fetch_firmware_version(self) -> str:
+        """Fetches the firmware version string from the device.
+
+        Returns:
+            The firmware version as a string.
+
+        Raises:
+            asyncio.TimeoutError: If the response times out.
+            UnicodeDecodeError: If the response payload cannot be decoded as UTF-8.
+            SesameConnectionError: If the device is not connected.
+            SesameLoginError: If not logged in.
+            SesameOperationError: If the command fails.
+        """
+        if not self.is_logged_in:
+            raise SesameLoginError("Login is required to fetch firmware version")
+        response = await self._os3_device.send_command(
+            SesameCommand(ItemCode.VERSION_TAG, b""), True
+        )
+        return response.payload.decode("utf-8")
 
     def generate_qr_url(
         self,
