@@ -370,6 +370,38 @@ async def test_disconnect_disconnected(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 @pytest.mark.asyncio
+async def test_fetch_firmware_version(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Fetches and decodes the firmware version after login."""
+    lock, os3_device = make_lock(monkeypatch)
+    publish_status(lock, 1)
+    await lock.login()
+    os3_device.send_command.return_value = _protocol_types.ReceivedSesameResponse(
+        _const.ItemCode.VERSION_TAG,
+        _const.ResultCode.SUCCESS,
+        b"1.2.3",
+    )
+
+    assert await lock.fetch_firmware_version() == "1.2.3"
+    os3_device.send_command.assert_awaited_once_with(
+        _protocol_types.SesameCommand(_const.ItemCode.VERSION_TAG, b""),
+        True,
+    )
+
+
+@pytest.mark.asyncio
+async def test_fetch_firmware_version_requires_login(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Raises SesameLoginError before requesting the firmware version."""
+    lock, os3_device = make_lock(monkeypatch)
+
+    with pytest.raises(_exc.SesameLoginError):
+        await lock.fetch_firmware_version()
+
+    os3_device.send_command.assert_not_awaited()
+
+
+@pytest.mark.asyncio
 async def test_disconnect_cancels_reconnection(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
