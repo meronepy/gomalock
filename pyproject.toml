@@ -1,6 +1,6 @@
 [project]
 name = "gomalock"
-version = "2.0.0"
+version = "2.1.0"
 description = "A Python library for controlling Sesame smart locks over Bluetooth Low Energy."
 authors = [{ name = "meronepy", email = "203420124+meronepy@users.noreply.github.com" }]
 requires-python = ">=3.12"
