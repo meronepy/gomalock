@@ -12,6 +12,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Callable, Self
 
+from ._ble_transport import BLEClientFactory, BLEDeviceResolver
 from ._const import (
     PUBLISH_TIMEOUT,
     RECONNECT_MAX_BACKOFF,
@@ -45,6 +46,21 @@ class BaseOS3MechStatus:
     def is_battery_critical(self) -> bool:
         """Indicates whether the battery voltage is critically low."""
         return bool(self._status_flags & MechStatusBitFlag.IS_BATTERY_CRITICAL)
+
+    @property
+    def is_clutch_failed(self) -> bool:
+        """Indicates whether the motor clutch failed to engage."""
+        return bool(self._status_flags & MechStatusBitFlag.IS_CLUTCH_FAILED)
+
+    @property
+    def is_critical(self) -> bool:
+        """Indicates whether the device reports a critical mechanical state."""
+        return bool(self._status_flags & MechStatusBitFlag.IS_CRITICAL)
+
+    @property
+    def is_clockwise(self) -> bool:
+        """Indicates whether the most recent movement direction is clockwise."""
+        return bool(self._status_flags & MechStatusBitFlag.IS_CLOCKWISE)
 
     @property
     def battery_voltage(self) -> float:
@@ -85,6 +101,8 @@ class BaseOS3Lock[LockSelfT: "BaseOS3Lock", MechStatusT: BaseOS3MechStatus](ABC)
         secret_key: str | None = None,
         mech_status_callback: Callable[[LockSelfT, MechStatusT], None] | None = None,
         reconnect_attempts: int = 0,
+        ble_device_resolver: BLEDeviceResolver | None = None,
+        ble_client_factory: BLEClientFactory | None = None,
     ) -> None:
         """Initializes the base lock interface.
 
@@ -97,6 +115,8 @@ class BaseOS3Lock[LockSelfT: "BaseOS3Lock", MechStatusT: BaseOS3MechStatus](ABC)
                 is updated.
             reconnect_attempts: The maximum number of consecutive attempts
                 to automatically reconnect to the device.
+            ble_device_resolver: Optional fresh BLE-device resolver.
+            ble_client_factory: Optional connected Bleak-client factory.
         """
         if isinstance(address_or_device, ScannedSesameDevice):
             type(self)._validate_model(address_or_device.advertisement_data)
@@ -104,6 +124,8 @@ class BaseOS3Lock[LockSelfT: "BaseOS3Lock", MechStatusT: BaseOS3MechStatus](ABC)
             address_or_device,
             self.on_published,
             self.on_unexpected_disconnect,
+            ble_device_resolver=ble_device_resolver,
+            ble_client_factory=ble_client_factory,
         )
         self._secret_key = (
             convert_secret_key(secret_key) if secret_key is not None else None

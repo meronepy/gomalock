@@ -11,6 +11,7 @@ import struct
 from dataclasses import dataclass
 from typing import Callable, Self
 
+from ._ble_transport import BLEClientFactory, BLEDeviceResolver
 from ._const import ItemCode, MechStatusBitFlag, ModelGroup
 from ._exc import SesameLoginError
 from ._os3_lock_base import BaseOS3MechStatus, BaseOS3Lock
@@ -116,6 +117,8 @@ class Sesame5(BaseOS3Lock["Sesame5", Sesame5MechStatus]):
             Callable[["Sesame5", Sesame5MechStatus], None] | None
         ) = None,
         reconnect_attempts: int = 0,
+        ble_device_resolver: BLEDeviceResolver | None = None,
+        ble_client_factory: BLEClientFactory | None = None,
     ) -> None:
         """Initializes the Sesame 5 device handler.
 
@@ -129,6 +132,8 @@ class Sesame5(BaseOS3Lock["Sesame5", Sesame5MechStatus]):
                 a new mechanical status.
             reconnect_attempts: The maximum number of consecutive auto-reconnection
                 attempts.
+            ble_device_resolver: Optional fresh BLE-device resolver.
+            ble_client_factory: Optional connected Bleak-client factory.
 
         Raises:
             ValueError: If a ScannedSesameDevice is not a Sesame 5 model.
@@ -138,6 +143,8 @@ class Sesame5(BaseOS3Lock["Sesame5", Sesame5MechStatus]):
             secret_key=secret_key,
             mech_status_callback=mech_status_callback,
             reconnect_attempts=reconnect_attempts,
+            ble_device_resolver=ble_device_resolver,
+            ble_client_factory=ble_client_factory,
         )
         self._mech_setting: Sesame5MechSetting | None = None
 

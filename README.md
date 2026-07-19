@@ -101,3 +101,22 @@ sudo rfkill unblock bluetooth
 |⚠️|macOS 10.15 以降 (未検証)|
 
 Python 3.12 以降が必要です。
+
+## Custom BLE transports
+
+Applications that manage Bluetooth routing can inject a resolver and an
+already-connected client factory. The resolver is called before every new
+connection, allowing a caller such as Home Assistant to select a currently
+reachable local adapter or remote Bluetooth proxy.
+
+```python
+sesame5 = gomalock.Sesame5(
+    ADDRESS,
+    secret_key=SECRET_KEY,
+    ble_device_resolver=resolve_sesame_device,
+    ble_client_factory=connect_ble_client,
+)
+```
+
+Both hooks are optional. Omitting them preserves the default Bleak scanner and
+client behavior.

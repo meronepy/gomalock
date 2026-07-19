@@ -90,6 +90,23 @@ def test_from_payload_mech_status_valid() -> None:
     assert status.battery_percentage == 100
 
 
+def test_mech_status_common_flags() -> None:
+    """Exposes clutch, critical and direction flags for integrations."""
+    flags = (
+        _const.MechStatusBitFlag.IS_CLUTCH_FAILED
+        | _const.MechStatusBitFlag.IS_CRITICAL
+        | _const.MechStatusBitFlag.IS_CLOCKWISE
+    )
+
+    status = _sesame5.Sesame5MechStatus.from_payload(
+        mech_status_payload(flags=flags)
+    )
+
+    assert status.is_clutch_failed is True
+    assert status.is_critical is True
+    assert status.is_clockwise is True
+
+
 def test_from_payload_mech_status_invalid() -> None:
     """Raises struct.error when status payloads are malformed."""
     with pytest.raises(struct.error):

@@ -221,7 +221,8 @@ async def test_connect_and_start_notification_success(
 
     finder.assert_awaited_once_with(TEST_ADDRESS, timeout=_const.SCAN_TIMEOUT)
     bleak_client.assert_called_once_with(
-        scanned_device.ble_device, transport.on_disconnect
+        scanned_device.ble_device,
+        disconnected_callback=transport.on_disconnect,
     )
     client.connect.assert_awaited_once()
     client.start_notify.assert_awaited_once_with(
@@ -263,7 +264,7 @@ async def test_connect_and_start_notification_with_scanned_device_skips_scan(
     finder.assert_not_awaited()
     bleak_client.assert_called_once_with(
         scanned_device.ble_device,
-        transport.on_disconnect,
+        disconnected_callback=transport.on_disconnect,
     )
     client.connect.assert_awaited_once_with(timeout=_const.SCAN_TIMEOUT)
     client.start_notify.assert_awaited_once_with(
@@ -271,6 +272,60 @@ async def test_connect_and_start_notification_with_scanned_device_skips_scan(
         transport.on_notification,
     )
     assert transport.advertisement_data == advertisement_data
+
+
+@pytest.mark.asyncio
+async def test_custom_resolver_refreshes_route_for_every_connection(
+    advertisement_data,
+) -> None:
+    """Resolves a fresh BLE route instead of reusing a disconnected proxy."""
+    first_device = make_scanned_device(advertisement_data)
+    second_device = make_scanned_device(advertisement_data)
+    first_client = Mock(is_connected=True)
+    first_client.start_notify = AsyncMock()
+    first_client.disconnect = AsyncMock()
+    second_client = Mock(is_connected=True)
+    second_client.start_notify = AsyncMock()
+    second_client.disconnect = AsyncMock()
+    resolver = AsyncMock(side_effect=[first_device, second_device])
+    client_factory = AsyncMock(side_effect=[first_client, second_client])
+    transport = _ble_transport.SesameBLETransport(
+        TEST_ADDRESS,
+        Mock(),
+        Mock(),
+        ble_device_resolver=resolver,
+        ble_client_factory=client_factory,
+    )
+
+    await transport.connect_and_start_notification()
+    await transport.disconnect()
+    await transport.connect_and_start_notification()
+
+    assert resolver.await_count == 2
+    assert client_factory.await_args_list[0].args[0] is first_device.ble_device
+    assert client_factory.await_args_list[1].args[0] is second_device.ble_device
+    first_client.disconnect.assert_awaited_once_with()
+    second_client.start_notify.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_custom_resolver_not_found() -> None:
+    """Reports an unavailable route returned by an injected resolver."""
+    resolver = AsyncMock(return_value=None)
+    client_factory = AsyncMock()
+    transport = _ble_transport.SesameBLETransport(
+        TEST_ADDRESS,
+        Mock(),
+        Mock(),
+        ble_device_resolver=resolver,
+        ble_client_factory=client_factory,
+    )
+
+    with pytest.raises(_exc.SesameConnectionError, match="Device not found"):
+        await transport.connect_and_start_notification()
+
+    resolver.assert_awaited_once_with(TEST_ADDRESS)
+    client_factory.assert_not_awaited()
 
 
 @pytest.mark.asyncio
