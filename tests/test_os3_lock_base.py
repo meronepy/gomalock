@@ -520,6 +520,23 @@ async def test_on_unexpected_disconnect_without_reconnect(
 
 
 @pytest.mark.asyncio
+async def test_unexpected_disconnect_callback(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Notifies integrations after unexpected connection state is cleared."""
+    callback = Mock()
+    lock, _ = make_lock(monkeypatch)
+    unregister = lock.register_unexpected_disconnect_callback(callback)
+
+    lock.on_unexpected_disconnect()
+    await asyncio.sleep(0)
+
+    callback.assert_called_once_with(lock)
+    assert lock.device_status == _const.DeviceStatus.DISCONNECTED
+    unregister()
+
+
+@pytest.mark.asyncio
 async def test_on_unexpected_disconnect_reconnects(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
