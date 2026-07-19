@@ -10,7 +10,7 @@ import logging
 import random
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Callable, Self
+from typing import Callable, Self, cast
 
 from ._const import (
     PUBLISH_TIMEOUT,
@@ -84,6 +84,7 @@ class BaseOS3Lock[LockSelfT: "BaseOS3Lock", MechStatusT: BaseOS3MechStatus](ABC)
         *,
         secret_key: str | None = None,
         mech_status_callback: Callable[[LockSelfT, MechStatusT], None] | None = None,
+        unexpected_disconnect_callback: Callable[[LockSelfT], None] | None = None,
         reconnect_attempts: int = 0,
     ) -> None:
         """Initializes the base lock interface.
@@ -95,6 +96,8 @@ class BaseOS3Lock[LockSelfT: "BaseOS3Lock", MechStatusT: BaseOS3MechStatus](ABC)
             secret_key: The hex-encoded secret key used for authentication.
             mech_status_callback: A function invoked when the mechanical status
                 is updated.
+            unexpected_disconnect_callback: A function invoked after an unexpected
+                BLE disconnection has cleared connection-specific state.
             reconnect_attempts: The maximum number of consecutive attempts
                 to automatically reconnect to the device.
         """
@@ -117,8 +120,15 @@ class BaseOS3Lock[LockSelfT: "BaseOS3Lock", MechStatusT: BaseOS3MechStatus](ABC)
         self._mech_status_callbacks: dict[
             object, Callable[[LockSelfT, MechStatusT], None]
         ] = {}
+        self._unexpected_disconnect_callbacks: dict[
+            object, Callable[[LockSelfT], None]
+        ] = {}
         if mech_status_callback is not None:
             self.register_mech_status_callback(mech_status_callback)
+        if unexpected_disconnect_callback is not None:
+            self.register_unexpected_disconnect_callback(
+                unexpected_disconnect_callback
+            )
 
     @classmethod
     def _validate_model(cls, advertisement_data: SesameAdvertisementData) -> None:
@@ -163,6 +173,9 @@ class BaseOS3Lock[LockSelfT: "BaseOS3Lock", MechStatusT: BaseOS3MechStatus](ABC)
         """
         logger.error("Unexpected Sesame disconnection [address=%s]", self.address)
         self._cleanup()
+        loop = asyncio.get_running_loop()
+        for callback in tuple(self._unexpected_disconnect_callbacks.values()):
+            loop.call_soon(callback, cast(LockSelfT, self))
         if self._reconnect_attempts and not self.is_background_reconnecting:
             self._reconnect_task = asyncio.create_task(self._auto_reconnect())
 
@@ -241,6 +254,19 @@ class BaseOS3Lock[LockSelfT: "BaseOS3Lock", MechStatusT: BaseOS3MechStatus](ABC)
 
         def unregister() -> None:
             self._mech_status_callbacks.pop(token, None)
+
+        return unregister
+
+    def register_unexpected_disconnect_callback(
+        self,
+        callback: Callable[[LockSelfT], None],
+    ) -> Callable[[], None]:
+        """Registers a callback for unexpected BLE disconnections."""
+        token = object()
+        self._unexpected_disconnect_callbacks[token] = callback
+
+        def unregister() -> None:
+            self._unexpected_disconnect_callbacks.pop(token, None)
 
         return unregister
 
