@@ -329,6 +329,32 @@ async def test_custom_resolver_not_found() -> None:
 
 
 @pytest.mark.asyncio
+async def test_custom_client_notification_failure_disconnects(
+    advertisement_data,
+) -> None:
+    """Cleans up a factory-created client when notifications cannot start."""
+    scanned_device = make_scanned_device(advertisement_data)
+    client = Mock(is_connected=True)
+    client.start_notify = AsyncMock(side_effect=RuntimeError("notify failed"))
+    client.disconnect = AsyncMock()
+    disconnect_callback = Mock()
+    transport = _ble_transport.SesameBLETransport(
+        TEST_ADDRESS,
+        Mock(),
+        disconnect_callback,
+        ble_device_resolver=AsyncMock(return_value=scanned_device),
+        ble_client_factory=AsyncMock(return_value=client),
+    )
+
+    with pytest.raises(RuntimeError, match="notify failed"):
+        await transport.connect_and_start_notification()
+
+    client.disconnect.assert_awaited_once_with()
+    disconnect_callback.assert_not_called()
+    assert transport._bleak_client is None
+
+
+@pytest.mark.asyncio
 async def test_connect_and_start_notification_connected() -> None:
     """Raises SesameConnectionError when already connected."""
     transport, client, _, _ = make_transport(is_connected=True)

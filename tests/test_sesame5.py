@@ -51,6 +51,35 @@ def make_sesame5(
     return device, os3_device
 
 
+def test_constructor_passes_transport_hooks(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Passes external BLE routing hooks through to the protocol layer."""
+    os3_device = make_mock_os3_device()
+    protocol_factory = Mock(return_value=os3_device)
+    resolver = AsyncMock()
+    client_factory = AsyncMock()
+    disconnect_callback = Mock()
+    monkeypatch.setattr(
+        _os3_lock_base,
+        "SesameOS3Protocol",
+        protocol_factory,
+    )
+
+    _sesame5.Sesame5(
+        TEST_ADDRESS,
+        secret_key="00" * 16,
+        unexpected_disconnect_callback=disconnect_callback,
+        ble_device_resolver=resolver,
+        ble_client_factory=client_factory,
+    )
+
+    call = protocol_factory.call_args
+    assert call.args[0] == TEST_ADDRESS
+    assert call.kwargs["ble_device_resolver"] is resolver
+    assert call.kwargs["ble_client_factory"] is client_factory
+
+
 async def login_device(device: _sesame5.Sesame5) -> None:
     """Completes the public login flow for command tests."""
     device.on_published(
@@ -98,9 +127,7 @@ def test_mech_status_common_flags() -> None:
         | _const.MechStatusBitFlag.IS_CLOCKWISE
     )
 
-    status = _sesame5.Sesame5MechStatus.from_payload(
-        mech_status_payload(flags=flags)
-    )
+    status = _sesame5.Sesame5MechStatus.from_payload(mech_status_payload(flags=flags))
 
     assert status.is_clutch_failed is True
     assert status.is_critical is True

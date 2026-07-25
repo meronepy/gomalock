@@ -26,9 +26,7 @@ from ._scanner import SesameScanner
 
 logger = logging.getLogger(__name__)
 
-BLEDeviceResolver: TypeAlias = Callable[
-    [str], Awaitable[ScannedSesameWithBLE | None]
-]
+BLEDeviceResolver: TypeAlias = Callable[[str], Awaitable[ScannedSesameWithBLE | None]]
 """Resolve an address to fresh Sesame advertisement and BLE routing data."""
 
 BLEClientFactory: TypeAlias = Callable[

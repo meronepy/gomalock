@@ -148,9 +148,7 @@ class BaseOS3Lock[LockSelfT: "BaseOS3Lock", MechStatusT: BaseOS3MechStatus](ABC)
         if mech_status_callback is not None:
             self.register_mech_status_callback(mech_status_callback)
         if unexpected_disconnect_callback is not None:
-            self.register_unexpected_disconnect_callback(
-                unexpected_disconnect_callback
-            )
+            self.register_unexpected_disconnect_callback(unexpected_disconnect_callback)
 
     @classmethod
     def _validate_model(cls, advertisement_data: SesameAdvertisementData) -> None:
