@@ -15,7 +15,7 @@ from typing import Callable, Self
 from urllib import parse
 from uuid import UUID
 
-from ._ble_transport import SesameBLETransport
+from ._ble_transport import BLEClientFactory, BLEDeviceResolver, SesameBLETransport
 from ._const import (
     BATTERY_PERCENTAGES,
     HISTORY_TAG_MAX_LEN,
@@ -201,6 +201,9 @@ class SesameOS3Protocol:
         address_or_device: str | ScannedSesameDevice,
         publish_data_callback: Callable[[ReceivedSesamePublish], None],
         unexpected_disconnect_callback: Callable[[], None],
+        *,
+        ble_device_resolver: BLEDeviceResolver | None = None,
+        ble_client_factory: BLEClientFactory | None = None,
     ) -> None:
         """Initializes the OS3 protocol handler.
 
@@ -212,11 +215,15 @@ class SesameOS3Protocol:
                 are received from the device.
             unexpected_disconnect_callback: A function called when the BLE
                 connection drops unexpectedly.
+            ble_device_resolver: Optional fresh BLE-device resolver.
+            ble_client_factory: Optional connected Bleak-client factory.
         """
         self._ble_device = SesameBLETransport(
             address_or_device,
             self.on_received,
             unexpected_disconnect_callback,
+            ble_device_resolver=ble_device_resolver,
+            ble_client_factory=ble_client_factory,
         )
         self._publish_data_callback = publish_data_callback
         self._send_lock = asyncio.Lock()

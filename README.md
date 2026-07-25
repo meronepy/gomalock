@@ -101,3 +101,18 @@ sudo rfkill unblock bluetooth
 |⚠️|macOS 10.15 以降 (未検証)|
 
 Python 3.12 以降が必要です。
+
+## カスタム BLE トランスポート
+
+Bluetooth の経路を外部で管理するアプリケーションは、resolver と接続済み client の factory を指定できます。resolver は新しい接続を開始するたびに呼び出されるため、Home Assistant のような呼び出し元は、その時点で到達可能なローカル adapter または remote Bluetooth proxy を選択できます。
+
+```python
+sesame5 = gomalock.Sesame5(
+    ADDRESS,
+    secret_key=SECRET_KEY,
+    ble_device_resolver=resolve_sesame_device,
+    ble_client_factory=connect_ble_client,
+)
+```
+
+どちらの hook も省略可能です。省略した場合は従来どおり、gomalock の scanner と標準 `BleakClient` を使用します。

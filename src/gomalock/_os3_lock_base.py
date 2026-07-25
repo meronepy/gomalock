@@ -10,8 +10,9 @@ import logging
 import random
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Callable, Self
+from typing import Callable, Self, cast
 
+from ._ble_transport import BLEClientFactory, BLEDeviceResolver
 from ._const import (
     PUBLISH_TIMEOUT,
     RECONNECT_MAX_BACKOFF,
@@ -45,6 +46,21 @@ class BaseOS3MechStatus:
     def is_battery_critical(self) -> bool:
         """Indicates whether the battery voltage is critically low."""
         return bool(self._status_flags & MechStatusBitFlag.IS_BATTERY_CRITICAL)
+
+    @property
+    def is_clutch_failed(self) -> bool:
+        """Indicates whether the motor clutch failed to engage."""
+        return bool(self._status_flags & MechStatusBitFlag.IS_CLUTCH_FAILED)
+
+    @property
+    def is_critical(self) -> bool:
+        """Indicates whether the device reports a critical mechanical state."""
+        return bool(self._status_flags & MechStatusBitFlag.IS_CRITICAL)
+
+    @property
+    def is_clockwise(self) -> bool:
+        """Indicates whether the most recent movement direction is clockwise."""
+        return bool(self._status_flags & MechStatusBitFlag.IS_CLOCKWISE)
 
     @property
     def battery_voltage(self) -> float:
@@ -84,7 +100,10 @@ class BaseOS3Lock[LockSelfT: "BaseOS3Lock", MechStatusT: BaseOS3MechStatus](ABC)
         *,
         secret_key: str | None = None,
         mech_status_callback: Callable[[LockSelfT, MechStatusT], None] | None = None,
+        unexpected_disconnect_callback: Callable[[LockSelfT], None] | None = None,
         reconnect_attempts: int = 0,
+        ble_device_resolver: BLEDeviceResolver | None = None,
+        ble_client_factory: BLEClientFactory | None = None,
     ) -> None:
         """Initializes the base lock interface.
 
@@ -95,8 +114,12 @@ class BaseOS3Lock[LockSelfT: "BaseOS3Lock", MechStatusT: BaseOS3MechStatus](ABC)
             secret_key: The hex-encoded secret key used for authentication.
             mech_status_callback: A function invoked when the mechanical status
                 is updated.
+            unexpected_disconnect_callback: A function invoked after an unexpected
+                BLE disconnection has cleared connection-specific state.
             reconnect_attempts: The maximum number of consecutive attempts
                 to automatically reconnect to the device.
+            ble_device_resolver: Optional fresh BLE-device resolver.
+            ble_client_factory: Optional connected Bleak-client factory.
         """
         if isinstance(address_or_device, ScannedSesameDevice):
             type(self)._validate_model(address_or_device.advertisement_data)
@@ -104,6 +127,8 @@ class BaseOS3Lock[LockSelfT: "BaseOS3Lock", MechStatusT: BaseOS3MechStatus](ABC)
             address_or_device,
             self.on_published,
             self.on_unexpected_disconnect,
+            ble_device_resolver=ble_device_resolver,
+            ble_client_factory=ble_client_factory,
         )
         self._secret_key = (
             convert_secret_key(secret_key) if secret_key is not None else None
@@ -117,8 +142,13 @@ class BaseOS3Lock[LockSelfT: "BaseOS3Lock", MechStatusT: BaseOS3MechStatus](ABC)
         self._mech_status_callbacks: dict[
             object, Callable[[LockSelfT, MechStatusT], None]
         ] = {}
+        self._unexpected_disconnect_callbacks: dict[
+            object, Callable[[LockSelfT], None]
+        ] = {}
         if mech_status_callback is not None:
             self.register_mech_status_callback(mech_status_callback)
+        if unexpected_disconnect_callback is not None:
+            self.register_unexpected_disconnect_callback(unexpected_disconnect_callback)
 
     @classmethod
     def _validate_model(cls, advertisement_data: SesameAdvertisementData) -> None:
@@ -163,6 +193,9 @@ class BaseOS3Lock[LockSelfT: "BaseOS3Lock", MechStatusT: BaseOS3MechStatus](ABC)
         """
         logger.error("Unexpected Sesame disconnection [address=%s]", self.address)
         self._cleanup()
+        loop = asyncio.get_running_loop()
+        for callback in tuple(self._unexpected_disconnect_callbacks.values()):
+            loop.call_soon(callback, cast(LockSelfT, self))
         if self._reconnect_attempts and not self.is_background_reconnecting:
             self._reconnect_task = asyncio.create_task(self._auto_reconnect())
 
@@ -241,6 +274,19 @@ class BaseOS3Lock[LockSelfT: "BaseOS3Lock", MechStatusT: BaseOS3MechStatus](ABC)
 
         def unregister() -> None:
             self._mech_status_callbacks.pop(token, None)
+
+        return unregister
+
+    def register_unexpected_disconnect_callback(
+        self,
+        callback: Callable[[LockSelfT], None],
+    ) -> Callable[[], None]:
+        """Registers a callback for unexpected BLE disconnections."""
+        token = object()
+        self._unexpected_disconnect_callbacks[token] = callback
+
+        def unregister() -> None:
+            self._unexpected_disconnect_callbacks.pop(token, None)
 
         return unregister
 

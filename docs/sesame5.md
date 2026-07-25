@@ -10,14 +10,20 @@ gomalock.Sesame5(
     *,
     secret_key: str | None = None,
     mech_status_callback: Callable[[Sesame5, Sesame5MechStatus], None] | None = None,
+    unexpected_disconnect_callback: Callable[[Sesame5], None] | None = None,
     reconnect_attempts: int = 0,
+    ble_device_resolver: BLEDeviceResolver | None = None,
+    ble_client_factory: BLEClientFactory | None = None,
 )
 ```
 
 - `address_or_device`: BLE アドレス、または `SesameScanner` で取得した `ScannedSesameDevice` です。`ScannedSesameDevice` を渡すと接続前の探索を省略できます。
 - `secret_key`: ログインに使う 16 バイトのシークレットキーを hex 文字列で指定します。
 - `mech_status_callback`: 機械状態を受信するたびに呼ばれるコールバックです。イベントループから呼び出されます。
+- `unexpected_disconnect_callback`: 予期しない BLE 切断後、接続固有の状態をクリアしてから呼び出されるコールバックです。
 - `reconnect_attempts`: 予期しない切断後に自動再接続を試みる最大回数です。`0` で無効です。
+- `ble_device_resolver`: 接続ごとに最新の BLE 経路と広告データを返すオプションの非同期 resolver です。
+- `ble_client_factory`: resolver が返した `BLEDevice` から接続済みの Bleak 互換 client を返すオプションの非同期 factory です。
 
 `secret_key` を指定して `async with` で使うと、接続後に自動でログインします。`secret_key` が `None` の場合は接続のみ行います。
 `secret_key` は 16 バイトの hex 文字列として検証されます。不正な形式を指定した場合は `ValueError` が送出されます。
@@ -47,6 +53,25 @@ while True:
         await sesame5.wait_for_reconnect()
 ```
 
+## カスタム BLE transport
+
+Bluetooth 経路を外部で管理するアプリケーションは、`ble_device_resolver` と `ble_client_factory` を指定できます。たとえば Home Assistant は、接続のたびに利用可能なローカル adapter または ESPHome Bluetooth proxy を選択できます。
+
+```python
+sesame5 = gomalock.Sesame5(
+    ADDRESS,
+    secret_key=SECRET_KEY,
+    ble_device_resolver=resolve_sesame_device,
+    ble_client_factory=connect_ble_client,
+)
+```
+
+`ble_device_resolver` は接続を開始するたびに BLE アドレスを受け取り、`ScannedSesameWithBLE | None` を返します。これにより、切断後に古い `BLEDevice` を再利用せず、最新の経路を選択できます。
+
+`ble_client_factory` は resolver が返した `BLEDevice` と disconnect callback を受け取り、**接続済み**の `BleakClient` 互換オブジェクトを返します。GATT notification の開始と Sesame プロトコルの処理は引き続き gomalock が行います。
+
+どちらも省略可能です。省略した場合は従来どおり、gomalock の scanner と標準 `BleakClient` を使用します。外部で再接続を管理する場合は、二重に retry しないよう `reconnect_attempts=0` を指定してください。
+
 ## 接続と認証
 
 ### `connect() -> None`
@@ -73,6 +98,10 @@ Sesame にログインし、施錠や解錠などの操作を可能にします�
 ### `register_mech_status_callback(callback) -> Callable[[], None]`
 
 機械状態を受信するたびに呼ばれるコールバックを追加します。戻り値の関数を呼ぶと解除できます。コールバックには `Sesame5` インスタンスと `Sesame5MechStatus` が渡されます。コールバックはイベントループの次のタイミングで呼ばれます。
+
+### `register_unexpected_disconnect_callback(callback) -> Callable[[], None]`
+
+予期しない BLE 切断時のコールバックを追加します。コールバックは connection、login、暗号、機械状態をクリアした後にイベントループから呼び出されます。戻り値の関数を呼ぶと解除できます。
 
 ## 操作
 
@@ -110,6 +139,19 @@ url = sesame5.generate_qr_url(
 
 `secret_key` を省略した場合はコンストラクタで指定した値を使います。利用できる権限は `KeyLevel.OWNER` と `KeyLevel.MANAGER` です。
 URL には `advertisement_data` のモデルとデバイス UUID を含めるため、アドレス文字列で初期化した場合は接続後、または `ScannedSesameDevice` で初期化した場合に生成できます。広告データが未取得の場合は `SesameConnectionError` を送出します。
+
+## OS3QRCode
+
+`gomalock.OS3QRCode.from_qr_url(url)` は、公式アプリ互換の Owner／Manager 共有 URL を解析します。解析結果にはデバイス名、権限、製品モデル、デバイス UUID、Secret Key が含まれます。
+
+```python
+qr = gomalock.OS3QRCode.from_qr_url(shared_url)
+print(qr.device_name)
+print(qr.product_model)
+print(qr.device_uuid)
+```
+
+共有 URL には認証用 Secret Key が含まれるため、ログや公開リポジトリに保存しないでください。
 
 ## プロパティ
 
@@ -173,6 +215,18 @@ class gomalock.Sesame5MechStatus:
 ### `is_stop: bool`
 
 モーターが停止中の場合に `True` です。
+
+### `is_clutch_failed: bool`
+
+モーターのクラッチ作動失敗フラグが含まれる場合に `True` です。
+
+### `is_critical: bool`
+
+重大な機械状態フラグが含まれる場合に `True` です。
+
+### `is_clockwise: bool`
+
+最後に通知された動作方向が時計回りの場合に `True` です。
 
 ### `battery_voltage: float`
 
