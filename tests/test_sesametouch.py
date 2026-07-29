@@ -103,6 +103,40 @@ async def test_on_published_mech_status(monkeypatch: pytest.MonkeyPatch) -> None
     callback.assert_called_once_with(device, device.mech_status)
 
 
+@pytest.mark.asyncio
+async def test_on_published_mech_status_deferred(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Schedules mechanical status callbacks instead of invoking them inline."""
+    device, _ = make_touch(monkeypatch)
+    callback = Mock()
+    device.register_mech_status_callback(callback)
+
+    device.on_published(
+        _protocol_types.ReceivedSesamePublish(
+            _const.ItemCode.MECH_STATUS,
+            touch_status_payload(),
+        )
+    )
+
+    callback.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_on_unexpected_disconnect_with_callback(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Invokes the registered disconnect callback with the device instance."""
+    device, _ = make_touch(monkeypatch)
+    callback = Mock()
+    device.register_unexpected_disconnect_callback(callback)
+
+    device.on_unexpected_disconnect()
+    await asyncio.sleep(0)
+
+    callback.assert_called_once_with(device)
+
+
 def test_on_published_unhandled(monkeypatch: pytest.MonkeyPatch) -> None:
     """Leaves mechanical status unavailable for unrelated publish items."""
     device, _ = make_touch(monkeypatch)

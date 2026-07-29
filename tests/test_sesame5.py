@@ -1,6 +1,7 @@
 # pylint: disable=duplicate-code,missing-module-docstring
 import asyncio
 import struct
+from collections.abc import Callable
 from unittest.mock import AsyncMock, Mock
 
 import pytest
@@ -39,6 +40,7 @@ def make_sesame5(
     monkeypatch: pytest.MonkeyPatch,
     *,
     is_connected: bool = False,
+    unexpected_disconnect_callback: Callable[[_sesame5.Sesame5], None] | None = None,
 ) -> tuple[_sesame5.Sesame5, Mock]:
     """Creates a Sesame5 instance with the OS3 protocol replaced by a mock."""
     os3_device = make_mock_os3_device(is_connected=is_connected)
@@ -47,7 +49,11 @@ def make_sesame5(
         "SesameOS3Protocol",
         Mock(return_value=os3_device),
     )
-    device = _sesame5.Sesame5(TEST_ADDRESS, secret_key="00" * 16)
+    device = _sesame5.Sesame5(
+        TEST_ADDRESS,
+        secret_key="00" * 16,
+        unexpected_disconnect_callback=unexpected_disconnect_callback,
+    )
     return device, os3_device
 
 
@@ -131,6 +137,51 @@ async def test_on_published_mech_status(monkeypatch: pytest.MonkeyPatch) -> None
     callback.assert_called_once_with(device, device.mech_status)
 
 
+@pytest.mark.asyncio
+async def test_on_published_mech_status_deferred(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Schedules mechanical status callbacks instead of invoking them inline."""
+    device, _ = make_sesame5(monkeypatch)
+    callback = Mock()
+    device.register_mech_status_callback(callback)
+
+    device.on_published(
+        _protocol_types.ReceivedSesamePublish(
+            _const.ItemCode.MECH_STATUS,
+            mech_status_payload(),
+        )
+    )
+
+    callback.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_on_published_mech_status_callback_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Isolates a failing mechanical status callback from the remaining callbacks."""
+    device, _ = make_sesame5(monkeypatch)
+    failing_callback = Mock(side_effect=RuntimeError("callback failed"))
+    callback = Mock()
+    exception_handler = Mock()
+    device.register_mech_status_callback(failing_callback)
+    device.register_mech_status_callback(callback)
+    asyncio.get_running_loop().set_exception_handler(exception_handler)
+
+    device.on_published(
+        _protocol_types.ReceivedSesamePublish(
+            _const.ItemCode.MECH_STATUS,
+            mech_status_payload(),
+        )
+    )
+    await asyncio.sleep(0)
+
+    failing_callback.assert_called_once_with(device, device.mech_status)
+    callback.assert_called_once_with(device, device.mech_status)
+    exception_handler.assert_called_once()
+
+
 def test_on_published_mech_setting(monkeypatch: pytest.MonkeyPatch) -> None:
     """Updates mechanical settings from publish data."""
     device, _ = make_sesame5(monkeypatch)
@@ -143,6 +194,18 @@ def test_on_published_mech_setting(monkeypatch: pytest.MonkeyPatch) -> None:
     )
 
     assert device.mech_setting.auto_lock_duration == 7
+
+
+def test_on_published_unhandled(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Leaves mechanical status unavailable for unrelated publish items."""
+    device, _ = make_sesame5(monkeypatch)
+
+    device.on_published(
+        _protocol_types.ReceivedSesamePublish(_const.ItemCode.LOGIN, b"payload")
+    )
+
+    with pytest.raises(_exc.SesameLoginError):
+        _ = device.mech_status
 
 
 @pytest.mark.asyncio
@@ -161,6 +224,36 @@ async def test_register_mech_status_callback_unregistered(
             mech_status_payload(),
         )
     )
+    await asyncio.sleep(0)
+
+    callback.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_on_unexpected_disconnect_with_callback(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Invokes the disconnect callback passed to the Sesame 5 constructor."""
+    callback = Mock()
+    device, _ = make_sesame5(monkeypatch, unexpected_disconnect_callback=callback)
+
+    device.on_unexpected_disconnect()
+    await asyncio.sleep(0)
+
+    callback.assert_called_once_with(device)
+
+
+@pytest.mark.asyncio
+async def test_register_unexpected_disconnect_callback_unregistered(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Does not invoke disconnect callbacks after unregister is called."""
+    device, _ = make_sesame5(monkeypatch)
+    callback = Mock()
+    unregister = device.register_unexpected_disconnect_callback(callback)
+
+    unregister()
+    device.on_unexpected_disconnect()
     await asyncio.sleep(0)
 
     callback.assert_not_called()
