@@ -59,7 +59,7 @@ class BaseOS3MechStatus:
 
 
 # Holds device state, so pylint: disable=too-many-instance-attributes
-class BaseOS3Lock[LockSelfT: "BaseOS3Lock", MechStatusT: BaseOS3MechStatus](ABC):
+class BaseOS3Lock[MechStatusT: BaseOS3MechStatus](ABC):
     """Abstract base class for interacting with Sesame OS3 devices.
 
     Provides common functionality such as connecting, logging in, handling
@@ -84,7 +84,7 @@ class BaseOS3Lock[LockSelfT: "BaseOS3Lock", MechStatusT: BaseOS3MechStatus](ABC)
         address_or_device: str | ScannedSesameDevice,
         *,
         secret_key: str | None = None,
-        mech_status_callback: Callable[[LockSelfT, MechStatusT], None] | None = None,
+        mech_status_callback: Callable[[Self, MechStatusT], None] | None = None,
         reconnect_attempts: int = 0,
     ) -> None:
         """Initializes the base lock interface.
@@ -116,7 +116,7 @@ class BaseOS3Lock[LockSelfT: "BaseOS3Lock", MechStatusT: BaseOS3MechStatus](ABC)
         self._login_completed = asyncio.Event()
         self._device_status = DeviceStatus.DISCONNECTED
         self._mech_status_callbacks: dict[
-            object, Callable[[LockSelfT, MechStatusT], None]
+            object, Callable[[Self, MechStatusT], None]
         ] = {}
         if mech_status_callback is not None:
             self.register_mech_status_callback(mech_status_callback)
@@ -225,8 +225,23 @@ class BaseOS3Lock[LockSelfT: "BaseOS3Lock", MechStatusT: BaseOS3MechStatus](ABC)
             publish_data.item_code.name,
         )
 
+    # self is annotated with Self so that the registered callbacks, whose first
+    # parameter is the concrete lock type, accept it.
+    def _notify_mech_status(self: Self, mech_status: MechStatusT) -> None:
+        """Schedules the registered callbacks for a new mechanical status.
+
+        Callbacks are invoked on the running event loop rather than inline, so
+        that a failing or slow callback cannot disrupt publish handling.
+
+        Args:
+            mech_status: The mechanical status to pass to each callback.
+        """
+        loop = asyncio.get_running_loop()
+        for callback in tuple(self._mech_status_callbacks.values()):
+            loop.call_soon(callback, self, mech_status)
+
     def register_mech_status_callback(
-        self, callback: Callable[[LockSelfT, MechStatusT], None]
+        self, callback: Callable[[Self, MechStatusT], None]
     ) -> Callable[[], None]:
         """Registers a function to be called upon mechanical status updates.
 

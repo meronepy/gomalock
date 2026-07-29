@@ -1,7 +1,7 @@
 # pylint: disable=missing-module-docstring,protected-access
 import asyncio
 from dataclasses import dataclass
-from typing import Any, cast
+from typing import Self
 from unittest.mock import AsyncMock, Mock
 
 import pytest
@@ -17,17 +17,24 @@ class DummyMechStatus(_os3_lock_base.BaseOS3MechStatus):
     value: int
 
 
-class DummyLock(_os3_lock_base.BaseOS3Lock["DummyLock", DummyMechStatus]):
+class DummyLock(_os3_lock_base.BaseOS3Lock[DummyMechStatus]):
     """Minimal concrete lock used to exercise the base class."""
 
     _VALID_MODEL_GROUPS = _const.ModelGroup.SESAME_5
 
-    def on_published(self, publish_data: _protocol_types.ReceivedSesamePublish) -> None:
-        """Updates status and completes login during publish handling."""
+    def on_published(
+        self: Self, publish_data: _protocol_types.ReceivedSesamePublish
+    ) -> None:
+        """Updates status and completes login during publish handling.
+
+        Callbacks are invoked inline instead of through
+        BaseOS3Lock._notify_mech_status so that tests without a running event
+        loop can observe them.
+        """
         value = int.from_bytes(publish_data.payload, "little")
         self._mech_status = DummyMechStatus(0, 0, value)
         for callback in self._mech_status_callbacks.values():
-            callback(cast(Any, self), self._mech_status)
+            callback(self, self._mech_status)
         self._login_completed.set()
 
 

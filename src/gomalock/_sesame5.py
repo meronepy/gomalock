@@ -5,7 +5,6 @@ functionality to send commands such as lock, unlock, and toggle, and to parse
 the mechanical status and settings for Sesame 5 locks.
 """
 
-import asyncio
 import logging
 import struct
 from collections.abc import Callable
@@ -98,7 +97,7 @@ class Sesame5MechSetting:
         return cls(lock_position, unlock_position, auto_lock_duration)
 
 
-class Sesame5(BaseOS3Lock["Sesame5", Sesame5MechStatus]):
+class Sesame5(BaseOS3Lock[Sesame5MechStatus]):
     """Controls and monitors a Sesame 5 device.
 
     Provides methods to lock, unlock, toggle, and configure the device, while
@@ -154,9 +153,7 @@ class Sesame5(BaseOS3Lock["Sesame5", Sesame5MechStatus]):
         match publish_data.item_code:
             case ItemCode.MECH_STATUS:
                 self._mech_status = Sesame5MechStatus.from_payload(publish_data.payload)
-                loop = asyncio.get_running_loop()
-                for callback in tuple(self._mech_status_callbacks.values()):
-                    loop.call_soon(callback, self, self._mech_status)
+                self._notify_mech_status(self._mech_status)
             case ItemCode.MECH_SETTING:
                 self._mech_setting = Sesame5MechSetting.from_payload(
                     publish_data.payload
