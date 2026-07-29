@@ -6,7 +6,7 @@ using the Bleak library, handling connections, notifications, and data transmiss
 
 import asyncio
 import logging
-from typing import Callable
+from collections.abc import Callable
 
 from bleak import BleakClient
 from bleak.backends.characteristic import BleakGATTCharacteristic

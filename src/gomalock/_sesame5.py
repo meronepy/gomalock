@@ -8,12 +8,13 @@ the mechanical status and settings for Sesame 5 locks.
 import asyncio
 import logging
 import struct
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Callable, Self
+from typing import Self
 
 from ._const import ItemCode, MechStatusBitFlag, ModelGroup
 from ._exc import SesameLoginError
-from ._os3_lock_base import BaseOS3MechStatus, BaseOS3Lock
+from ._os3_lock_base import BaseOS3Lock, BaseOS3MechStatus
 from ._os3_protocol import create_history_tag
 from ._protocol_types import ReceivedSesamePublish, ScannedSesameDevice, SesameCommand
 

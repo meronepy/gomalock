@@ -9,8 +9,9 @@ import asyncio
 import logging
 import random
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Callable, Self
+from typing import Self
 
 from ._const import (
     PUBLISH_TIMEOUT,
