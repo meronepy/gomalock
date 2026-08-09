@@ -79,6 +79,8 @@ class BaseOS3Lock[MechStatusT: BaseOS3MechStatus](ABC):
                 f"without an implementation for abstract class variable '_VALID_MODEL_GROUPS'"
             )
 
+    # Constructor arguments are intentionally kept separate for API clarity,
+    # so pylint: disable-next=too-many-arguments
     def __init__(
         self,
         address_or_device: str | ScannedSesameDevice,

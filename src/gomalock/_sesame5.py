@@ -107,6 +107,8 @@ class Sesame5(BaseOS3Lock[Sesame5MechStatus]):
 
     _VALID_MODEL_GROUPS = ModelGroup.SESAME_5
 
+    # Constructor arguments are intentionally kept separate for API clarity,
+    # so pylint: disable-next=too-many-arguments
     def __init__(
         self,
         address_or_device: str | ScannedSesameDevice,
