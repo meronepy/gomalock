@@ -10,8 +10,9 @@ import base64
 import logging
 import struct
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Callable, Self
+from typing import Self
 from urllib import parse
 from uuid import UUID
 
@@ -94,7 +95,8 @@ def create_history_tag(history_name: str) -> bytes:
         A byte string representing the length-prefixed history tag.
     """
     payload = (
-        history_name.encode("utf-8")[:HISTORY_TAG_MAX_LEN]
+        history_name
+        .encode("utf-8")[:HISTORY_TAG_MAX_LEN]
         .decode("utf-8", errors="ignore")
         .encode("utf-8")
     )

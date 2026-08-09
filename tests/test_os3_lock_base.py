@@ -1,7 +1,7 @@
 # pylint: disable=missing-module-docstring,protected-access
 import asyncio
 from dataclasses import dataclass
-from typing import Any, cast
+from typing import Self
 from unittest.mock import AsyncMock, Mock
 
 import pytest
@@ -17,17 +17,24 @@ class DummyMechStatus(_os3_lock_base.BaseOS3MechStatus):
     value: int
 
 
-class DummyLock(_os3_lock_base.BaseOS3Lock["DummyLock", DummyMechStatus]):
+class DummyLock(_os3_lock_base.BaseOS3Lock[DummyMechStatus]):
     """Minimal concrete lock used to exercise the base class."""
 
     _VALID_MODEL_GROUPS = _const.ModelGroup.SESAME_5
 
-    def on_published(self, publish_data: _protocol_types.ReceivedSesamePublish) -> None:
-        """Updates status and completes login during publish handling."""
+    def on_published(
+        self: Self, publish_data: _protocol_types.ReceivedSesamePublish
+    ) -> None:
+        """Updates status and completes login during publish handling.
+
+        Callbacks are invoked inline instead of through
+        BaseOS3Lock._notify_mech_status so that tests without a running event
+        loop can observe them.
+        """
         value = int.from_bytes(publish_data.payload, "little")
         self._mech_status = DummyMechStatus(0, 0, value)
         for callback in self._mech_status_callbacks.values():
-            callback(cast(Any, self), self._mech_status)
+            callback(self, self._mech_status)
         self._login_completed.set()
 
 
@@ -158,6 +165,76 @@ def test_register_mech_status_callback_initial(
     publish_status(lock, 3)
 
     callback.assert_called_once_with(lock, DummyMechStatus(0, 0, 3))
+
+
+@pytest.mark.asyncio
+async def test_register_unexpected_disconnect_callback_initial(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Registers disconnect callbacks passed to the constructor."""
+    callback = Mock()
+    os3_device = make_mock_os3_device()
+    monkeypatch.setattr(
+        _os3_lock_base,
+        "SesameOS3Protocol",
+        Mock(return_value=os3_device),
+    )
+    lock = DummyLock(TEST_ADDRESS, unexpected_disconnect_callback=callback)
+
+    lock.on_unexpected_disconnect()
+    await asyncio.sleep(0)
+
+    callback.assert_called_once_with(lock)
+
+
+@pytest.mark.asyncio
+async def test_register_unexpected_disconnect_callback_unregistered(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Does not invoke disconnect callbacks after unregister is called."""
+    callback = Mock()
+    lock, _ = make_lock(monkeypatch)
+    unregister = lock.register_unexpected_disconnect_callback(callback)
+
+    unregister()
+    lock.on_unexpected_disconnect()
+    await asyncio.sleep(0)
+
+    callback.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_register_unexpected_disconnect_callback_unregistered_twice(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Ignores repeated unregistration of the same disconnect callback."""
+    callback = Mock()
+    lock, _ = make_lock(monkeypatch)
+    unregister = lock.register_unexpected_disconnect_callback(callback)
+
+    unregister()
+    unregister()
+    lock.on_unexpected_disconnect()
+    await asyncio.sleep(0)
+
+    callback.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_register_unexpected_disconnect_callback_duplicate(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Keeps a duplicate registration when the first one is unregistered."""
+    callback = Mock()
+    lock, _ = make_lock(monkeypatch)
+    unregister_first = lock.register_unexpected_disconnect_callback(callback)
+    lock.register_unexpected_disconnect_callback(callback)
+
+    unregister_first()
+    lock.on_unexpected_disconnect()
+    await asyncio.sleep(0)
+
+    callback.assert_called_once_with(lock)
 
 
 @pytest.mark.asyncio
@@ -583,3 +660,100 @@ async def test_on_unexpected_disconnect_reconnect_failure(
 
     assert os3_device.connect.await_count == 2
     assert lock.device_status == _const.DeviceStatus.DISCONNECTED
+
+
+@pytest.mark.asyncio
+async def test_on_unexpected_disconnect_with_callback(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Invokes the registered disconnect callbacks with the lock instance."""
+    callback = Mock()
+    lock, _ = make_lock(monkeypatch)
+    lock.register_unexpected_disconnect_callback(callback)
+
+    lock.on_unexpected_disconnect()
+    await asyncio.sleep(0)
+
+    callback.assert_called_once_with(lock)
+
+
+@pytest.mark.asyncio
+async def test_on_unexpected_disconnect_callback_deferred(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Schedules disconnect callbacks instead of invoking them inline."""
+    callback = Mock()
+    lock, _ = make_lock(monkeypatch)
+    lock.register_unexpected_disconnect_callback(callback)
+
+    lock.on_unexpected_disconnect()
+
+    callback.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_on_unexpected_disconnect_callback_after_cleanup(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Invokes disconnect callbacks after the device state has been cleaned up."""
+    observed_statuses: list[_const.DeviceStatus] = []
+    lock, _ = make_lock(monkeypatch)
+    lock.register_unexpected_disconnect_callback(
+        lambda disconnected: observed_statuses.append(disconnected.device_status)
+    )
+    publish_status(lock, 2)
+    await lock.login()
+
+    lock.on_unexpected_disconnect()
+    await asyncio.sleep(0)
+
+    assert observed_statuses == [_const.DeviceStatus.DISCONNECTED]
+
+
+@pytest.mark.asyncio
+async def test_on_unexpected_disconnect_callback_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Isolates a failing disconnect callback from the remaining callbacks."""
+    failing_callback = Mock(side_effect=RuntimeError("callback failed"))
+    callback = Mock()
+    exception_handler = Mock()
+    lock, _ = make_lock(monkeypatch)
+    lock.register_unexpected_disconnect_callback(failing_callback)
+    lock.register_unexpected_disconnect_callback(callback)
+    asyncio.get_running_loop().set_exception_handler(exception_handler)
+
+    lock.on_unexpected_disconnect()
+    await asyncio.sleep(0)
+
+    failing_callback.assert_called_once_with(lock)
+    callback.assert_called_once_with(lock)
+    exception_handler.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_on_unexpected_disconnect_callback_with_reconnect(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Invokes disconnect callbacks while auto-reconnection is scheduled."""
+    callback = Mock()
+    lock, _ = make_lock(monkeypatch, auto_reconnection_limit=1)
+    lock.register_unexpected_disconnect_callback(callback)
+    original_sleep = asyncio.sleep
+    sleep_blocker: asyncio.Future[None] = asyncio.get_running_loop().create_future()
+
+    async def blocked_sleep(delay: float) -> None:
+        del delay
+        await sleep_blocker
+
+    monkeypatch.setattr(_os3_lock_base.asyncio, "sleep", blocked_sleep)
+    lock.on_unexpected_disconnect()
+    await original_sleep(0)
+
+    try:
+        callback.assert_called_once_with(lock)
+        assert lock.is_background_reconnecting is True
+    finally:
+        await lock.disconnect()
+        if not sleep_blocker.done():
+            sleep_blocker.cancel()

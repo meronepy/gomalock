@@ -5,15 +5,15 @@ functionality to send commands such as lock, unlock, and toggle, and to parse
 the mechanical status and settings for Sesame 5 locks.
 """
 
-import asyncio
 import logging
 import struct
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Callable, Self
+from typing import Self
 
 from ._const import ItemCode, MechStatusBitFlag, ModelGroup
 from ._exc import SesameLoginError
-from ._os3_lock_base import BaseOS3MechStatus, BaseOS3Lock
+from ._os3_lock_base import BaseOS3Lock, BaseOS3MechStatus
 from ._os3_protocol import create_history_tag
 from ._protocol_types import ReceivedSesamePublish, ScannedSesameDevice, SesameCommand
 
@@ -97,7 +97,7 @@ class Sesame5MechSetting:
         return cls(lock_position, unlock_position, auto_lock_duration)
 
 
-class Sesame5(BaseOS3Lock["Sesame5", Sesame5MechStatus]):
+class Sesame5(BaseOS3Lock[Sesame5MechStatus]):
     """Controls and monitors a Sesame 5 device.
 
     Provides methods to lock, unlock, toggle, and configure the device, while
@@ -112,10 +112,8 @@ class Sesame5(BaseOS3Lock["Sesame5", Sesame5MechStatus]):
         address_or_device: str | ScannedSesameDevice,
         *,
         secret_key: str | None = None,
-        mech_status_callback: (
-            Callable[["Sesame5", Sesame5MechStatus], None] | None
-        ) = None,
-        unexpected_disconnect_callback: Callable[["Sesame5"], None] | None = None,
+        mech_status_callback: (Callable[[Self, Sesame5MechStatus], None] | None) = None,
+        unexpected_disconnect_callback: Callable[[Self], None] | None = None,
         reconnect_attempts: int = 0,
     ) -> None:
         """Initializes the Sesame 5 device handler.
@@ -128,8 +126,8 @@ class Sesame5(BaseOS3Lock["Sesame5", Sesame5MechStatus]):
             secret_key: The hex-encoded secret key used for login.
             mech_status_callback: A function called whenever the device publishes
                 a new mechanical status.
-            unexpected_disconnect_callback: A function called after an unexpected
-                BLE disconnection.
+            unexpected_disconnect_callback: A function called when the device
+                disconnects unexpectedly.
             reconnect_attempts: The maximum number of consecutive auto-reconnection
                 attempts.
 
@@ -157,9 +155,7 @@ class Sesame5(BaseOS3Lock["Sesame5", Sesame5MechStatus]):
         match publish_data.item_code:
             case ItemCode.MECH_STATUS:
                 self._mech_status = Sesame5MechStatus.from_payload(publish_data.payload)
-                loop = asyncio.get_running_loop()
-                for callback in tuple(self._mech_status_callbacks.values()):
-                    loop.call_soon(callback, self, self._mech_status)
+                self._notify_mech_status(self._mech_status)
             case ItemCode.MECH_SETTING:
                 self._mech_setting = Sesame5MechSetting.from_payload(
                     publish_data.payload
