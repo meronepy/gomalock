@@ -10,6 +10,7 @@ gomalock.Sesame5(
     *,
     secret_key: str | None = None,
     mech_status_callback: Callable[[Sesame5, Sesame5MechStatus], None] | None = None,
+    unexpected_disconnect_callback: Callable[[Sesame5], None] | None = None,
     reconnect_attempts: int = 0,
 )
 ```
@@ -17,6 +18,7 @@ gomalock.Sesame5(
 - `address_or_device`: BLE アドレス、または `SesameScanner` で取得した `ScannedSesameDevice` です。`ScannedSesameDevice` を渡すと接続前の探索を省略できます。
 - `secret_key`: ログインに使う 16 バイトのシークレットキーを hex 文字列で指定します。
 - `mech_status_callback`: 機械状態を受信するたびに呼ばれるコールバックです。イベントループから呼び出されます。
+- `unexpected_disconnect_callback`: 予期しない BLE 切断が発生したときに呼ばれるコールバックです。明示的な `disconnect()` による切断では呼ばれません。
 - `reconnect_attempts`: 予期しない切断後に自動再接続を試みる最大回数です。`0` で無効です。
 
 `secret_key` を指定して `async with` で使うと、接続後に自動でログインします。`secret_key` が `None` の場合は接続のみ行います。
@@ -73,6 +75,10 @@ Sesame にログインし、施錠や解錠などの操作を可能にします�
 ### `register_mech_status_callback(callback) -> Callable[[], None]`
 
 機械状態を受信するたびに呼ばれるコールバックを追加します。戻り値の関数を呼ぶと解除できます。コールバックには `Sesame5` インスタンスと `Sesame5MechStatus` が渡されます。コールバックはイベントループの次のタイミングで呼ばれます。
+
+### `register_unexpected_disconnect_callback(callback) -> Callable[[], None]`
+
+予期しない BLE 切断を通知するコールバックを追加します。戻り値の関数を呼ぶと解除できます。コールバックには `Sesame5` インスタンスが渡されます。
 
 ## 操作
 
