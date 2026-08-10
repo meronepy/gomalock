@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 
-from gomalock import _const, _exc, _os3_lock_base, _protocol_types
+from gomalock import _const, _exc, _os3_lock_base, _os3_protocol, _protocol_types
 from tests.conftest import TEST_ADDRESS, TEST_UUID, make_mock_os3_device
 
 
@@ -510,7 +510,7 @@ def test_generate_qr_url_owner(monkeypatch: pytest.MonkeyPatch) -> None:
 
     assert (
         lock.generate_qr_url("Base", _const.KeyLevel.OWNER)
-        == _protocol_types.OS3QRCode(
+        == _os3_protocol.OS3QRCode(
             "Base",
             _const.KeyLevel.OWNER,
             _const.ProductModel.SESAME_5,
@@ -525,7 +525,7 @@ def test_generate_qr_url_manager(monkeypatch: pytest.MonkeyPatch) -> None:
     lock, _ = make_lock(monkeypatch)
 
     assert lock.generate_qr_url("Base", _const.KeyLevel.MANAGER) == (
-        _protocol_types.OS3QRCode(
+        _os3_protocol.OS3QRCode(
             "Base",
             _const.KeyLevel.MANAGER,
             _const.ProductModel.SESAME_5,
@@ -544,7 +544,7 @@ def test_generate_qr_url_explicit_secret(monkeypatch: pytest.MonkeyPatch) -> Non
         _const.KeyLevel.OWNER,
         secret_key="ff" * 16,
     ) == (
-        _protocol_types.OS3QRCode(
+        _os3_protocol.OS3QRCode(
             "Base",
             _const.KeyLevel.OWNER,
             _const.ProductModel.SESAME_5,

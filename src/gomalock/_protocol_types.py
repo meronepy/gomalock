@@ -4,16 +4,14 @@ This module provides classes for encapsulating and parsing advertisement data,
 incoming BLE packets, reassembled messages, and constructed commands.
 """
 
-import base64
 import struct
 from dataclasses import dataclass, field
 from typing import Self
-from urllib import parse
 from uuid import UUID
 
 from bleak.backends.device import BLEDevice
 
-from ._const import ItemCode, KeyLevel, OpCode, PacketType, ProductModel, ResultCode
+from ._const import ItemCode, OpCode, PacketType, ProductModel, ResultCode
 
 
 @dataclass(frozen=True)
@@ -77,98 +75,6 @@ class ScannedSesameWithBLE(ScannedSesameDevice):
     """
 
     ble_device: BLEDevice = field(repr=False, compare=False)
-
-
-@dataclass(frozen=True)
-class OS3QRCode:
-    """Represents the parsed data from a Sesame OS3 QR code.
-
-    Contains the cryptographic keys and metadata required to authenticate and
-    communicate with a specific device.
-
-    Attributes:
-        device_name: The human-readable name of the device.
-        key_level: The authorization level (owner or manager) granted by the key.
-        product_model: The specific Sesame hardware model.
-        device_uuid: The unique identifier for the device.
-        secret_key: The 16-byte secret key used for session derivation.
-        registration_session_token: The 4-byte registration-session field
-            included in the shared key.
-        key_index: The 2-byte key index included in the shared key.
-    """
-
-    device_name: str
-    key_level: KeyLevel
-    product_model: ProductModel
-    device_uuid: UUID
-    secret_key: bytes
-    registration_session_token: bytes = bytes(4)
-    key_index: bytes = bytes(2)
-
-    @classmethod
-    def from_qr_url(cls, qr_url: str) -> Self:
-        """Parses an OS3QRCode from an official app's QR code URL.
-
-        Args:
-            qr_url: The full URL string encoded in the QR code.
-
-        Returns:
-            A parsed OS3QRCode object.
-
-        Raises:
-            ValueError: If the parsed key level is not supported.
-            ValueError: If the URL structure or base64 data is malformed.
-            struct.error: If the binary key data cannot be unpacked.
-        """
-        query = parse.parse_qs(parse.urlparse(qr_url).query)
-        key_level_value = int(query.get("l", ["0"])[0])
-        if key_level_value not in KeyLevel:
-            raise ValueError("Key level other than owner/manager are not supported")
-        device_name = query.get("n", [""])[0]
-        shared_key = base64.b64decode(query.get("sk", [""])[0])
-        (
-            product_model_value,
-            secret_key,
-            registration_session_token,
-            key_index,
-            uuid_value,
-        ) = struct.unpack(">B16s4s2s16s", shared_key)
-        return cls(
-            device_name=device_name,
-            key_level=KeyLevel(key_level_value),
-            product_model=ProductModel(product_model_value),
-            device_uuid=UUID(bytes=uuid_value),
-            secret_key=secret_key,
-            registration_session_token=registration_session_token,
-            key_index=key_index,
-        )
-
-    @property
-    def qr_url(self) -> str:
-        """Generates a QR code URL compatible with the official Sesame app.
-
-        Returns:
-            The formatted URL string.
-        """
-        shared_key = struct.pack(
-            ">B16s4s2s16s",
-            self.product_model.value,
-            self.secret_key,
-            self.registration_session_token,
-            self.key_index,
-            self.device_uuid.bytes,
-        )
-        sk_b64 = base64.b64encode(shared_key).decode("ascii")
-        params = parse.urlencode(
-            {
-                "t": "sk",
-                "sk": sk_b64,
-                "l": self.key_level.value,
-                "n": self.device_name,
-            },
-            quote_via=parse.quote,
-        )
-        return f"ssm://UI?{params}"
 
 
 @dataclass(frozen=True)

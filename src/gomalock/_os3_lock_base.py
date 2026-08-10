@@ -24,9 +24,8 @@ from ._const import (
 )
 from ._exc import SesameConnectionError, SesameLoginError
 from ._os3_cipher import convert_secret_key
-from ._os3_protocol import SesameOS3Protocol, calculate_battery_percentage
+from ._os3_protocol import OS3QRCode, SesameOS3Protocol, calculate_battery_percentage
 from ._protocol_types import (
-    OS3QRCode,
     ReceivedSesamePublish,
     ScannedSesameDevice,
     SesameAdvertisementData,

@@ -2,7 +2,6 @@
 from gomalock import (
     DeviceStatus,
     KeyLevel,
-    OS3QRCode,
     ProductModel,
     ResultCode,
     ScannedSesameDevice,
@@ -26,7 +25,6 @@ def test_exports_importable() -> None:
     assert KeyLevel.__name__ == "KeyLevel"
     assert ProductModel.__name__ == "ProductModel"
     assert ResultCode.__name__ == "ResultCode"
-    assert OS3QRCode.__name__ == "OS3QRCode"
     assert ScannedSesameDevice.__name__ == "ScannedSesameDevice"
     assert Sesame5.__name__ == "Sesame5"
     assert Sesame5MechSetting.__name__ == "Sesame5MechSetting"

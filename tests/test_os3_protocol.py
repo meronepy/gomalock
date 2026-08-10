@@ -122,7 +122,7 @@ def test_create_history_tag_multibyte() -> None:
 
 def test_from_qr_url_roundtrip() -> None:
     """Parses a generated QR URL back into the same key data."""
-    qr_code = _protocol_types.OS3QRCode(
+    qr_code = _os3_protocol.OS3QRCode(
         "Front Door",
         _const.KeyLevel.OWNER,
         _const.ProductModel.SESAME_5,
@@ -132,13 +132,13 @@ def test_from_qr_url_roundtrip() -> None:
         b"\x03\x04",
     )
 
-    parsed = _protocol_types.OS3QRCode.from_qr_url(qr_code.qr_url)
+    parsed = _os3_protocol.OS3QRCode.from_qr_url(qr_code.qr_url)
 
     assert parsed == qr_code
 
 
 def test_from_qr_url_invalid_key_level() -> None:
-    """Raises ValueError for unsupported key levels."""
+    """Raises SesameError for unsupported key levels."""
     shared_key = struct.pack(
         ">B16s4s2s16s",
         _const.ProductModel.SESAME_5.value,
@@ -151,13 +151,13 @@ def test_from_qr_url_invalid_key_level() -> None:
         f"ssm://UI?t=sk&sk={base64.b64encode(shared_key).decode('ascii')}&l=9&n=Sesame"
     )
 
-    with pytest.raises(ValueError):
-        _protocol_types.OS3QRCode.from_qr_url(qr_url)
+    with pytest.raises(_exc.SesameError):
+        _os3_protocol.OS3QRCode.from_qr_url(qr_url)
 
 
 def test_qr_url_format() -> None:
     """Generates a URL using the official Sesame QR URL scheme."""
-    qr_code = _protocol_types.OS3QRCode(
+    qr_code = _os3_protocol.OS3QRCode(
         "Sesame",
         _const.KeyLevel.MANAGER,
         _const.ProductModel.SESAME_5,
