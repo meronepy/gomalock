@@ -149,16 +149,20 @@ class OS3QRCode:
             raise SesameError("Key level other than owner/manager are not supported")
         device_name = query.get("n", [""])[0]
         shared_key = base64.b64decode(query.get("sk", [""])[0])
-        product_model_value, secret_key, public_key, key_index, uuid_value = (
-            struct.unpack(">B16s4s2s16s", shared_key)
-        )
+        (
+            product_model_value,
+            secret_key,
+            registration_session_token,
+            key_index,
+            uuid_value,
+        ) = struct.unpack(">B16s4s2s16s", shared_key)
         return cls(
             device_name=device_name,
             key_level=KeyLevel(key_level_value),
             product_model=ProductModel(product_model_value),
             device_uuid=UUID(bytes=uuid_value),
             secret_key=secret_key,
-            registration_session_token=public_key,
+            registration_session_token=registration_session_token,
             key_index=key_index,
         )
 
