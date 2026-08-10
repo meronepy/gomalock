@@ -292,7 +292,7 @@ def test_generate_qr_url_owner(monkeypatch: pytest.MonkeyPatch) -> None:
 
     assert (
         device.generate_qr_url("Touch", _const.KeyLevel.OWNER)
-        == _os3_protocol.OS3QRCode(
+        == _protocol_types.OS3QRCode(
             "Touch",
             _const.KeyLevel.OWNER,
             _const.ProductModel.SESAME_TOUCH_1,
@@ -307,7 +307,7 @@ def test_generate_qr_url_manager(monkeypatch: pytest.MonkeyPatch) -> None:
     device, _ = make_touch(monkeypatch)
 
     assert device.generate_qr_url("Touch", _const.KeyLevel.MANAGER) == (
-        _os3_protocol.OS3QRCode(
+        _protocol_types.OS3QRCode(
             "Touch",
             _const.KeyLevel.MANAGER,
             _const.ProductModel.SESAME_TOUCH_1,

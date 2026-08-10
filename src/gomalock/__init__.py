@@ -11,7 +11,7 @@ from ._exc import (
     SesameLoginError,
     SesameOperationError,
 )
-from ._protocol_types import ScannedSesameDevice, SesameAdvertisementData
+from ._protocol_types import OS3QRCode, ScannedSesameDevice, SesameAdvertisementData
 from ._scanner import SesameScanner
 from ._sesame5 import Sesame5, Sesame5MechSetting, Sesame5MechStatus
 from ._sesametouch import SesameTouch, SesameTouchMechStatus
@@ -21,6 +21,7 @@ __all__ = [
     "KeyLevel",
     "ProductModel",
     "ResultCode",
+    "OS3QRCode",
     "ScannedSesameDevice",
     "SesameAdvertisementData",
     "SesameScanner",
