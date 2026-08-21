@@ -49,6 +49,9 @@ class ModelGroup(Enum):
         ProductModel.SESAME_5,
         ProductModel.SESAME_5_PRO,
         ProductModel.SESAME_5_US,
+        ProductModel.SESAME_6,
+        ProductModel.SESAME_6_PRO,
+        ProductModel.SESAME_6_PRO_SLIDINGDOOR,
     }
     SESAME_TOUCH = {
         ProductModel.SESAME_TOUCH_1,
