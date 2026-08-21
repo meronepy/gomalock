@@ -1,6 +1,6 @@
 # Sesame5 クラスリファレンス
 
-`gomalock.Sesame5` は Sesame 5 / Sesame 5 Pro / Sesame 5 USA を BLE で操作するクラスです。
+`gomalock.Sesame5` は Sesame 5 シリーズおよび Sesame 6 シリーズを BLE で操作するクラスです。
 
 ## コンストラクタ
 
@@ -23,7 +23,7 @@ gomalock.Sesame5(
 
 `secret_key` を指定して `async with` で使うと、接続後に自動でログインします。`secret_key` が `None` の場合は接続のみ行います。
 `secret_key` は 16 バイトの hex 文字列として検証されます。不正な形式を指定した場合は `ValueError` が送出されます。
-`ScannedSesameDevice`、またはアドレス指定後の探索で見つかったデバイスが Sesame 5 系ではない場合も `ValueError` が送出されます。
+`ScannedSesameDevice`、またはアドレス指定後の探索で見つかったデバイスが Sesame 5 シリーズおよび Sesame 6 シリーズではない場合も `ValueError` が送出されます。
 
 ```python
 async with gomalock.Sesame5(ADDRESS, secret_key=SECRET_KEY) as sesame5:

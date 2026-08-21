@@ -9,9 +9,9 @@ Sesame スマートロックを Bluetooth Low Energy で操作する Python ラ�
 
 ## 主な機能
 
-- Sesame 5 / Sesame 5 Pro / Sesame 5 USA の施錠、解錠、トグル操作
-- Sesame 5 系の角度、バッテリー残量、オートロック設定の取得と変更
-- Sesame Touch / Sesame Touch Pro / Sesame Touch 2 / Sesame Touch 2 Pro のバッテリー残量と登録済みカード、指紋、パスワード数の取得
+- Sesame 5 シリーズと Sesame 6 シリーズの施錠、解錠、トグル操作
+- 角度、バッテリー残量、オートロック設定の取得と変更
+- Sesame Touch シリーズのバッテリー残量と登録済みカード、指紋、パスワード数の取得
 - 周囲の Sesame デバイスのスキャン
 - 新規 Sesame デバイスの登録
 - 共有用 QR URL の作成
@@ -53,6 +53,7 @@ if __name__ == "__main__":
 - `SECRET_KEY` は mochipon さん作成の [QR Code Reader for SESAME](https://sesame-qr-reader.vercel.app/) でマネージャー権限以上の QR コードから抽出するか、[SESAME Biz](https://biz.candyhouse.co/) から取得できます。
 - 詳しい使い方は [examples](examples) と [docs](docs) を参照してください。
 - v1.1.2 以前から移行する場合は [v2.0.0 移行ガイド](docs/migration_v2.md) を参照してください。
+- Sesame 6 の操作にも `Sesame5` クラスを使用します。
 
 ## 注意事項
 
@@ -81,6 +82,8 @@ sudo rfkill unblock bluetooth
 |✅|Sesame 5|
 |✅|Sesame 5 Pro|
 |⚠️|Sesame 5 US (未検証)|
+|⚠️|Sesame 6 Pro (未検証)|
+|⚠️|Sesame 6 Pro mini (未検証)|
 |❌|Sesame 4以前|
 
 |対応状況|機種|
