@@ -1,4 +1,4 @@
-# pylint: disable=duplicate-code,missing-module-docstring
+# pylint: disable=duplicate-code,missing-module-docstring,protected-access
 import asyncio
 import struct
 from collections.abc import Callable
@@ -49,11 +49,16 @@ def make_sesame5(
         "SesameOS3Protocol",
         Mock(return_value=os3_device),
     )
+    scanned_device = _protocol_types.ScannedSesameDevice(
+        Mock(address=TEST_ADDRESS),
+        os3_device.advertisement_data,
+    )
     device = _sesame5.Sesame5(
-        TEST_ADDRESS,
+        scanned_device,
         secret_key="00" * 16,
         unexpected_disconnect_callback=unexpected_disconnect_callback,
     )
+    device._os3_device = os3_device
     return device, os3_device
 
 
@@ -302,7 +307,7 @@ async def test_register_disconnected(monkeypatch: pytest.MonkeyPatch) -> None:
 @pytest.mark.asyncio
 async def test_login_with_secret(monkeypatch: pytest.MonkeyPatch) -> None:
     """Logs in with the initialized secret key."""
-    device, os3_device = make_sesame5(monkeypatch)
+    device, os3_device = make_sesame5(monkeypatch, is_connected=True)
     device.on_published(
         _protocol_types.ReceivedSesamePublish(
             _const.ItemCode.MECH_STATUS,
@@ -324,13 +329,18 @@ async def test_login_with_secret(monkeypatch: pytest.MonkeyPatch) -> None:
 @pytest.mark.asyncio
 async def test_login_without_secret(monkeypatch: pytest.MonkeyPatch) -> None:
     """Raises SesameLoginError when no secret key is available."""
-    os3_device = make_mock_os3_device()
+    os3_device = make_mock_os3_device(is_connected=True)
     monkeypatch.setattr(
         _os3_lock_base,
         "SesameOS3Protocol",
         Mock(return_value=os3_device),
     )
-    device = _sesame5.Sesame5(TEST_ADDRESS)
+    scanned_device = _protocol_types.ScannedSesameDevice(
+        Mock(address=TEST_ADDRESS),
+        os3_device.advertisement_data,
+    )
+    device = _sesame5.Sesame5(scanned_device)
+    device._os3_device = os3_device
 
     with pytest.raises(_exc.SesameLoginError):
         await device.login()
@@ -378,7 +388,7 @@ async def test_context_manager_with_secret(monkeypatch: pytest.MonkeyPatch) -> N
 @pytest.mark.asyncio
 async def test_lock_logged_in(monkeypatch: pytest.MonkeyPatch) -> None:
     """Sends an encrypted lock command with a history tag."""
-    device, os3_device = make_sesame5(monkeypatch)
+    device, os3_device = make_sesame5(monkeypatch, is_connected=True)
     await login_device(device)
 
     await device.lock("history")
@@ -395,7 +405,7 @@ async def test_lock_logged_in(monkeypatch: pytest.MonkeyPatch) -> None:
 @pytest.mark.asyncio
 async def test_unlock_logged_in(monkeypatch: pytest.MonkeyPatch) -> None:
     """Sends an encrypted unlock command with a history tag."""
-    device, os3_device = make_sesame5(monkeypatch)
+    device, os3_device = make_sesame5(monkeypatch, is_connected=True)
     await login_device(device)
 
     await device.unlock("history")
@@ -463,7 +473,7 @@ async def test_toggle_unlocked(monkeypatch: pytest.MonkeyPatch) -> None:
 @pytest.mark.asyncio
 async def test_set_lock_position_logged_in(monkeypatch: pytest.MonkeyPatch) -> None:
     """Sends an encrypted mechanical setting command."""
-    device, os3_device = make_sesame5(monkeypatch)
+    device, os3_device = make_sesame5(monkeypatch, is_connected=True)
     await login_device(device)
 
     await device.set_lock_position(-1, 1)
@@ -482,7 +492,7 @@ async def test_set_auto_lock_duration_logged_in(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Sends an encrypted auto-lock command."""
-    device, os3_device = make_sesame5(monkeypatch)
+    device, os3_device = make_sesame5(monkeypatch, is_connected=True)
     await login_device(device)
 
     await device.set_auto_lock_duration(15)

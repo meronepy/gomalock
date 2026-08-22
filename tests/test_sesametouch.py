@@ -1,4 +1,4 @@
-# pylint: disable=duplicate-code,missing-module-docstring
+# pylint: disable=duplicate-code,missing-module-docstring,protected-access
 import asyncio
 import struct
 from unittest.mock import AsyncMock, Mock
@@ -43,7 +43,12 @@ def make_touch(
         "SesameOS3Protocol",
         Mock(return_value=os3_device),
     )
-    device = _sesametouch.SesameTouch(TEST_ADDRESS, secret_key="11" * 16)
+    scanned_device = _protocol_types.ScannedSesameDevice(
+        Mock(address=TEST_ADDRESS),
+        os3_device.advertisement_data,
+    )
+    device = _sesametouch.SesameTouch(scanned_device, secret_key="11" * 16)
+    device._os3_device = os3_device
     return device, os3_device
 
 
@@ -213,7 +218,7 @@ async def test_register_disconnected(monkeypatch: pytest.MonkeyPatch) -> None:
 @pytest.mark.asyncio
 async def test_login_with_secret(monkeypatch: pytest.MonkeyPatch) -> None:
     """Logs in with the initialized secret key."""
-    device, os3_device = make_touch(monkeypatch)
+    device, os3_device = make_touch(monkeypatch, is_connected=True)
     device.on_published(
         _protocol_types.ReceivedSesamePublish(
             _const.ItemCode.MECH_STATUS,
@@ -229,13 +234,21 @@ async def test_login_with_secret(monkeypatch: pytest.MonkeyPatch) -> None:
 @pytest.mark.asyncio
 async def test_login_without_secret(monkeypatch: pytest.MonkeyPatch) -> None:
     """Raises SesameLoginError when no secret key is available."""
-    os3_device = make_mock_os3_device(product_model=_const.ProductModel.SESAME_TOUCH_1)
+    os3_device = make_mock_os3_device(
+        is_connected=True,
+        product_model=_const.ProductModel.SESAME_TOUCH_1,
+    )
     monkeypatch.setattr(
         _os3_lock_base,
         "SesameOS3Protocol",
         Mock(return_value=os3_device),
     )
-    device = _sesametouch.SesameTouch(TEST_ADDRESS)
+    scanned_device = _protocol_types.ScannedSesameDevice(
+        Mock(address=TEST_ADDRESS),
+        os3_device.advertisement_data,
+    )
+    device = _sesametouch.SesameTouch(scanned_device)
+    device._os3_device = os3_device
 
     with pytest.raises(_exc.SesameLoginError):
         await device.login()

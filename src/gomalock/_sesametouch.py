@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from typing import Self
 
 from ._const import ItemCode, ModelGroup
-from ._os3_lock_base import BaseOS3MechStatus, BaseOS3Lock
+from ._os3_lock_base import BaseOS3Lock, BaseOS3MechStatus
 from ._protocol_types import ReceivedSesamePublish
 
 

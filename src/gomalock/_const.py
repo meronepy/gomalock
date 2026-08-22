@@ -45,20 +45,24 @@ class ProductModel(Enum):
 class ModelGroup(Enum):
     """Groups product models for device compatibility checks."""
 
-    SESAME_5 = {
-        ProductModel.SESAME_5,
-        ProductModel.SESAME_5_PRO,
-        ProductModel.SESAME_5_US,
-        ProductModel.SESAME_6,
-        ProductModel.SESAME_6_PRO,
-        ProductModel.SESAME_6_PRO_SLIDINGDOOR,
-    }
-    SESAME_TOUCH = {
-        ProductModel.SESAME_TOUCH_1,
-        ProductModel.SESAME_TOUCH_1_PRO,
-        ProductModel.SESAME_TOUCH_2,
-        ProductModel.SESAME_TOUCH_2_PRO,
-    }
+    SESAME_5 = frozenset(
+        {
+            ProductModel.SESAME_5,
+            ProductModel.SESAME_5_PRO,
+            ProductModel.SESAME_5_US,
+            ProductModel.SESAME_6,
+            ProductModel.SESAME_6_PRO,
+            ProductModel.SESAME_6_PRO_SLIDINGDOOR,
+        }
+    )
+    SESAME_TOUCH = frozenset(
+        {
+            ProductModel.SESAME_TOUCH_1,
+            ProductModel.SESAME_TOUCH_1_PRO,
+            ProductModel.SESAME_TOUCH_2,
+            ProductModel.SESAME_TOUCH_2_PRO,
+        }
+    )
 
 
 class PacketType(IntFlag):

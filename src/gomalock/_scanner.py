@@ -7,7 +7,8 @@ for nearby Sesame devices and parse their broadcast advertisement data.
 import asyncio
 import logging
 import struct
-from typing import AsyncGenerator, Callable, Self
+from collections.abc import AsyncGenerator, Callable
+from typing import Self
 from uuid import UUID
 
 from bleak import BleakScanner
@@ -17,7 +18,6 @@ from bleak.backends.scanner import AdvertisementData
 from ._const import COMPANY_ID, SCAN_TIMEOUT, UUID_SERVICE
 from ._protocol_types import (
     ScannedSesameDevice,
-    ScannedSesameWithBLE,
     SesameAdvertisementData,
 )
 
@@ -61,7 +61,7 @@ class SesameScanner:
             )
         except (ValueError, KeyError, struct.error):
             return
-        scanned_sesame = ScannedSesameWithBLE(device.address, sesame_adv_data, device)
+        scanned_sesame = ScannedSesameDevice(device, sesame_adv_data)
         logger.debug(
             "Detected Sesame device [address=%s, model=%s]",
             device.address,
@@ -178,7 +178,7 @@ class SesameScanner:
         try:
             logger.info("Searching for device with filter [timeout=%.1fs]", timeout)
             return await asyncio.wait_for(find_task(), timeout)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.info("Device search timed out")
             return None
 

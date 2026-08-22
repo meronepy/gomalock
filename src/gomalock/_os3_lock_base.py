@@ -16,6 +16,7 @@ from typing import Self
 from ._const import (
     PUBLISH_TIMEOUT,
     RECONNECT_MAX_BACKOFF,
+    SCAN_TIMEOUT,
     DeviceStatus,
     ItemCode,
     KeyLevel,
@@ -31,6 +32,7 @@ from ._protocol_types import (
     SesameAdvertisementData,
     SesameCommand,
 )
+from ._scanner import SesameScanner
 
 logger = logging.getLogger(__name__)
 
@@ -106,11 +108,9 @@ class BaseOS3Lock[MechStatusT: BaseOS3MechStatus](ABC):
         """
         if isinstance(address_or_device, ScannedSesameDevice):
             type(self)._validate_model(address_or_device.advertisement_data)
-        self._os3_device = SesameOS3Protocol(
-            address_or_device,
-            self.on_published,
-            self.on_unexpected_disconnect,
-        )
+
+        self._address_or_device = address_or_device
+        self._os3_device: SesameOS3Protocol | None = None
         self._secret_key = (
             convert_secret_key(secret_key) if secret_key is not None else None
         )
@@ -198,7 +198,7 @@ class BaseOS3Lock[MechStatusT: BaseOS3MechStatus](ABC):
                 await self.connect()
                 if self._secret_key is not None:
                     await self.login()
-            except (SesameConnectionError, asyncio.TimeoutError):
+            except (SesameConnectionError, TimeoutError):
                 logger.exception(
                     "Auto-reconnection attempt failed [address=%s]", self.address
                 )
@@ -226,7 +226,8 @@ class BaseOS3Lock[MechStatusT: BaseOS3MechStatus](ABC):
         self._device_status = DeviceStatus.DISCONNECTED
         self._login_completed.clear()
         self._mech_status = None
-        self._os3_device.cleanup()
+        if self._os3_device is not None:
+            self._os3_device.cleanup()
 
     def _handle_unsupported_publish(self, publish_data: ReceivedSesamePublish) -> None:
         """Handles publish notifications unsupported by the concrete device."""
@@ -290,6 +291,24 @@ class BaseOS3Lock[MechStatusT: BaseOS3MechStatus](ABC):
 
         return unregister
 
+    async def _resolve_scanned_sesame(self) -> ScannedSesameDevice:
+        """Resolves the scanned Sesame device from the address or device.
+
+        Returns:
+            The scanned Sesame device.
+
+        Raises:
+            SesameConnectionError: If the device cannot be found or scanned.
+        """
+        if isinstance(self._address_or_device, ScannedSesameDevice):
+            return self._address_or_device
+        found_device = await SesameScanner.find_device_by_address(
+            self.address, timeout=SCAN_TIMEOUT
+        )
+        if found_device is None:
+            raise SesameConnectionError("Device not found")
+        return found_device
+
     async def connect(self) -> None:
         """Establishes a BLE connection to the Sesame device.
 
@@ -308,8 +327,14 @@ class BaseOS3Lock[MechStatusT: BaseOS3MechStatus](ABC):
         logger.info("Connecting to Sesame [address=%s]", self.address)
         self._device_status = DeviceStatus.CONNECTING
         try:
+            scanned_sesame = await self._resolve_scanned_sesame()
+            type(self)._validate_model(scanned_sesame.advertisement_data)
+            self._os3_device = SesameOS3Protocol(
+                scanned_sesame,
+                self.on_published,
+                self.on_unexpected_disconnect,
+            )
             await self._os3_device.connect()
-            type(self)._validate_model(self.advertisement_data)
         except Exception:
             if self.is_connected:
                 await self.disconnect()
@@ -332,7 +357,7 @@ class BaseOS3Lock[MechStatusT: BaseOS3MechStatus](ABC):
             SesameError: If the device is already registered.
             SesameOperationError: If the registration command fails.
         """
-        if not self.is_connected:
+        if self._os3_device is None or not self.is_connected:
             raise SesameConnectionError("Not connected")
         logger.info("Starting device registration [address=%s]", self.address)
         secret_key = await self._os3_device.register()
@@ -355,6 +380,8 @@ class BaseOS3Lock[MechStatusT: BaseOS3MechStatus](ABC):
             SesameLoginError: If already logged in or if no secret key is available.
             SesameOperationError: If the login command fails.
         """
+        if self._os3_device is None or not self.is_connected:
+            raise SesameConnectionError("Not connected")
         if self.is_background_reconnecting:
             raise SesameConnectionError(
                 "Cannot login while auto-reconnection is in progress"
@@ -397,7 +424,7 @@ class BaseOS3Lock[MechStatusT: BaseOS3MechStatus](ABC):
                 await self._reconnect_task
             except asyncio.CancelledError:
                 pass
-        if self.is_connected:
+        if self._os3_device is not None and self.is_connected:
             logger.info("Disconnecting from Sesame [address=%s]", self.address)
             self._device_status = DeviceStatus.DISCONNECTING
             try:
@@ -424,7 +451,7 @@ class BaseOS3Lock[MechStatusT: BaseOS3MechStatus](ABC):
             SesameLoginError: If not logged in.
             SesameOperationError: If the command fails.
         """
-        if not self.is_logged_in:
+        if self._os3_device is None or not self.is_logged_in:
             raise SesameLoginError("Login is required to fetch firmware version")
         response = await self._os3_device.send_command(
             SesameCommand(ItemCode.VERSION_TAG, b""), True
@@ -500,6 +527,10 @@ class BaseOS3Lock[MechStatusT: BaseOS3MechStatus](ABC):
         Returns:
             The device address as a string.
         """
+        if self._os3_device is None:
+            if isinstance(self._address_or_device, ScannedSesameDevice):
+                return self._address_or_device.address
+            return self._address_or_device
         return self._os3_device.address
 
     @property
@@ -523,6 +554,8 @@ class BaseOS3Lock[MechStatusT: BaseOS3MechStatus](ABC):
         Returns:
             True if connected, False otherwise.
         """
+        if self._os3_device is None:
+            return False
         return self._os3_device.is_connected
 
     @property
@@ -554,4 +587,8 @@ class BaseOS3Lock[MechStatusT: BaseOS3MechStatus](ABC):
             SesameConnectionError: If initialized with only an address and the
                 device has not been scanned yet.
         """
+        if self._os3_device is None:
+            if isinstance(self._address_or_device, ScannedSesameDevice):
+                return self._address_or_device.advertisement_data
+            raise SesameConnectionError("Not scanned yet")
         return self._os3_device.advertisement_data

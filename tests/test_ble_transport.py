@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, Mock
 import pytest
 from bleak.exc import BleakDeviceNotFoundError
 
-from gomalock import _ble_transport, _const, _exc, _protocol_types
+from gomalock import _ble_transport, _const, _exc
 from tests.conftest import TEST_ADDRESS
 
 
@@ -56,8 +56,9 @@ def make_transport(
     """Creates a transport with its Bleak client replaced by a mock."""
     received_callback = Mock()
     disconnect_callback = Mock()
+    ble_device = Mock(address=TEST_ADDRESS)
     transport = _ble_transport.SesameBLETransport(
-        TEST_ADDRESS,
+        ble_device,
         received_callback,
         disconnect_callback,
     )
@@ -70,18 +71,6 @@ def make_transport(
     client.write_gatt_char = AsyncMock()
     transport._bleak_client = client
     return transport, client, received_callback, disconnect_callback
-
-
-def make_scanned_device(
-    advertisement_data: _protocol_types.SesameAdvertisementData,
-) -> _protocol_types.ScannedSesameWithBLE:
-    """Creates a scanned Sesame device test double."""
-    ble_device = Mock(address=TEST_ADDRESS)
-    return _protocol_types.ScannedSesameWithBLE(
-        TEST_ADDRESS,
-        advertisement_data,
-        ble_device,
-    )
 
 
 def test_on_notification_partial_packet() -> None:
@@ -202,75 +191,21 @@ async def test_on_disconnect_cleanup_failure() -> None:
 
 @pytest.mark.asyncio
 async def test_connect_and_start_notification_success(
-    advertisement_data,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Scans, connects, and starts notifications."""
+    """Connects to the supplied BLE device and starts notifications."""
     transport, client, _, _ = make_transport(is_connected=False)
-    scanned_device = make_scanned_device(advertisement_data)
-    finder = AsyncMock(return_value=scanned_device)
     bleak_client = Mock(return_value=client)
     monkeypatch.setattr(_ble_transport, "BleakClient", bleak_client)
-    monkeypatch.setattr(
-        _ble_transport.SesameScanner,
-        "find_device_by_address",
-        finder,
-    )
 
     await transport.connect_and_start_notification()
 
-    finder.assert_awaited_once_with(TEST_ADDRESS, timeout=_const.SCAN_TIMEOUT)
-    bleak_client.assert_called_once_with(
-        scanned_device.ble_device, transport.on_disconnect
-    )
-    client.connect.assert_awaited_once()
-    client.start_notify.assert_awaited_once_with(
-        _const.UUID_NOTIFICATION,
-        transport.on_notification,
-    )
-    assert transport.advertisement_data == advertisement_data
-
-
-@pytest.mark.asyncio
-async def test_connect_and_start_notification_with_scanned_device_skips_scan(
-    advertisement_data,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Connects directly when initialized with a scanned Sesame device."""
-    scanned_device = make_scanned_device(advertisement_data)
-    received_callback = Mock()
-    disconnect_callback = Mock()
-    transport = _ble_transport.SesameBLETransport(
-        scanned_device,
-        received_callback,
-        disconnect_callback,
-    )
-    client = Mock()
-    client.is_connected = False
-    client.connect = AsyncMock()
-    client.start_notify = AsyncMock()
-    finder = AsyncMock()
-    bleak_client = Mock(return_value=client)
-    monkeypatch.setattr(_ble_transport, "BleakClient", bleak_client)
-    monkeypatch.setattr(
-        _ble_transport.SesameScanner,
-        "find_device_by_address",
-        finder,
-    )
-
-    await transport.connect_and_start_notification()
-
-    finder.assert_not_awaited()
-    bleak_client.assert_called_once_with(
-        scanned_device.ble_device,
-        transport.on_disconnect,
-    )
+    bleak_client.assert_called_once_with(transport._ble_device, transport.on_disconnect)
     client.connect.assert_awaited_once_with(timeout=_const.SCAN_TIMEOUT)
     client.start_notify.assert_awaited_once_with(
         _const.UUID_NOTIFICATION,
         transport.on_notification,
     )
-    assert transport.advertisement_data == advertisement_data
 
 
 @pytest.mark.asyncio
@@ -285,35 +220,13 @@ async def test_connect_and_start_notification_connected() -> None:
 
 
 @pytest.mark.asyncio
-async def test_connect_and_start_notification_not_found(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Raises SesameConnectionError when scanning finds no device."""
-    transport, _, _, _ = make_transport(is_connected=False)
-    monkeypatch.setattr(
-        _ble_transport.SesameScanner,
-        "find_device_by_address",
-        AsyncMock(return_value=None),
-    )
-
-    with pytest.raises(_exc.SesameConnectionError):
-        await transport.connect_and_start_notification()
-
-
-@pytest.mark.asyncio
 async def test_connect_and_start_notification_bleak_not_found(
-    advertisement_data,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Wraps BleakDeviceNotFoundError in SesameConnectionError."""
     transport, client, _, _ = make_transport(is_connected=False)
     client.connect.side_effect = BleakDeviceNotFoundError(TEST_ADDRESS)
     monkeypatch.setattr(_ble_transport, "BleakClient", Mock(return_value=client))
-    monkeypatch.setattr(
-        _ble_transport.SesameScanner,
-        "find_device_by_address",
-        AsyncMock(return_value=make_scanned_device(advertisement_data)),
-    )
 
     with pytest.raises(_exc.SesameConnectionError):
         await transport.connect_and_start_notification()
@@ -372,19 +285,9 @@ async def test_disconnect_disconnected() -> None:
     client.disconnect.assert_not_awaited()
 
 
-def test_properties_available(advertisement_data) -> None:
-    """Returns delegated BLE state and cached advertisement data."""
+def test_properties_available() -> None:
+    """Returns the BLE device address and delegated connection state."""
     transport, _, _, _ = make_transport(is_connected=True)
-    transport._identifier = make_scanned_device(advertisement_data)
 
     assert transport.address == TEST_ADDRESS
     assert transport.is_connected is True
-    assert transport.advertisement_data == advertisement_data
-
-
-def test_sesame_advertisement_data_missing() -> None:
-    """Raises SesameConnectionError before advertisement data is cached."""
-    transport, _, _, _ = make_transport()
-
-    with pytest.raises(_exc.SesameConnectionError):
-        _ = transport.advertisement_data

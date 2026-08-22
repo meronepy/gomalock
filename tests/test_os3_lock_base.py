@@ -1,7 +1,7 @@
 # pylint: disable=missing-module-docstring,protected-access
 import asyncio
 from dataclasses import dataclass
-from typing import Self
+from typing import Self, cast
 from unittest.mock import AsyncMock, Mock
 
 import pytest
@@ -51,6 +51,15 @@ def make_lock(
         is_connected=is_connected,
         product_model=product_model,
     )
+    scanned_device = _protocol_types.ScannedSesameDevice(
+        Mock(address=TEST_ADDRESS),
+        os3_device.advertisement_data,
+    )
+    monkeypatch.setattr(
+        _os3_lock_base.SesameScanner,
+        "find_device_by_address",
+        AsyncMock(return_value=scanned_device),
+    )
     monkeypatch.setattr(
         _os3_lock_base,
         "SesameOS3Protocol",
@@ -61,6 +70,7 @@ def make_lock(
         secret_key=secret_key,
         reconnect_attempts=auto_reconnection_limit,
     )
+    lock._os3_device = os3_device
     return lock, os3_device
 
 
@@ -87,7 +97,7 @@ def test_subclass_requires_valid_model_groups() -> None:
 def test_constructor_rejects_invalid_scanned_device() -> None:
     """Rejects scanned devices outside the lock class model group."""
     scanned_device = _protocol_types.ScannedSesameDevice(
-        TEST_ADDRESS,
+        Mock(address=TEST_ADDRESS),
         _protocol_types.SesameAdvertisementData(
             _const.ProductModel.SESAME_TOUCH_1,
             True,
@@ -239,11 +249,30 @@ async def test_register_unexpected_disconnect_callback_duplicate(
 
 @pytest.mark.asyncio
 async def test_connect_disconnected(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Connects via OS3 protocol and updates device status."""
+    """Scans, creates the protocol, and updates device status."""
     lock, os3_device = make_lock(monkeypatch, is_connected=False)
+    protocol_factory = Mock(return_value=os3_device)
+    monkeypatch.setattr(
+        _os3_lock_base,
+        "SesameOS3Protocol",
+        protocol_factory,
+    )
 
     await lock.connect()
 
+    finder = cast(
+        AsyncMock,
+        _os3_lock_base.SesameScanner.find_device_by_address,
+    )
+    finder.assert_awaited_once_with(
+        TEST_ADDRESS,
+        timeout=_const.SCAN_TIMEOUT,
+    )
+    protocol_factory.assert_called_once_with(
+        finder.return_value,
+        lock.on_published,
+        lock.on_unexpected_disconnect,
+    )
     os3_device.connect.assert_awaited_once_with()
     assert lock.device_status == _const.DeviceStatus.CONNECTED
 
@@ -261,7 +290,24 @@ async def test_connect_rejects_invalid_model_from_address(
     with pytest.raises(ValueError, match="does not support"):
         await lock.connect()
 
-    os3_device.connect.assert_awaited_once_with()
+    os3_device.connect.assert_not_awaited()
+    assert lock.device_status == _const.DeviceStatus.DISCONNECTED
+
+
+@pytest.mark.asyncio
+async def test_connect_device_not_found(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Raises SesameConnectionError when address scanning finds no device."""
+    lock, os3_device = make_lock(monkeypatch, is_connected=False)
+    finder = cast(
+        AsyncMock,
+        _os3_lock_base.SesameScanner.find_device_by_address,
+    )
+    finder.return_value = None
+
+    with pytest.raises(_exc.SesameConnectionError, match="Device not found"):
+        await lock.connect()
+
+    os3_device.connect.assert_not_awaited()
     assert lock.device_status == _const.DeviceStatus.DISCONNECTED
 
 
@@ -347,7 +393,7 @@ async def test_register_waits_for_cancelled_reconnection(
 @pytest.mark.asyncio
 async def test_login_with_default_secret(monkeypatch: pytest.MonkeyPatch) -> None:
     """Logs in with the initialized secret key and waits for publish completion."""
-    lock, os3_device = make_lock(monkeypatch)
+    lock, os3_device = make_lock(monkeypatch, is_connected=True)
     publish_status(lock, 1)
 
     assert await lock.login() == 123
@@ -358,7 +404,7 @@ async def test_login_with_default_secret(monkeypatch: pytest.MonkeyPatch) -> Non
 @pytest.mark.asyncio
 async def test_login_with_explicit_secret(monkeypatch: pytest.MonkeyPatch) -> None:
     """Uses an explicit secret key over the initialized one."""
-    lock, os3_device = make_lock(monkeypatch)
+    lock, os3_device = make_lock(monkeypatch, is_connected=True)
     publish_status(lock, 1)
 
     await lock.login(secret_key="ff" * 16)
@@ -369,7 +415,7 @@ async def test_login_with_explicit_secret(monkeypatch: pytest.MonkeyPatch) -> No
 @pytest.mark.asyncio
 async def test_login_already_logged_in(monkeypatch: pytest.MonkeyPatch) -> None:
     """Raises SesameLoginError when already authenticated."""
-    lock, _ = make_lock(monkeypatch)
+    lock, _ = make_lock(monkeypatch, is_connected=True)
     publish_status(lock, 1)
     await lock.login()
 
@@ -380,7 +426,7 @@ async def test_login_already_logged_in(monkeypatch: pytest.MonkeyPatch) -> None:
 @pytest.mark.asyncio
 async def test_login_without_secret(monkeypatch: pytest.MonkeyPatch) -> None:
     """Raises SesameLoginError when no secret key is available."""
-    lock, os3_device = make_lock(monkeypatch, secret_key=None)
+    lock, os3_device = make_lock(monkeypatch, is_connected=True, secret_key=None)
 
     with pytest.raises(_exc.SesameLoginError):
         await lock.login()
@@ -415,7 +461,7 @@ async def test_login_reconnecting(monkeypatch: pytest.MonkeyPatch) -> None:
 @pytest.mark.asyncio
 async def test_login_publish_timeout(monkeypatch: pytest.MonkeyPatch) -> None:
     """Raises TimeoutError when login completion publish never arrives."""
-    lock, _ = make_lock(monkeypatch)
+    lock, _ = make_lock(monkeypatch, is_connected=True)
     monkeypatch.setattr(_os3_lock_base, "PUBLISH_TIMEOUT", 0.01)
 
     with pytest.raises(asyncio.TimeoutError):
@@ -449,7 +495,7 @@ async def test_disconnect_disconnected(monkeypatch: pytest.MonkeyPatch) -> None:
 @pytest.mark.asyncio
 async def test_fetch_firmware_version(monkeypatch: pytest.MonkeyPatch) -> None:
     """Fetches and decodes the firmware version after login."""
-    lock, os3_device = make_lock(monkeypatch)
+    lock, os3_device = make_lock(monkeypatch, is_connected=True)
     publish_status(lock, 1)
     await lock.login()
     os3_device.send_command.return_value = _protocol_types.ReceivedSesameResponse(
@@ -562,15 +608,32 @@ def test_generate_qr_url_without_secret(monkeypatch: pytest.MonkeyPatch) -> None
         lock.generate_qr_url("Base", _const.KeyLevel.OWNER)
 
 
-def test_properties_initial(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Reports delegated state and initial authentication status."""
-    lock, os3_device = make_lock(monkeypatch, is_connected=True)
+def test_properties_initial() -> None:
+    """Reports state from a scanned device before a protocol is created."""
+    advertisement_data = _protocol_types.SesameAdvertisementData(
+        _const.ProductModel.SESAME_5,
+        True,
+        TEST_UUID,
+    )
+    scanned_device = _protocol_types.ScannedSesameDevice(
+        Mock(address=TEST_ADDRESS),
+        advertisement_data,
+    )
+    lock = DummyLock(scanned_device)
 
     assert lock.address == TEST_ADDRESS
-    assert lock.is_connected is True
+    assert lock.is_connected is False
     assert lock.is_logged_in is False
     assert lock.device_status == _const.DeviceStatus.DISCONNECTED
-    assert lock.advertisement_data == os3_device.advertisement_data
+    assert lock.advertisement_data == advertisement_data
+
+
+def test_advertisement_data_missing_before_address_scan() -> None:
+    """Raises SesameConnectionError before an address-only lock is scanned."""
+    lock = DummyLock(TEST_ADDRESS)
+
+    with pytest.raises(_exc.SesameConnectionError, match="Not scanned yet"):
+        _ = lock.advertisement_data
 
 
 def test_mech_status_unavailable(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -619,6 +682,9 @@ async def test_on_unexpected_disconnect_reconnects(
 ) -> None:
     """Schedules auto-reconnection and logs in again when configured."""
     lock, os3_device = make_lock(monkeypatch, auto_reconnection_limit=1)
+    type(os3_device).is_connected = property(
+        lambda _: os3_device.connect.await_count > 0
+    )
     original_sleep = asyncio.sleep
     monkeypatch.setattr(_os3_lock_base.asyncio, "sleep", AsyncMock())
 
@@ -697,7 +763,7 @@ async def test_on_unexpected_disconnect_callback_after_cleanup(
 ) -> None:
     """Invokes disconnect callbacks after the device state has been cleaned up."""
     observed_statuses: list[_const.DeviceStatus] = []
-    lock, _ = make_lock(monkeypatch)
+    lock, _ = make_lock(monkeypatch, is_connected=True)
     lock.register_unexpected_disconnect_callback(
         lambda disconnected: observed_statuses.append(disconnected.device_status)
     )

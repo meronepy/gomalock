@@ -5,7 +5,7 @@ incoming BLE packets, reassembled messages, and constructed commands.
 """
 
 import struct
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Self
 from uuid import UUID
 
@@ -57,24 +57,17 @@ class ScannedSesameDevice:
     """Represents a Sesame device detected during scanning.
 
     Attributes:
-        address: The address of the detected device.
+        ble_device: The underlying BLE device instance.
         advertisement_data: The Sesame-specific advertisement data.
     """
 
-    address: str
+    @property
+    def address(self) -> str:
+        """Returns the BLE address of the detected device."""
+        return self.ble_device.address
+
+    ble_device: BLEDevice
     advertisement_data: SesameAdvertisementData
-
-
-@dataclass(frozen=True)
-class ScannedSesameWithBLE(ScannedSesameDevice):
-    """Internal scanned device retaining the Bleak device for direct connection.
-
-    Attributes:
-        ble_device: The original BLEDevice instance from the scan,
-            not included in repr or comparisons.
-    """
-
-    ble_device: BLEDevice = field(repr=False, compare=False)
 
 
 @dataclass(frozen=True)

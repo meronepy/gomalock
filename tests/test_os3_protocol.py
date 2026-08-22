@@ -34,8 +34,12 @@ def make_protocol(
     )
     publish_callback = Mock()
     disconnect_callback = Mock()
+    scanned_device = _protocol_types.ScannedSesameDevice(
+        Mock(address=TEST_ADDRESS),
+        advertisement,
+    )
     protocol = _os3_protocol.SesameOS3Protocol(
-        TEST_ADDRESS,
+        scanned_device,
         publish_callback,
         disconnect_callback,
     )
@@ -394,9 +398,9 @@ async def test_disconnect_disconnected(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_properties_delegate(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Exposes BLE transport address, connection state, and advertisement data."""
-    protocol, ble_device, _, _ = make_protocol(monkeypatch, is_connected=True)
+    """Exposes BLE state and the scanned advertisement data."""
+    protocol, _, _, _ = make_protocol(monkeypatch, is_connected=True)
 
     assert protocol.address == TEST_ADDRESS
     assert protocol.is_connected is True
-    assert protocol.advertisement_data == ble_device.advertisement_data
+    assert protocol.advertisement_data.product_model == _const.ProductModel.SESAME_5

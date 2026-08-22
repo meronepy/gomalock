@@ -10,17 +10,12 @@ from collections.abc import Callable
 
 from bleak import BleakClient
 from bleak.backends.characteristic import BleakGATTCharacteristic
+from bleak.backends.device import BLEDevice
 from bleak.exc import BleakDeviceNotFoundError
 
 from ._const import MTU_SIZE, SCAN_TIMEOUT, UUID_NOTIFICATION, UUID_WRITE, PacketType
 from ._exc import SesameConnectionError
-from ._protocol_types import (
-    ReceivedSesamePacket,
-    ScannedSesameDevice,
-    ScannedSesameWithBLE,
-    SesameAdvertisementData,
-)
-from ._scanner import SesameScanner
+from ._protocol_types import ReceivedSesamePacket
 
 logger = logging.getLogger(__name__)
 
@@ -54,22 +49,40 @@ class SesameBLETransport:
     the device via GATT characteristics.
     """
 
+    @property
+    def address(self) -> str:
+        """The address of the Sesame device.
+
+        Returns:
+            The BLE address as a string.
+        """
+        return self._ble_device.address
+
+    @property
+    def is_connected(self) -> bool:
+        """Indicates whether the BLE device is currently connected.
+
+        Returns:
+            True if connected, False otherwise.
+        """
+        return self._bleak_client is not None and self._bleak_client.is_connected
+
     def __init__(
         self,
-        address_or_device: str | ScannedSesameDevice,
+        ble_device: BLEDevice,
         received_data_callback: Callable[[bytes, bool], None],
         unexpected_disconnect_callback: Callable[[], None],
     ) -> None:
         """Initializes the SesameBLETransport.
 
         Args:
-            address_or_device: The BLE address or scanned Sesame device.
+            ble_device: The BLEDevice instance representing the Sesame device.
             received_data_callback: A function called with the reassembled payload
                 and encryption status when a full message is received.
             unexpected_disconnect_callback: A function called when the device
                 disconnects unexpectedly.
         """
-        self._identifier = address_or_device
+        self._ble_device = ble_device
         self._bleak_client: BleakClient | None = None
         self._received_data_callback = received_data_callback
         self._unexpected_disconnect_callback = unexpected_disconnect_callback
@@ -172,27 +185,6 @@ class SesameBLETransport:
         )
         self._received_data_callback(self._rx_buffer, packet.is_encrypted)
 
-    async def _get_scanned_sesame_with_ble(self) -> ScannedSesameWithBLE:
-        """Scans for and retrieves the Sesame device.
-
-        Returns:
-            The scanned Sesame device, including its BLE device and advertisement data.
-
-        Raises:
-            SesameConnectionError: If the device is not found within the timeout.
-        """
-
-        found_device = await SesameScanner.find_device_by_address(
-            self.address, timeout=SCAN_TIMEOUT
-        )
-        if found_device is None:
-            raise SesameConnectionError("Device not found")
-        if not isinstance(found_device, ScannedSesameWithBLE):
-            raise SesameConnectionError(
-                "Scanned device does not include BLE information"
-            )
-        return found_device
-
     def cleanup(self) -> None:
         """Resets the receive buffer."""
         self._rx_buffer = b""
@@ -210,11 +202,7 @@ class SesameBLETransport:
             "Initiating communication with Sesame device [address=%s]",
             self.address,
         )
-        if not isinstance(self._identifier, ScannedSesameWithBLE):
-            self._identifier = await self._get_scanned_sesame_with_ble()
-        self._bleak_client = BleakClient(
-            self._identifier.ble_device, self.on_disconnect
-        )
+        self._bleak_client = BleakClient(self._ble_device, self.on_disconnect)
         logger.debug("Initiating BLE connection [address=%s]", self.address)
         try:
             await self._bleak_client.connect(timeout=SCAN_TIMEOUT)
@@ -281,38 +269,3 @@ class SesameBLETransport:
                 "Skipping disconnect, device not connected [address=%s]",
                 self.address,
             )
-
-    @property
-    def address(self) -> str:
-        """The address of the Sesame device.
-
-        Returns:
-            The BLE address as a string.
-        """
-        if isinstance(self._identifier, str):
-            return self._identifier
-        return self._identifier.address
-
-    @property
-    def advertisement_data(self) -> SesameAdvertisementData:
-        """The advertisement data from the scanned Sesame device.
-
-        Returns:
-            The parsed advertisement data.
-
-        Raises:
-            SesameConnectionError: If initialized with only an address and the
-                device has not been scanned yet.
-        """
-        if isinstance(self._identifier, str):
-            raise SesameConnectionError("Not scanned yet")
-        return self._identifier.advertisement_data
-
-    @property
-    def is_connected(self) -> bool:
-        """Indicates whether the BLE device is currently connected.
-
-        Returns:
-            True if connected, False otherwise.
-        """
-        return self._bleak_client is not None and self._bleak_client.is_connected

@@ -2,6 +2,7 @@
 import asyncio
 import struct
 from collections.abc import Callable
+from typing import ClassVar
 from unittest.mock import AsyncMock, Mock
 from uuid import UUID
 
@@ -14,7 +15,7 @@ from tests.conftest import TEST_ADDRESS, TEST_UUID, make_manufacturer_data
 class FakeBleakScanner:
     """Captures scanner callbacks while avoiding real BLE scanning."""
 
-    instances: list["FakeBleakScanner"] = []
+    instances: ClassVar[list["FakeBleakScanner"]] = []
 
     def __init__(
         self,
@@ -63,13 +64,12 @@ def make_advertisement(
 def make_scanned_device(
     address: str = TEST_ADDRESS,
     advertisement: _protocol_types.SesameAdvertisementData | None = None,
-) -> _protocol_types.ScannedSesameWithBLE:
+) -> _protocol_types.ScannedSesameDevice:
     """Creates a scanned Sesame device test double."""
     ble_device = Mock(address=address)
-    return _protocol_types.ScannedSesameWithBLE(
-        address,
-        advertisement or make_advertisement(),
+    return _protocol_types.ScannedSesameDevice(
         ble_device,
+        advertisement or make_advertisement(),
     )
 
 
@@ -205,7 +205,7 @@ async def test_find_device_by_filter_timeout(
     async def fake_wait_for(coro, timeout):
         del timeout
         coro.close()
-        raise asyncio.TimeoutError
+        raise TimeoutError
 
     monkeypatch.setattr(_scanner.asyncio, "wait_for", fake_wait_for)
 
