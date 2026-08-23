@@ -178,11 +178,7 @@ class Sesame5(BaseOS3Lock[Sesame5MechStatus]):
                 )
             case _:
                 self._handle_unsupported_publish(publish_data)
-        if (
-            not self._login_completed.is_set()
-            and self._mech_status is not None
-            and self._mech_setting is not None
-        ):
+        if self._mech_status is not None and self._mech_setting is not None:
             self._login_completed.set()
 
     async def _set_locked(self, history_name: str, locked: bool) -> None:

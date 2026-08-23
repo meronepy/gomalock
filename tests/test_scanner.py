@@ -197,24 +197,16 @@ async def test_find_device_by_filter_match(monkeypatch: pytest.MonkeyPatch) -> N
 
 
 @pytest.mark.asyncio
-async def test_find_device_by_filter_timeout(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+async def test_find_device_by_filter_timeout() -> None:
     """Returns None when the search times out."""
-
-    async def fake_wait_for(coro, timeout):
-        del timeout
-        coro.close()
-        raise TimeoutError
-
-    monkeypatch.setattr(_scanner.asyncio, "wait_for", fake_wait_for)
-
     result = await _scanner.SesameScanner.find_device_by_filter(
         lambda _: True,
         timeout=0.01,
     )
 
     assert result is None
+    assert FakeBleakScanner.instances[-1].start_count == 1
+    assert FakeBleakScanner.instances[-1].stop_count == 1
 
 
 @pytest.mark.asyncio

@@ -164,8 +164,9 @@ class SesameScanner:
             the timeout expires.
         """
 
-        async def find_task():
-            async with cls() as scanner:
+        try:
+            logger.info("Searching for device with filter [timeout=%.1fs]", timeout)
+            async with asyncio.timeout(timeout), cls() as scanner:
                 async for scanned_sesame in scanner.detections():
                     if filter_func(scanned_sesame):
                         logger.info(
@@ -174,13 +175,9 @@ class SesameScanner:
                             scanned_sesame.advertisement_data.product_model.name,
                         )
                         return scanned_sesame
-
-        try:
-            logger.info("Searching for device with filter [timeout=%.1fs]", timeout)
-            return await asyncio.wait_for(find_task(), timeout)
         except TimeoutError:
             logger.info("Device search timed out")
-            return None
+        return None
 
     @classmethod
     async def find_device_by_address(

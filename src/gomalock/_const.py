@@ -277,45 +277,25 @@ class ResultCode(Enum):
     INVALID_ACTION = 9
 
 
-VOLTAGE_LEVELS = (
-    5.85,
-    5.82,
-    5.79,
-    5.76,
-    5.73,
-    5.70,
-    5.65,
-    5.60,
-    5.55,
-    5.50,
-    5.40,
-    5.20,
-    5.10,
-    5.0,
-    4.8,
-    4.6,
+BATTERY_LEVELS = (
+    (5.85, 100),
+    (5.82, 95),
+    (5.79, 90),
+    (5.76, 85),
+    (5.73, 80),
+    (5.70, 70),
+    (5.65, 60),
+    (5.60, 50),
+    (5.55, 40),
+    (5.50, 32),
+    (5.40, 21),
+    (5.20, 13),
+    (5.10, 10),
+    (5.0, 7),
+    (4.8, 3),
+    (4.6, 0),
 )
-"""Predefined battery voltage levels used to calculate remaining percentage."""
-
-BATTERY_PERCENTAGES = (
-    100.0,
-    95.0,
-    90.0,
-    85.0,
-    80.0,
-    70.0,
-    60.0,
-    50.0,
-    40.0,
-    32.0,
-    21.0,
-    13.0,
-    10.0,
-    7.0,
-    3.0,
-    0.0,
-)
-"""Battery percentages that map to the corresponding values in VOLTAGE_LEVELS."""
+"""Battery voltage thresholds paired with their remaining percentages."""
 
 COMPANY_ID = 0x055A
 """The assigned Bluetooth SIG company identifier for CANDYHOUSE, Inc."""

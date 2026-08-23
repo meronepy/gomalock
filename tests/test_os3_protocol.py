@@ -66,10 +66,10 @@ def publish_message(item_code: _const.ItemCode, payload: bytes = b"") -> bytes:
 @pytest.mark.parametrize(
     ("voltage", "expected"),
     [
-        (_const.VOLTAGE_LEVELS[0] + 0.1, int(_const.BATTERY_PERCENTAGES[0])),
-        (_const.VOLTAGE_LEVELS[-1] - 0.1, int(_const.BATTERY_PERCENTAGES[-1])),
-        (_const.VOLTAGE_LEVELS[0], int(_const.BATTERY_PERCENTAGES[0])),
-        (_const.VOLTAGE_LEVELS[-1], int(_const.BATTERY_PERCENTAGES[-1])),
+        (_const.BATTERY_LEVELS[0][0] + 0.1, _const.BATTERY_LEVELS[0][1]),
+        (_const.BATTERY_LEVELS[-1][0] - 0.1, _const.BATTERY_LEVELS[-1][1]),
+        (_const.BATTERY_LEVELS[0][0], _const.BATTERY_LEVELS[0][1]),
+        (_const.BATTERY_LEVELS[-1][0], _const.BATTERY_LEVELS[-1][1]),
     ],
 )
 def test_calculate_battery_percentage_bounds(
@@ -82,8 +82,8 @@ def test_calculate_battery_percentage_bounds(
 
 def test_calculate_battery_percentage_interpolated() -> None:
     """Interpolates between adjacent voltage table entries."""
-    upper = _const.VOLTAGE_LEVELS[0]
-    lower = _const.VOLTAGE_LEVELS[1]
+    upper = _const.BATTERY_LEVELS[0][0]
+    lower = _const.BATTERY_LEVELS[1][0]
     voltage = (upper + lower) / 2
 
     assert _os3_protocol.calculate_battery_percentage(voltage) == 97

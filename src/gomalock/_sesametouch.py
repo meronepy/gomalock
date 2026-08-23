@@ -81,7 +81,6 @@ class SesameTouch(BaseOS3Lock[SesameTouchMechStatus]):
                     publish_data.payload
                 )
                 self._notify_mech_status(self._mech_status)
+                self._login_completed.set()
             case _:
                 self._handle_unsupported_publish(publish_data)
-        if not self._login_completed.is_set() and self._mech_status is not None:
-            self._login_completed.set()

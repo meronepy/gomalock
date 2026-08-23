@@ -12,17 +12,17 @@ import struct
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
+from itertools import pairwise
 from typing import Self
 from urllib import parse
 from uuid import UUID
 
 from ._ble_transport import SesameBLETransport
 from ._const import (
-    BATTERY_PERCENTAGES,
+    BATTERY_LEVELS,
     HISTORY_TAG_MAX_LEN,
     PUBLISH_TIMEOUT,
     RESPONSE_TIMEOUT,
-    VOLTAGE_LEVELS,
     ItemCode,
     KeyLevel,
     OpCode,
@@ -68,19 +68,18 @@ def calculate_battery_percentage(battery_voltage: float) -> int:
     Raises:
         ValueError: If the voltage cannot be ordered against the lookup table.
     """
-    if battery_voltage >= VOLTAGE_LEVELS[0]:
-        return int(BATTERY_PERCENTAGES[0])
-    if battery_voltage <= VOLTAGE_LEVELS[-1]:
-        return int(BATTERY_PERCENTAGES[-1])
-    for i in range(len(VOLTAGE_LEVELS) - 1):
-        upper_voltage = VOLTAGE_LEVELS[i]
-        lower_voltage = VOLTAGE_LEVELS[i + 1]
+    if battery_voltage >= BATTERY_LEVELS[0][0]:
+        return BATTERY_LEVELS[0][1]
+    if battery_voltage <= BATTERY_LEVELS[-1][0]:
+        return BATTERY_LEVELS[-1][1]
+    for (upper_voltage, upper_percent), (
+        lower_voltage,
+        lower_percent,
+    ) in pairwise(BATTERY_LEVELS):
         if lower_voltage < battery_voltage <= upper_voltage:
             voltage_ratio = (battery_voltage - lower_voltage) / (
                 upper_voltage - lower_voltage
             )
-            upper_percent = BATTERY_PERCENTAGES[i]
-            lower_percent = BATTERY_PERCENTAGES[i + 1]
             return int((upper_percent - lower_percent) * voltage_ratio + lower_percent)
     raise ValueError("Unreachable code reached in battery percentage calculation")
 
@@ -414,14 +413,12 @@ class SesameOS3Protocol:
                 )
                 response = await asyncio.wait_for(response_future, RESPONSE_TIMEOUT)
             except asyncio.CancelledError as e:
-                self._response_futures.pop(command.item_code, None)
                 raise SesameConnectionError(
                     "Connection is lost while waiting for response"
                 ) from e
-            except Exception:
+            finally:
                 response_future.cancel()
                 self._response_futures.pop(command.item_code, None)
-                raise
             if response.result_code != ResultCode.SUCCESS:
                 raise SesameOperationError(
                     f"Operation failed: {response.result_code.name}",

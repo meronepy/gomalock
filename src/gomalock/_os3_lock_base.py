@@ -10,6 +10,7 @@ import logging
 import random
 from abc import ABC, abstractmethod
 from collections.abc import Callable
+from contextlib import suppress
 from dataclasses import dataclass
 from typing import Self
 
@@ -507,10 +508,8 @@ class BaseOS3Lock[MechStatusT: BaseOS3MechStatus](ABC):
         """Disconnects from the device and stops any active auto-reconnection tasks."""
         if self.is_background_reconnecting and self._reconnect_task is not None:
             self._reconnect_task.cancel()
-            try:
+            with suppress(asyncio.CancelledError):
                 await self._reconnect_task
-            except asyncio.CancelledError:
-                pass
         if self._os3_device is not None and self.is_connected:
             logger.info("Disconnecting from Sesame [address=%s]", self.address)
             self._device_status = DeviceStatus.DISCONNECTING
