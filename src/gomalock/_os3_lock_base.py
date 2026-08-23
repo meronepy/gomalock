@@ -317,6 +317,12 @@ class BaseOS3Lock[MechStatusT: BaseOS3MechStatus](ABC):
         if self._os3_device is not None:
             self._os3_device.cleanup()
 
+    def _require_logged_in_device(self) -> SesameOS3Protocol:
+        """Returns the protocol for an authenticated device."""
+        if self._os3_device is None or not self.is_logged_in:
+            raise SesameLoginError("Login is required")
+        return self._os3_device
+
     def _handle_unsupported_publish(self, publish_data: ReceivedSesamePublish) -> None:
         """Handles publish notifications unsupported by the concrete device."""
         logger.debug(
@@ -537,9 +543,8 @@ class BaseOS3Lock[MechStatusT: BaseOS3MechStatus](ABC):
             SesameLoginError: If not logged in.
             SesameOperationError: If the command fails.
         """
-        if self._os3_device is None or not self.is_logged_in:
-            raise SesameLoginError("Login is required to fetch firmware version")
-        response = await self._os3_device.send_command(
+        os3_device = self._require_logged_in_device()
+        response = await os3_device.send_command(
             SesameCommand(ItemCode.VERSION_TAG, b""), True
         )
         return response.payload.decode("utf-8")

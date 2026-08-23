@@ -82,13 +82,21 @@ class SesameBLETransport:
         return self._ble_device.address
 
     @property
+    def _connected_client(self) -> BleakClient | None:
+        """Returns the active Bleak client, if available."""
+        client = self._bleak_client
+        if client is None or not client.is_connected:
+            return None
+        return client
+
+    @property
     def is_connected(self) -> bool:
         """Indicates whether the BLE device is currently connected.
 
         Returns:
             True if connected, False otherwise.
         """
-        return self._bleak_client is not None and self._bleak_client.is_connected
+        return self._connected_client is not None
 
     def on_disconnect(self, client: BleakClient) -> None:
         """Handles BLE disconnection callbacks from Bleak.
@@ -210,7 +218,8 @@ class SesameBLETransport:
         Raises:
             SesameConnectionError: If the device is not connected.
         """
-        if not self.is_connected or self._bleak_client is None:
+        client = self._connected_client
+        if client is None:
             raise SesameConnectionError("Not connected")
         payload_max_len = MTU_SIZE - 1  # 1 byte for header
         total_len = len(send_data)
@@ -234,17 +243,18 @@ class SesameBLETransport:
                 total_packets,
                 len(packet),
             )
-            await self._bleak_client.write_gatt_char(UUID_WRITE, packet, response=False)
+            await client.write_gatt_char(UUID_WRITE, packet, response=False)
 
     async def disconnect(self) -> None:
         """Disconnects from the Sesame device if currently connected."""
-        if self.is_connected and self._bleak_client is not None:
-            logger.debug("Closing BLE connection [address=%s]", self.address)
-            self._is_expectedly_disconnected = True
-            await self._bleak_client.disconnect()
-            logger.debug("BLE connection closed [address=%s]", self.address)
-        else:
+        client = self._connected_client
+        if client is None:
             logger.debug(
                 "Skipping disconnect, device not connected [address=%s]",
                 self.address,
             )
+            return
+        logger.debug("Closing BLE connection [address=%s]", self.address)
+        self._is_expectedly_disconnected = True
+        await client.disconnect()
+        logger.debug("BLE connection closed [address=%s]", self.address)

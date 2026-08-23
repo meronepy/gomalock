@@ -7,7 +7,6 @@ the mechanical status and settings for Sesame 5 locks.
 
 import logging
 import struct
-from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Self
 
@@ -15,7 +14,7 @@ from ._const import ItemCode, MechStatusBitFlag, ModelGroup
 from ._exc import SesameLoginError
 from ._os3_lock_base import BaseOS3Lock, BaseOS3MechStatus
 from ._os3_protocol import create_history_tag
-from ._protocol_types import ReceivedSesamePublish, ScannedSesameDevice, SesameCommand
+from ._protocol_types import ReceivedSesamePublish, SesameCommand
 
 logger = logging.getLogger(__name__)
 
@@ -106,44 +105,7 @@ class Sesame5(BaseOS3Lock[Sesame5MechStatus]):
     """
 
     _VALID_MODEL_GROUPS = ModelGroup.SESAME_5
-
-    # Constructor arguments are intentionally kept separate for API clarity,
-    # so pylint: disable-next=too-many-arguments
-    def __init__(
-        self,
-        address_or_device: str | ScannedSesameDevice,
-        *,
-        secret_key: str | None = None,
-        mech_status_callback: (Callable[[Self, Sesame5MechStatus], None] | None) = None,
-        unexpected_disconnect_callback: Callable[[Self], None] | None = None,
-        reconnect_attempts: int = 0,
-    ) -> None:
-        """Initializes the Sesame 5 device handler.
-
-        Args:
-            address_or_device: The address of the device or a scanned Sesame
-                device object.
-                Passing a ScannedSesameDevice skips the discovery scan
-                performed before connection.
-            secret_key: The hex-encoded secret key used for login.
-            mech_status_callback: A function called whenever the device publishes
-                a new mechanical status.
-            unexpected_disconnect_callback: A function called when the device
-                disconnects unexpectedly.
-            reconnect_attempts: The maximum number of consecutive auto-reconnection
-                attempts.
-
-        Raises:
-            ValueError: If a ScannedSesameDevice is not a Sesame 5 model.
-        """
-        super().__init__(
-            address_or_device=address_or_device,
-            secret_key=secret_key,
-            mech_status_callback=mech_status_callback,
-            unexpected_disconnect_callback=unexpected_disconnect_callback,
-            reconnect_attempts=reconnect_attempts,
-        )
-        self._mech_setting: Sesame5MechSetting | None = None
+    _mech_setting: Sesame5MechSetting | None = None
 
     @property
     def mech_setting(self) -> Sesame5MechSetting:
@@ -195,8 +157,7 @@ class Sesame5(BaseOS3Lock[Sesame5MechStatus]):
                 or connection is lost while waiting for response.
             SesameOperationError: If the command is rejected by the device.
         """
-        if self._os3_device is None or not self.is_logged_in:
-            raise SesameLoginError("Login is required to send lock/unlock commands")
+        os3_device = self._require_logged_in_device()
         tag = create_history_tag(history_name)
         item_code = ItemCode.LOCK if locked else ItemCode.UNLOCK
         action = "lock" if locked else "unlock"
@@ -206,7 +167,7 @@ class Sesame5(BaseOS3Lock[Sesame5MechStatus]):
             self.address,
             history_name,
         )
-        await self._os3_device.send_command(
+        await os3_device.send_command(
             SesameCommand(item_code, tag), should_encrypt=True
         )
 
@@ -229,8 +190,7 @@ class Sesame5(BaseOS3Lock[Sesame5MechStatus]):
             SesameLoginError: If the device is not logged in.
             SesameOperationError: If the command is rejected by the device.
         """
-        if self._os3_device is None or not self.is_logged_in:
-            raise SesameLoginError("Login is required to set lock and unlock positions")
+        os3_device = self._require_logged_in_device()
         payload = struct.pack("<hh", lock_position, unlock_position)
         logger.info(
             "Setting lock positions [address=%s, lock_position=%d, unlock_position=%d]",
@@ -238,7 +198,7 @@ class Sesame5(BaseOS3Lock[Sesame5MechStatus]):
             lock_position,
             unlock_position,
         )
-        await self._os3_device.send_command(
+        await os3_device.send_command(
             SesameCommand(ItemCode.MECH_SETTING, payload), should_encrypt=True
         )
 
@@ -256,15 +216,14 @@ class Sesame5(BaseOS3Lock[Sesame5MechStatus]):
             SesameLoginError: If the device is not logged in.
             SesameOperationError: If the command is rejected by the device.
         """
-        if self._os3_device is None or not self.is_logged_in:
-            raise SesameLoginError("Login is required to set auto lock duration")
+        os3_device = self._require_logged_in_device()
         payload = struct.pack("<H", auto_lock_duration)
         logger.info(
             "Setting auto lock duration [address=%s, auto_lock_duration=%d]",
             self.address,
             auto_lock_duration,
         )
-        await self._os3_device.send_command(
+        await os3_device.send_command(
             SesameCommand(ItemCode.AUTOLOCK, payload), should_encrypt=True
         )
 
