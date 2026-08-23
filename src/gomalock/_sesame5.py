@@ -32,6 +32,21 @@ class Sesame5MechStatus(BaseOS3MechStatus):
     target: int
     position: int
 
+    @property
+    def is_in_lock_range(self) -> bool:
+        """Indicates whether the current position is considered locked."""
+        return bool(self._status_flags & MechStatusBitFlag.IS_IN_LOCK_RANGE)
+
+    @property
+    def is_in_unlock_range(self) -> bool:
+        """Indicates whether the current position is considered unlocked."""
+        return bool(self._status_flags & MechStatusBitFlag.IS_IN_UNLOCK_RANGE)
+
+    @property
+    def is_stop(self) -> bool:
+        """Indicates whether the motor is currently idle."""
+        return bool(self._status_flags & MechStatusBitFlag.IS_STOP)
+
     @classmethod
     def from_payload(cls, payload: bytes) -> Self:
         """Decodes the mechanical status from a publish payload.
@@ -47,21 +62,6 @@ class Sesame5MechStatus(BaseOS3MechStatus):
         """
         raw_battery, target, position, status_flags = struct.unpack("<HhhB", payload)
         return cls(raw_battery, status_flags, target, position)
-
-    @property
-    def is_in_lock_range(self) -> bool:
-        """Indicates whether the current position is considered locked."""
-        return bool(self._status_flags & MechStatusBitFlag.IS_IN_LOCK_RANGE)
-
-    @property
-    def is_in_unlock_range(self) -> bool:
-        """Indicates whether the current position is considered unlocked."""
-        return bool(self._status_flags & MechStatusBitFlag.IS_IN_UNLOCK_RANGE)
-
-    @property
-    def is_stop(self) -> bool:
-        """Indicates whether the motor is currently idle."""
-        return bool(self._status_flags & MechStatusBitFlag.IS_STOP)
 
 
 @dataclass(frozen=True)
@@ -144,6 +144,20 @@ class Sesame5(BaseOS3Lock[Sesame5MechStatus]):
             reconnect_attempts=reconnect_attempts,
         )
         self._mech_setting: Sesame5MechSetting | None = None
+
+    @property
+    def mech_setting(self) -> Sesame5MechSetting:
+        """The most recently received mechanical settings.
+
+        Returns:
+            The mechanical setting object.
+
+        Raises:
+            SesameLoginError: If mechanical settings have not been received yet.
+        """
+        if self._mech_setting is None:
+            raise SesameLoginError("Login is required to access mechanical setting")
+        return self._mech_setting
 
     def on_published(self, publish_data: ReceivedSesamePublish) -> None:
         """Processes published status and setting updates from the device.
@@ -302,17 +316,3 @@ class Sesame5(BaseOS3Lock[Sesame5MechStatus]):
             await self.unlock(history_name)
         else:
             await self.lock(history_name)
-
-    @property
-    def mech_setting(self) -> Sesame5MechSetting:
-        """The most recently received mechanical settings.
-
-        Returns:
-            The mechanical setting object.
-
-        Raises:
-            SesameLoginError: If mechanical settings have not been received yet.
-        """
-        if self._mech_setting is None:
-            raise SesameLoginError("Login is required to access mechanical setting")
-        return self._mech_setting

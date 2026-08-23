@@ -52,6 +52,15 @@ class SesameScanner:
         if callback is not None:
             self.register_detection_callback(callback)
 
+    @property
+    def detected_devices(self) -> dict[str, ScannedSesameDevice]:
+        """Returns devices detected during the current scanning session.
+
+        Returns:
+            A mapping of addresses to ScannedSesameDevice objects.
+        """
+        return dict(self._seen_devices)
+
     def _bleak_detection_callback(
         self, device: BLEDevice, adv_data: AdvertisementData
     ) -> None:
@@ -136,15 +145,6 @@ class SesameScanner:
                 yield await detected_devices_queue.get()
         finally:
             unregister_detection_callback()
-
-    @property
-    def detected_devices(self) -> dict[str, ScannedSesameDevice]:
-        """Returns devices detected during the current scanning session.
-
-        Returns:
-            A mapping of addresses to ScannedSesameDevice objects.
-        """
-        return dict(self._seen_devices)
 
     @classmethod
     async def find_device_by_filter(

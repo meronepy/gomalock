@@ -49,24 +49,6 @@ class SesameBLETransport:
     the device via GATT characteristics.
     """
 
-    @property
-    def address(self) -> str:
-        """The address of the Sesame device.
-
-        Returns:
-            The BLE address as a string.
-        """
-        return self._ble_device.address
-
-    @property
-    def is_connected(self) -> bool:
-        """Indicates whether the BLE device is currently connected.
-
-        Returns:
-            True if connected, False otherwise.
-        """
-        return self._bleak_client is not None and self._bleak_client.is_connected
-
     def __init__(
         self,
         ble_device: BLEDevice,
@@ -89,6 +71,24 @@ class SesameBLETransport:
         self._is_expectedly_disconnected = False
         self._unexpected_disconnect_task: asyncio.Task | None = None
         self._rx_buffer = b""
+
+    @property
+    def address(self) -> str:
+        """The address of the Sesame device.
+
+        Returns:
+            The BLE address as a string.
+        """
+        return self._ble_device.address
+
+    @property
+    def is_connected(self) -> bool:
+        """Indicates whether the BLE device is currently connected.
+
+        Returns:
+            True if connected, False otherwise.
+        """
+        return self._bleak_client is not None and self._bleak_client.is_connected
 
     def on_disconnect(self, client: BleakClient) -> None:
         """Handles BLE disconnection callbacks from Bleak.

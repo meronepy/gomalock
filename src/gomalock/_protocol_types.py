@@ -61,13 +61,13 @@ class ScannedSesameDevice:
         advertisement_data: The Sesame-specific advertisement data.
     """
 
+    ble_device: BLEDevice
+    advertisement_data: SesameAdvertisementData
+
     @property
     def address(self) -> str:
         """Returns the BLE address of the detected device."""
         return self.ble_device.address
-
-    ble_device: BLEDevice
-    advertisement_data: SesameAdvertisementData
 
 
 @dataclass(frozen=True)
@@ -81,6 +81,21 @@ class ReceivedSesamePacket:
 
     header: int
     payload: bytes
+
+    @property
+    def is_beginning(self) -> bool:
+        """Indicates whether this packet is the start of a sequence."""
+        return bool(self.header & PacketType.BEGINNING)
+
+    @property
+    def is_end(self) -> bool:
+        """Indicates whether this packet concludes a sequence."""
+        return bool(self.header & (PacketType.PLAINTEXT_END | PacketType.ENCRYPTED_END))
+
+    @property
+    def is_encrypted(self) -> bool:
+        """Indicates whether this packet marks the message as encrypted."""
+        return bool(self.header & PacketType.ENCRYPTED_END)
 
     @classmethod
     def from_ble_data(cls, ble_data: bytes) -> Self:
@@ -98,21 +113,6 @@ class ReceivedSesamePacket:
         header = ble_data[0]
         payload = ble_data[1:]
         return cls(header, payload)
-
-    @property
-    def is_beginning(self) -> bool:
-        """Indicates whether this packet is the start of a sequence."""
-        return bool(self.header & PacketType.BEGINNING)
-
-    @property
-    def is_end(self) -> bool:
-        """Indicates whether this packet concludes a sequence."""
-        return bool(self.header & (PacketType.PLAINTEXT_END | PacketType.ENCRYPTED_END))
-
-    @property
-    def is_encrypted(self) -> bool:
-        """Indicates whether this packet marks the message as encrypted."""
-        return bool(self.header & PacketType.ENCRYPTED_END)
 
 
 @dataclass(frozen=True)

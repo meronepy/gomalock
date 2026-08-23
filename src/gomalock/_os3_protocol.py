@@ -128,6 +128,33 @@ class OS3QRCode:
     registration_session_token: bytes = bytes(4)
     key_index: bytes = bytes(2)
 
+    @property
+    def qr_url(self) -> str:
+        """Generates a QR code URL compatible with the official Sesame app.
+
+        Returns:
+            The formatted URL string.
+        """
+        shared_key = struct.pack(
+            ">B16s4s2s16s",
+            self.product_model.value,
+            self.secret_key,
+            self.registration_session_token,
+            self.key_index,
+            self.device_uuid.bytes,
+        )
+        sk_b64 = base64.b64encode(shared_key).decode("ascii")
+        params = parse.urlencode(
+            {
+                "t": "sk",
+                "sk": sk_b64,
+                "l": self.key_level.value,
+                "n": self.device_name,
+            },
+            quote_via=parse.quote,
+        )
+        return f"ssm://UI?{params}"
+
     @classmethod
     def from_qr_url(cls, qr_url: str) -> Self:
         """Parses an OS3QRCode from an official app's QR code URL.
@@ -166,33 +193,6 @@ class OS3QRCode:
             key_index=key_index,
         )
 
-    @property
-    def qr_url(self) -> str:
-        """Generates a QR code URL compatible with the official Sesame app.
-
-        Returns:
-            The formatted URL string.
-        """
-        shared_key = struct.pack(
-            ">B16s4s2s16s",
-            self.product_model.value,
-            self.secret_key,
-            self.registration_session_token,
-            self.key_index,
-            self.device_uuid.bytes,
-        )
-        sk_b64 = base64.b64encode(shared_key).decode("ascii")
-        params = parse.urlencode(
-            {
-                "t": "sk",
-                "sk": sk_b64,
-                "l": self.key_level.value,
-                "n": self.device_name,
-            },
-            quote_via=parse.quote,
-        )
-        return f"ssm://UI?{params}"
-
 
 class SesameOS3Protocol:
     """Manages the OS3 communication lifecycle and command transmission.
@@ -229,6 +229,37 @@ class SesameOS3Protocol:
         ] = {}
         self._session_token_future: asyncio.Future[bytes] | None = None
         self._cipher: OS3Cipher | None = None
+
+    @property
+    def address(self) -> str:
+        """The address of the device.
+
+        Returns:
+            The device address as a string.
+        """
+        return self._ble_device.address
+
+    @property
+    def is_connected(self) -> bool:
+        """Indicates whether the BLE connection is active.
+
+        Returns:
+            True if connected, False otherwise.
+        """
+        return self._ble_device.is_connected
+
+    @property
+    def advertisement_data(self) -> SesameAdvertisementData:
+        """The advertisement data from the scanned Sesame device.
+
+        Returns:
+            The parsed advertisement data.
+
+        Raises:
+            SesameConnectionError: If initialized with only an address and the
+                device has not been scanned yet.
+        """
+        return self._advertisement_data
 
     def on_received(self, data: bytes, is_encrypted: bool) -> None:
         """Processes and routes reassembled data from the BLE transport layer.
@@ -481,34 +512,3 @@ class SesameOS3Protocol:
         """Terminates the BLE connection if it is active."""
         if self.is_connected:
             await self._ble_device.disconnect()
-
-    @property
-    def address(self) -> str:
-        """The address of the device.
-
-        Returns:
-            The device address as a string.
-        """
-        return self._ble_device.address
-
-    @property
-    def is_connected(self) -> bool:
-        """Indicates whether the BLE connection is active.
-
-        Returns:
-            True if connected, False otherwise.
-        """
-        return self._ble_device.is_connected
-
-    @property
-    def advertisement_data(self) -> SesameAdvertisementData:
-        """The advertisement data from the scanned Sesame device.
-
-        Returns:
-            The parsed advertisement data.
-
-        Raises:
-            SesameConnectionError: If initialized with only an address and the
-                device has not been scanned yet.
-        """
-        return self._advertisement_data

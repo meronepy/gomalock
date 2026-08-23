@@ -129,6 +129,93 @@ class BaseOS3Lock[MechStatusT: BaseOS3MechStatus](ABC):
         if unexpected_disconnect_callback is not None:
             self.register_unexpected_disconnect_callback(unexpected_disconnect_callback)
 
+    @property
+    def is_background_reconnecting(self) -> bool:
+        """Indicates whether a reconnection task is running in the background.
+
+        Returns:
+            False if no task exists, the task has completed,
+            or the caller is the reconnection task itself.
+        """
+        return (
+            self._reconnect_task is not None
+            and not self._reconnect_task.done()
+            and asyncio.current_task() is not self._reconnect_task
+        )
+
+    @property
+    def address(self) -> str:
+        """The address of the device.
+
+        Returns:
+            The device address as a string.
+        """
+        if self._os3_device is None:
+            if isinstance(self._address_or_device, ScannedSesameDevice):
+                return self._address_or_device.address
+            return self._address_or_device
+        return self._os3_device.address
+
+    @property
+    def mech_status(self) -> MechStatusT:
+        """The most recent mechanical status.
+
+        Returns:
+            The mechanical status object.
+
+        Raises:
+            SesameLoginError: If mechanical status has not been received yet.
+        """
+        if self._mech_status is None:
+            raise SesameLoginError("Login is required to access mechanical status")
+        return self._mech_status
+
+    @property
+    def is_connected(self) -> bool:
+        """Indicates whether there is an active BLE connection.
+
+        Returns:
+            True if connected, False otherwise.
+        """
+        if self._os3_device is None:
+            return False
+        return self._os3_device.is_connected
+
+    @property
+    def is_logged_in(self) -> bool:
+        """Indicates whether the device has been successfully authenticated.
+
+        Returns:
+            True if logged in, False otherwise.
+        """
+        return self._device_status == DeviceStatus.LOGGED_IN
+
+    @property
+    def device_status(self) -> DeviceStatus:
+        """The current connection and authentication status.
+
+        Returns:
+            The DeviceStatus enum value.
+        """
+        return self._device_status
+
+    @property
+    def advertisement_data(self) -> SesameAdvertisementData:
+        """The parsed advertisement data from the scanned Sesame device.
+
+        Returns:
+            The advertisement data object.
+
+        Raises:
+            SesameConnectionError: If initialized with only an address and the
+                device has not been scanned yet.
+        """
+        if self._os3_device is None:
+            if isinstance(self._address_or_device, ScannedSesameDevice):
+                return self._address_or_device.advertisement_data
+            raise SesameConnectionError("Not scanned yet")
+        return self._os3_device.advertisement_data
+
     @classmethod
     def _validate_model(cls, advertisement_data: SesameAdvertisementData) -> None:
         """Validates that the device's model group is supported by this class.
@@ -505,90 +592,3 @@ class BaseOS3Lock[MechStatusT: BaseOS3MechStatus](ABC):
         Args:
             publish_data: The data object published by the device.
         """
-
-    @property
-    def is_background_reconnecting(self) -> bool:
-        """Indicates whether a reconnection task is running in the background.
-
-        Returns:
-            False if no task exists, the task has completed,
-            or the caller is the reconnection task itself.
-        """
-        return (
-            self._reconnect_task is not None
-            and not self._reconnect_task.done()
-            and asyncio.current_task() is not self._reconnect_task
-        )
-
-    @property
-    def address(self) -> str:
-        """The address of the device.
-
-        Returns:
-            The device address as a string.
-        """
-        if self._os3_device is None:
-            if isinstance(self._address_or_device, ScannedSesameDevice):
-                return self._address_or_device.address
-            return self._address_or_device
-        return self._os3_device.address
-
-    @property
-    def mech_status(self) -> MechStatusT:
-        """The most recent mechanical status.
-
-        Returns:
-            The mechanical status object.
-
-        Raises:
-            SesameLoginError: If mechanical status has not been received yet.
-        """
-        if self._mech_status is None:
-            raise SesameLoginError("Login is required to access mechanical status")
-        return self._mech_status
-
-    @property
-    def is_connected(self) -> bool:
-        """Indicates whether there is an active BLE connection.
-
-        Returns:
-            True if connected, False otherwise.
-        """
-        if self._os3_device is None:
-            return False
-        return self._os3_device.is_connected
-
-    @property
-    def is_logged_in(self) -> bool:
-        """Indicates whether the device has been successfully authenticated.
-
-        Returns:
-            True if logged in, False otherwise.
-        """
-        return self._device_status == DeviceStatus.LOGGED_IN
-
-    @property
-    def device_status(self) -> DeviceStatus:
-        """The current connection and authentication status.
-
-        Returns:
-            The DeviceStatus enum value.
-        """
-        return self._device_status
-
-    @property
-    def advertisement_data(self) -> SesameAdvertisementData:
-        """The parsed advertisement data from the scanned Sesame device.
-
-        Returns:
-            The advertisement data object.
-
-        Raises:
-            SesameConnectionError: If initialized with only an address and the
-                device has not been scanned yet.
-        """
-        if self._os3_device is None:
-            if isinstance(self._address_or_device, ScannedSesameDevice):
-                return self._address_or_device.advertisement_data
-            raise SesameConnectionError("Not scanned yet")
-        return self._os3_device.advertisement_data
