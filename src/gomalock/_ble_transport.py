@@ -11,7 +11,7 @@ from collections.abc import Callable
 from bleak import BleakClient
 from bleak.backends.characteristic import BleakGATTCharacteristic
 from bleak.backends.device import BLEDevice
-from bleak.exc import BleakDeviceNotFoundError
+from bleak.exc import BleakError
 
 from ._const import MTU_SIZE, SCAN_TIMEOUT, UUID_NOTIFICATION, UUID_WRITE, PacketType
 from ._exc import SesameConnectionError
@@ -193,13 +193,13 @@ class SesameBLETransport:
         logger.debug("Initiating BLE connection [address=%s]", self.address)
         try:
             await self._bleak_client.connect(timeout=SCAN_TIMEOUT)
-        except BleakDeviceNotFoundError as e:
+            logger.debug(
+                        "BLE connection established, starting BLE notification [address=%s]",
+                        self.address,
+                    )
+            await self._bleak_client.start_notify(UUID_NOTIFICATION, self.on_notification)
+        except (AttributeError, BleakError) as e:
             raise SesameConnectionError("Failed to connect to device") from e
-        logger.debug(
-            "BLE connection established, starting BLE notification [address=%s]",
-            self.address,
-        )
-        await self._bleak_client.start_notify(UUID_NOTIFICATION, self.on_notification)
         logger.debug(
             "BLE notifications started, communication with Sesame device established [address=%s]",
             self.address,
