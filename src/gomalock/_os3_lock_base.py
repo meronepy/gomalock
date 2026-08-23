@@ -116,7 +116,7 @@ class BaseOS3Lock[MechStatusT: BaseOS3MechStatus](ABC):
             convert_secret_key(secret_key) if secret_key is not None else None
         )
         self._reconnect_attempts = reconnect_attempts
-        self._reconnect_task: asyncio.Task | None = None
+        self._reconnect_task: asyncio.Task[None] | None = None
         self._reconnect_failure: SesameConnectionError | None = None
         self._mech_status: MechStatusT | None = None
         self._login_completed = asyncio.Event()
@@ -131,18 +131,17 @@ class BaseOS3Lock[MechStatusT: BaseOS3MechStatus](ABC):
             self.register_unexpected_disconnect_callback(unexpected_disconnect_callback)
 
     @property
-    def is_background_reconnecting(self) -> bool:
-        """Indicates whether a reconnection task is running in the background.
+    def _background_reconnect_task(self) -> asyncio.Task[None] | None:
+        """Returns the active background reconnection task, if available."""
+        task = self._reconnect_task
+        if task is None or task.done() or asyncio.current_task() is task:
+            return None
+        return task
 
-        Returns:
-            False if no task exists, the task has completed,
-            or the caller is the reconnection task itself.
-        """
-        return (
-            self._reconnect_task is not None
-            and not self._reconnect_task.done()
-            and asyncio.current_task() is not self._reconnect_task
-        )
+    @property
+    def is_background_reconnecting(self) -> bool:
+        """Indicates whether a reconnection task is running in the background."""
+        return self._background_reconnect_task is not None
 
     @property
     def address(self) -> str:
@@ -524,10 +523,11 @@ class BaseOS3Lock[MechStatusT: BaseOS3MechStatus](ABC):
 
     async def disconnect(self) -> None:
         """Disconnects from the device and stops any active auto-reconnection tasks."""
-        if self.is_background_reconnecting and self._reconnect_task is not None:
-            self._reconnect_task.cancel()
+        reconnect_task = self._background_reconnect_task
+        if reconnect_task is not None:
+            reconnect_task.cancel()
             with suppress(asyncio.CancelledError):
-                await self._reconnect_task
+                await reconnect_task
         device = self._connected_device
         if device is None:
             logger.debug(
