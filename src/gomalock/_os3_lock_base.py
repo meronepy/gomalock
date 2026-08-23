@@ -240,7 +240,7 @@ class BaseOS3Lock[MechStatusT: BaseOS3MechStatus](ABC):
             The current connected lock instance.
 
         Raises:
-            asyncio.TimeoutError: If connecting or logging in times out.
+            TimeoutError: If connecting or logging in times out.
             SesameConnectionError: If the BLE connection fails.
             SesameLoginError: If login is attempted but the secret key is missing.
         """
@@ -408,7 +408,7 @@ class BaseOS3Lock[MechStatusT: BaseOS3MechStatus](ABC):
 
         Raises:
             ValueError: If this class does not support the device with the given address.
-            asyncio.TimeoutError: If waiting for the session token times out.
+            TimeoutError: If waiting for the session token times out.
             SesameConnectionError: If a connection or auto-reconnection is already
                 in progress, or if the device cannot be found.
         """
@@ -446,7 +446,7 @@ class BaseOS3Lock[MechStatusT: BaseOS3MechStatus](ABC):
             The hex-encoded secret key.
 
         Raises:
-            asyncio.TimeoutError: If the registration response times out.
+            TimeoutError: If the registration response times out.
             SesameConnectionError: If the device is not connected.
             SesameError: If the device is already registered.
             SesameOperationError: If the registration command fails.
@@ -468,7 +468,7 @@ class BaseOS3Lock[MechStatusT: BaseOS3MechStatus](ABC):
             The integer login timestamp from the device.
 
         Raises:
-            asyncio.TimeoutError: If the login response or subsequent publish times out.
+            TimeoutError: If the login response or subsequent publish times out.
             SesameConnectionError: If the device is not connected or an auto-reconnection
                 is active.
             SesameLoginError: If already logged in or if no secret key is available.
@@ -537,7 +537,7 @@ class BaseOS3Lock[MechStatusT: BaseOS3MechStatus](ABC):
             The firmware version as a string.
 
         Raises:
-            asyncio.TimeoutError: If the response times out.
+            TimeoutError: If the response times out.
             UnicodeDecodeError: If the response payload cannot be decoded as UTF-8.
             SesameConnectionError: If the device is not connected.
             SesameLoginError: If not logged in.

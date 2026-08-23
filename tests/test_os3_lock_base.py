@@ -464,7 +464,7 @@ async def test_login_publish_timeout(monkeypatch: pytest.MonkeyPatch) -> None:
     lock, _ = make_lock(monkeypatch, is_connected=True)
     monkeypatch.setattr(_os3_lock_base, "PUBLISH_TIMEOUT", 0.01)
 
-    with pytest.raises(asyncio.TimeoutError):
+    with pytest.raises(TimeoutError):
         await lock.login()
 
 

@@ -152,7 +152,7 @@ class Sesame5(BaseOS3Lock[Sesame5MechStatus]):
 
         Raises:
             SesameLoginError: If the device is not logged in.
-            asyncio.TimeoutError: If the device fails to respond within the timeout.
+            TimeoutError: If the device fails to respond within the timeout.
             SesameConnectionError: If there is no active BLE connection
                 or connection is lost while waiting for response.
             SesameOperationError: If the command is rejected by the device.
@@ -184,7 +184,7 @@ class Sesame5(BaseOS3Lock[Sesame5MechStatus]):
             unlock_position: The target angle for the unlocked state.
 
         Raises:
-            asyncio.TimeoutError: If the device fails to respond within the timeout.
+            TimeoutError: If the device fails to respond within the timeout.
             SesameConnectionError: If there is no active BLE connection
                 or connection is lost while waiting for response.
             SesameLoginError: If the device is not logged in.
@@ -210,7 +210,7 @@ class Sesame5(BaseOS3Lock[Sesame5MechStatus]):
                 0 to disable auto-lock.
 
         Raises:
-            asyncio.TimeoutError: If the device fails to respond within the timeout.
+            TimeoutError: If the device fails to respond within the timeout.
             SesameConnectionError: If there is no active BLE connection
                 or connection is lost while waiting for response.
             SesameLoginError: If the device is not logged in.
@@ -234,7 +234,7 @@ class Sesame5(BaseOS3Lock[Sesame5MechStatus]):
             history_name: The tag to record in the device's history log.
 
         Raises:
-            asyncio.TimeoutError: If the device fails to respond in time.
+            TimeoutError: If the device fails to respond in time.
             SesameConnectionError: If there is no active BLE connection.
             SesameLoginError: If the device is not logged in.
             SesameOperationError: If the lock command is rejected.
@@ -248,7 +248,7 @@ class Sesame5(BaseOS3Lock[Sesame5MechStatus]):
             history_name: The tag to record in the device's history log.
 
         Raises:
-            asyncio.TimeoutError: If the device fails to respond in time.
+            TimeoutError: If the device fails to respond in time.
             SesameConnectionError: If there is no active BLE connection.
             SesameLoginError: If the device is not logged in.
             SesameOperationError: If the unlock command is rejected.
@@ -262,7 +262,7 @@ class Sesame5(BaseOS3Lock[Sesame5MechStatus]):
             history_name: The tag to record in the device's history log.
 
         Raises:
-            asyncio.TimeoutError: If the device fails to respond in time.
+            TimeoutError: If the device fails to respond in time.
             SesameConnectionError: If there is no active BLE connection.
             SesameLoginError: If the device is not logged in.
             SesameOperationError: If the toggle command is rejected.

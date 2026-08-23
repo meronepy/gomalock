@@ -1,5 +1,4 @@
 # pylint: disable=missing-module-docstring
-import asyncio
 import base64
 import math
 import struct
@@ -258,7 +257,7 @@ async def test_send_command_timeout(monkeypatch: pytest.MonkeyPatch) -> None:
     protocol, _, _, _ = make_protocol(monkeypatch)
     monkeypatch.setattr(_os3_protocol, "RESPONSE_TIMEOUT", 0.01)
 
-    with pytest.raises(asyncio.TimeoutError):
+    with pytest.raises(TimeoutError):
         await protocol.send_command(
             _protocol_types.SesameCommand(_const.ItemCode.LOGIN, b""),
             should_encrypt=False,

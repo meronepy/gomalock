@@ -45,7 +45,7 @@ while True:
     try:
         await sesame5.unlock("gomalock")
         break
-    except (asyncio.TimeoutError, gomalock.SesameConnectionError):
+    except (TimeoutError, gomalock.SesameConnectionError):
         await sesame5.wait_for_reconnect()
 ```
 

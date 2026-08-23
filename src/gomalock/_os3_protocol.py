@@ -380,7 +380,7 @@ class SesameOS3Protocol:
             The parsed response from the device.
 
         Raises:
-            asyncio.TimeoutError: If the device fails to respond within the timeout.
+            TimeoutError: If the device fails to respond within the timeout.
             SesameConnectionError: If there is no active BLE connection
                 or connection is lost while waiting for response.
             SesameLoginError: If encryption is requested but the session is not established.
@@ -433,7 +433,7 @@ class SesameOS3Protocol:
         """Establishes a BLE connection and awaits the initial session token.
 
         Raises:
-            asyncio.TimeoutError: If the device does not publish its session token.
+            TimeoutError: If the device does not publish its session token.
             SesameConnectionError: If a connection already exists or the device
                 cannot be found.
         """
@@ -453,7 +453,7 @@ class SesameOS3Protocol:
             The newly derived 16-byte secret key.
 
         Raises:
-            asyncio.TimeoutError: If the device fails to respond within the timeout.
+            TimeoutError: If the device fails to respond within the timeout.
             ValueError: If the device returns an invalid response payload
                 that cannot be processed to derive the secret key.
             SesameConnectionError: If there is no active BLE connection
@@ -486,7 +486,7 @@ class SesameOS3Protocol:
             The integer timestamp provided by the device upon successful login.
 
         Raises:
-            asyncio.TimeoutError: If the device fails to respond within the timeout.
+            TimeoutError: If the device fails to respond within the timeout.
             SesameConnectionError: If there is no active BLE connection
                 or connection is lost while waiting for response.
             SesameLoginError: If a login session is already active.
