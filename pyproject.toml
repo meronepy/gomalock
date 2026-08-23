@@ -21,7 +21,6 @@ classifiers = [
 ]
 dependencies = [
     "bleak>=3.0.2",
-    "bleak-retry-connector>=4.6.3",
     "pycryptodome>=3.23.0",
 ]
 

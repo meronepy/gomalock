@@ -106,27 +106,10 @@ class SesameBLETransport:
             return
         if self._unexpected_disconnect_task is not None:
             return
-        self._unexpected_disconnect_task = asyncio.create_task(
-            self._handle_unexpected_disconnect(client)
-        )
+        self._unexpected_disconnect_task = asyncio.create_task(client.disconnect())
         self._unexpected_disconnect_task.add_done_callback(
             self._on_unexpected_disconnect_task_done
         )
-
-    async def _handle_unexpected_disconnect(self, client: BleakClient) -> None:
-        """Cleans up the Bleak client after an unexpected disconnection.
-
-        Explicitly calling `disconnect()` after an unexpected disconnection is
-        necessary to clear the internal state of the Bleak client (especially
-        on Windows). This prevents an 'unhandled services changed event'
-        error when `connect()` is called again. The unexpected-disconnect
-        callback is invoked even if cleanup raises, and any exception is left
-        for the task completion callback to log.
-        """
-        try:
-            await client.disconnect()
-        finally:
-            self._unexpected_disconnect_callback()
 
     def _on_unexpected_disconnect_task_done(self, task: asyncio.Task) -> None:
         """Handles the completion of the unexpected disconnect task.
@@ -137,19 +120,14 @@ class SesameBLETransport:
             task: The completed task that handled the disconnection.
         """
         self._unexpected_disconnect_task = None
-        if task.cancelled():
-            logger.debug(
-                "Unexpected disconnection handling task was cancelled [address=%s]",
-                self.address,
-            )
-            return
-        exception = task.exception()
+        exception = None if task.cancelled() else task.exception()
         if exception is not None:
-            logger.exception(
-                "Unexpected disconnection handling failed [address=%s]",
+            logger.error(
+                "BleakClient disconnect task failed [address=%s]",
                 self.address,
                 exc_info=exception,
             )
+        self._unexpected_disconnect_callback()
 
     def on_notification(
         self, characteristic: BleakGATTCharacteristic, data: bytearray
@@ -187,6 +165,7 @@ class SesameBLETransport:
 
     def cleanup(self) -> None:
         """Resets the receive buffer."""
+        self._bleak_client = None
         self._rx_buffer = b""
 
     async def connect_and_start_notification(self) -> None:
