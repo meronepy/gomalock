@@ -272,6 +272,17 @@ class BaseOS3Lock[MechStatusT: BaseOS3MechStatus](ABC):
             and not self.is_background_reconnecting
         ):
             self._reconnect_task = asyncio.create_task(self._auto_reconnect())
+            self._reconnect_task.add_done_callback(self._on_reconnect_task_done)
+
+    def _on_reconnect_task_done(self, task: asyncio.Task[bool]) -> None:
+        """Retrieves and logs unexpected background reconnection failures."""
+        exception = None if task.cancelled() else task.exception()
+        if exception is not None:
+            logger.error(
+                "Auto-reconnection aborted [address=%s]",
+                self.address,
+                exc_info=exception,
+            )
 
     async def _auto_reconnect(self) -> bool:
         """Attempts to reconnect and log in to the device automatically.
@@ -299,13 +310,6 @@ class BaseOS3Lock[MechStatusT: BaseOS3MechStatus](ABC):
                     "Auto-reconnection attempt failed [address=%s]", self.address
                 )
                 continue
-            # Bleak backends can surface platform-specific exception types. Keep
-            # an unexpected failure contained inside this background task.
-            except Exception:  # pylint: disable=broad-exception-caught
-                logger.exception(
-                    "Auto-reconnection aborted [address=%s]", self.address
-                )
-                return False
             return True
         logger.error(
             "Auto-reconnection failed [address=%s, attempts=%d]",

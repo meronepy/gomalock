@@ -788,6 +788,26 @@ async def test_on_unexpected_disconnect_reconnect_failure(
 
 
 @pytest.mark.asyncio
+async def test_on_unexpected_disconnect_reconnect_unexpected_error(
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Preserves unexpected errors while retrieving them from the background task."""
+    lock, os3_device = make_lock(monkeypatch, auto_reconnection_limit=1)
+    os3_device.connect.side_effect = RuntimeError("unexpected")
+    monkeypatch.setattr(_os3_lock_base.asyncio, "sleep", AsyncMock())
+
+    lock._device_status = _const.DeviceStatus.CONNECTED
+    lock.on_unexpected_disconnect()
+
+    with pytest.raises(RuntimeError, match="unexpected"):
+        await lock.wait_for_reconnect()
+
+    assert "Auto-reconnection aborted" in caplog.text
+    assert lock.device_status == _const.DeviceStatus.DISCONNECTED
+
+
+@pytest.mark.asyncio
 async def test_wait_for_reconnect_cancellation_does_not_cancel_reconnect(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
