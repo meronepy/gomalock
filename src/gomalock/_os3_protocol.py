@@ -226,10 +226,10 @@ class SesameOS3Protocol:
         )
         self._advertisement_data = scanned_sesame.advertisement_data
         self._publish_data_callback = publish_data_callback
-        self._send_lock = asyncio.Lock()
-        self._response_futures: dict[
+        self._command_lock = asyncio.Lock()
+        self._response_waiter: tuple[
             ItemCode, asyncio.Future[ReceivedSesameResponse]
-        ] = {}
+        ] | None = None
         self._session_token_future: asyncio.Future[bytes] | None = None
         self._cipher: OS3Cipher | None = None
 
@@ -331,15 +331,19 @@ class SesameOS3Protocol:
             response_data.item_code.name,
             response_data.result_code.name,
         )
-        response_future = self._response_futures.pop(response_data.item_code, None)
-        if response_future is None or response_future.done():
+        response_waiter = self._response_waiter
+        if (
+            response_waiter is None
+            or response_waiter[0] != response_data.item_code
+            or response_waiter[1].done()
+        ):
             logger.warning(
                 "Received unexpected response [item=%s, result=%s]",
                 response_data.item_code.name,
                 response_data.result_code.name,
             )
             return
-        response_future.set_result(response_data)
+        response_waiter[1].set_result(response_data)
 
     def _handle_publish(self, publish_data: ReceivedSesamePublish) -> None:
         """Routes publish data or resolves the initial session token future.
@@ -362,9 +366,10 @@ class SesameOS3Protocol:
 
     def _cleanup(self) -> None:
         """Fails pending futures and resets the cipher state."""
-        for future in self._response_futures.values():
-            if not future.done():
-                future.set_exception(SesameConnectionError("Connection lost"))
+        if self._response_waiter is not None:
+            response_future = self._response_waiter[1]
+            if not response_future.done():
+                response_future.set_exception(SesameConnectionError("Connection lost"))
         if (
             self._session_token_future is not None
             and not self._session_token_future.done()
@@ -372,7 +377,7 @@ class SesameOS3Protocol:
             self._session_token_future.set_exception(
                 SesameConnectionError("Connection lost")
             )
-        self._response_futures.clear()
+        self._response_waiter = None
         self._session_token_future = None
         self._cipher = None
 
@@ -395,7 +400,7 @@ class SesameOS3Protocol:
             SesameLoginError: If encryption is requested but the session is not established.
             SesameOperationError: If the device returns an error result code.
         """
-        async with self._send_lock:
+        async with self._command_lock:
             logger.debug(
                 "Sending command [item=%s, encrypted=%s, payload_size=%d]",
                 command.item_code.name,
@@ -412,7 +417,7 @@ class SesameOS3Protocol:
             response_future: asyncio.Future[ReceivedSesameResponse] = (
                 asyncio.get_running_loop().create_future()
             )
-            self._response_futures[command.item_code] = response_future
+            self._response_waiter = command.item_code, response_future
             try:
                 await self._ble_device.write_gatt(send_data, should_encrypt)
                 logger.debug(
@@ -423,16 +428,16 @@ class SesameOS3Protocol:
                 response = await asyncio.wait_for(response_future, RESPONSE_TIMEOUT)
             finally:
                 response_future.cancel()
-                self._response_futures.pop(command.item_code, None)
-            if response.result_code != ResultCode.SUCCESS:
-                raise SesameOperationError(
-                    f"Operation failed: {response.result_code.name}",
-                    response.result_code,
-                )
-            logger.debug(
-                "Command completed successfully [item=%s]", command.item_code.name
+                self._response_waiter = None
+        if response.result_code != ResultCode.SUCCESS:
+            raise SesameOperationError(
+                f"Operation failed: {response.result_code.name}",
+                response.result_code,
             )
-            return response
+        logger.debug(
+            "Command completed successfully [item=%s]", command.item_code.name
+        )
+        return response
 
     async def connect(self) -> None:
         """Establishes a BLE connection and awaits the initial session token.

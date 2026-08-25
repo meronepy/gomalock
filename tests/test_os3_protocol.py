@@ -198,11 +198,11 @@ async def test_unexpected_disconnect_cleans_protocol_before_callback(
     """Fails pending work and clears session state before notifying the owner."""
     protocol, ble_device, _, disconnect_callback = make_protocol(monkeypatch)
     response_future = asyncio.get_running_loop().create_future()
-    protocol._response_futures[_const.ItemCode.LOGIN] = response_future
+    protocol._response_waiter = _const.ItemCode.LOGIN, response_future
     protocol._cipher = Mock()
     observed_state: list[tuple[bool, bool]] = []
     disconnect_callback.side_effect = lambda: observed_state.append(
-        (not protocol._response_futures, protocol._cipher is None)
+        (protocol._response_waiter is None, protocol._cipher is None)
     )
 
     ble_device.trigger_unexpected_disconnect()
@@ -233,6 +233,68 @@ async def test_send_command_success(monkeypatch: pytest.MonkeyPatch) -> None:
         _const.ResultCode.SUCCESS,
         b"ok",
     )
+    assert protocol._response_waiter is None
+
+
+@pytest.mark.asyncio
+async def test_send_command_ignores_response_for_another_item(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Waits for the requested item when an unexpected response arrives first."""
+    protocol, ble_device, _, _ = make_protocol(monkeypatch)
+    command = _protocol_types.SesameCommand(_const.ItemCode.LOGIN, b"")
+
+    async def write_gatt(send_data: bytes, is_encrypted: bool) -> None:
+        del send_data, is_encrypted
+        protocol.on_received(response_message(_const.ItemCode.VERSION_TAG), False)
+        protocol.on_received(response_message(_const.ItemCode.LOGIN), False)
+
+    ble_device.write_gatt.side_effect = write_gatt
+
+    response = await protocol.send_command(command, should_encrypt=False)
+
+    assert response.item_code == _const.ItemCode.LOGIN
+
+
+@pytest.mark.asyncio
+async def test_send_command_serializes_response_waits(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Keeps only one command and response wait in flight."""
+    protocol, ble_device, _, _ = make_protocol(monkeypatch)
+    first_written = asyncio.Event()
+    release_first = asyncio.Event()
+    sent_items: list[_const.ItemCode] = []
+
+    async def write_gatt(send_data: bytes, is_encrypted: bool) -> None:
+        del is_encrypted
+        item_code = _const.ItemCode(send_data[0])
+        sent_items.append(item_code)
+        if item_code == _const.ItemCode.LOGIN:
+            first_written.set()
+            await release_first.wait()
+        protocol.on_received(response_message(item_code), False)
+
+    ble_device.write_gatt.side_effect = write_gatt
+    first_task = asyncio.create_task(
+        protocol.send_command(
+            _protocol_types.SesameCommand(_const.ItemCode.LOGIN, b""), False
+        )
+    )
+    await first_written.wait()
+    second_task = asyncio.create_task(
+        protocol.send_command(
+            _protocol_types.SesameCommand(_const.ItemCode.VERSION_TAG, b""), False
+        )
+    )
+    await asyncio.sleep(0)
+
+    assert sent_items == [_const.ItemCode.LOGIN]
+
+    release_first.set()
+    await asyncio.gather(first_task, second_task)
+
+    assert sent_items == [_const.ItemCode.LOGIN, _const.ItemCode.VERSION_TAG]
 
 
 @pytest.mark.asyncio
@@ -282,6 +344,8 @@ async def test_send_command_timeout(monkeypatch: pytest.MonkeyPatch) -> None:
             should_encrypt=False,
         )
 
+    assert protocol._response_waiter is None
+
 
 @pytest.mark.asyncio
 async def test_send_command_connection_lost(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -327,6 +391,8 @@ async def test_send_command_cancellation(monkeypatch: pytest.MonkeyPatch) -> Non
 
     with pytest.raises(asyncio.CancelledError):
         await command_task
+
+    assert protocol._response_waiter is None
 
 
 @pytest.mark.asyncio
