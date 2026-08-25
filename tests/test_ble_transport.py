@@ -129,10 +129,30 @@ async def test_on_disconnect_expected_disconnect() -> None:
     disconnect_callback.assert_not_called()
 
 
+def test_on_disconnect_stale_client() -> None:
+    """Ignores delayed callbacks from a client that is no longer active."""
+    transport, stale_client, _, disconnect_callback = make_transport()
+    active_client = Mock()
+    transport._bleak_client = active_client
+
+    transport.on_disconnect(stale_client)
+
+    assert transport._bleak_client is active_client
+    stale_client.disconnect.assert_not_awaited()
+    disconnect_callback.assert_not_called()
+
+
 @pytest.mark.asyncio
 async def test_on_disconnect_unexpected_disconnect() -> None:
-    """Disconnects the client and invokes the callback on unexpected drops."""
-    transport, client, _, disconnect_callback = make_transport(is_connected=True)
+    """Reports an unexpected drop only after explicitly disconnecting the client."""
+    transport, client, _, disconnect_callback = make_transport(is_connected=False)
+    events: list[str] = []
+
+    async def disconnect() -> None:
+        events.append("disconnect")
+
+    client.disconnect.side_effect = disconnect
+    disconnect_callback.side_effect = lambda: events.append("callback")
     transport.on_disconnect(client)
 
     for _ in range(3):
@@ -142,12 +162,13 @@ async def test_on_disconnect_unexpected_disconnect() -> None:
 
     client.disconnect.assert_awaited_once_with()
     disconnect_callback.assert_called_once_with()
+    assert events == ["disconnect", "callback"]
 
 
 @pytest.mark.asyncio
 async def test_on_disconnect_while_task_pending() -> None:
     """Does not schedule duplicate cleanup tasks while one is active."""
-    transport, client, _, disconnect_callback = make_transport(is_connected=True)
+    transport, client, _, disconnect_callback = make_transport(is_connected=False)
     disconnect_started = asyncio.Event()
     release_disconnect = asyncio.Event()
 
@@ -172,9 +193,35 @@ async def test_on_disconnect_while_task_pending() -> None:
 
 
 @pytest.mark.asyncio
+async def test_disconnect_waits_for_unexpected_cleanup() -> None:
+    """Joins an in-flight unexpected-disconnect cleanup task."""
+    transport, client, _, disconnect_callback = make_transport(is_connected=False)
+    disconnect_started = asyncio.Event()
+    release_disconnect = asyncio.Event()
+
+    async def disconnect() -> None:
+        disconnect_started.set()
+        await release_disconnect.wait()
+
+    client.disconnect.side_effect = disconnect
+    transport.on_disconnect(client)
+    await disconnect_started.wait()
+
+    explicit_disconnect = asyncio.create_task(transport.disconnect())
+    await asyncio.sleep(0)
+    assert explicit_disconnect.done() is False
+
+    release_disconnect.set()
+    await explicit_disconnect
+
+    client.disconnect.assert_awaited_once_with()
+    disconnect_callback.assert_called_once_with()
+
+
+@pytest.mark.asyncio
 async def test_on_disconnect_cleanup_failure() -> None:
-    """Logs cleanup failures after invoking the user callback."""
-    transport, client, _, disconnect_callback = make_transport(is_connected=True)
+    """Reports the disconnect even if explicit client cleanup fails."""
+    transport, client, _, disconnect_callback = make_transport(is_connected=False)
     client.disconnect.side_effect = RuntimeError("disconnect failed")
 
     transport.on_disconnect(client)
@@ -195,6 +242,7 @@ async def test_connect_and_start_notification_success(
 ) -> None:
     """Connects to the supplied BLE device and starts notifications."""
     transport, client, _, _ = make_transport(is_connected=False)
+    transport._bleak_client = None
     bleak_client = Mock(return_value=client)
     monkeypatch.setattr(_ble_transport, "BleakClient", bleak_client)
 
@@ -225,11 +273,36 @@ async def test_connect_and_start_notification_bleak_not_found(
 ) -> None:
     """Wraps BleakDeviceNotFoundError in SesameConnectionError."""
     transport, client, _, _ = make_transport(is_connected=False)
+    transport._bleak_client = None
     client.connect.side_effect = BleakDeviceNotFoundError(TEST_ADDRESS)
     monkeypatch.setattr(_ble_transport, "BleakClient", Mock(return_value=client))
 
     with pytest.raises(_exc.SesameConnectionError):
         await transport.connect_and_start_notification()
+
+
+@pytest.mark.asyncio
+async def test_connect_and_start_notification_disconnected_during_setup(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Does not report success if the active client drops during setup."""
+    transport, client, _, disconnect_callback = make_transport(is_connected=False)
+    transport._bleak_client = None
+
+    async def connect(*, timeout: float) -> None:
+        del timeout
+        transport.on_disconnect(client)
+
+    client.connect.side_effect = connect
+    monkeypatch.setattr(_ble_transport, "BleakClient", Mock(return_value=client))
+
+    with pytest.raises(_exc.SesameConnectionError, match="lost during setup"):
+        await transport.connect_and_start_notification()
+    await transport.disconnect()
+
+    client.start_notify.assert_not_awaited()
+    client.disconnect.assert_awaited_once_with()
+    disconnect_callback.assert_called_once_with()
 
 
 @pytest.mark.asyncio
@@ -277,12 +350,12 @@ async def test_write_gatt_disconnected() -> None:
 
 @pytest.mark.asyncio
 async def test_disconnect_disconnected() -> None:
-    """Does nothing when the BLE client is already disconnected."""
+    """Releases an owned BLE client even when the link is already down."""
     transport, client, _, _ = make_transport(is_connected=False)
 
     await transport.disconnect()
 
-    client.disconnect.assert_not_awaited()
+    client.disconnect.assert_awaited_once_with()
 
 
 def test_properties_available() -> None:

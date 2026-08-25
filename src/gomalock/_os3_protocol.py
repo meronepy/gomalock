@@ -215,10 +215,14 @@ class SesameOS3Protocol:
             unexpected_disconnect_callback: A function called when the BLE
                 connection drops unexpectedly.
         """
+        def on_unexpected_disconnect() -> None:
+            self._cleanup()
+            unexpected_disconnect_callback()
+
         self._ble_device = SesameBLETransport(
             scanned_sesame.ble_device,
             self.on_received,
-            unexpected_disconnect_callback,
+            on_unexpected_disconnect,
         )
         self._advertisement_data = scanned_sesame.advertisement_data
         self._publish_data_callback = publish_data_callback
@@ -356,16 +360,21 @@ class SesameOS3Protocol:
         else:
             self._publish_data_callback(publish_data)
 
-    def cleanup(self) -> None:
-        """Cancels pending futures and resets the cipher state."""
+    def _cleanup(self) -> None:
+        """Fails pending futures and resets the cipher state."""
         for future in self._response_futures.values():
-            future.cancel()
-        if self._session_token_future is not None:
-            self._session_token_future.cancel()
+            if not future.done():
+                future.set_exception(SesameConnectionError("Connection lost"))
+        if (
+            self._session_token_future is not None
+            and not self._session_token_future.done()
+        ):
+            self._session_token_future.set_exception(
+                SesameConnectionError("Connection lost")
+            )
         self._response_futures.clear()
         self._session_token_future = None
         self._cipher = None
-        self._ble_device.cleanup()
 
     async def send_command(
         self, command: SesameCommand, should_encrypt: bool
@@ -412,10 +421,6 @@ class SesameOS3Protocol:
                     RESPONSE_TIMEOUT,
                 )
                 response = await asyncio.wait_for(response_future, RESPONSE_TIMEOUT)
-            except asyncio.CancelledError as e:
-                raise SesameConnectionError(
-                    "Connection is lost while waiting for response"
-                ) from e
             finally:
                 response_future.cancel()
                 self._response_futures.pop(command.item_code, None)
@@ -439,12 +444,20 @@ class SesameOS3Protocol:
         """
         if self.is_connected:
             raise SesameConnectionError("Already connected")
-        self._session_token_future = asyncio.get_running_loop().create_future()
-        await self._ble_device.connect_and_start_notification()
-        logger.debug(
-            "Waiting for INITIAL including session token [timeout=%ds]", PUBLISH_TIMEOUT
-        )
-        await asyncio.wait_for(self._session_token_future, PUBLISH_TIMEOUT)
+        session_token_future = asyncio.get_running_loop().create_future()
+        self._session_token_future = session_token_future
+        try:
+            await self._ble_device.connect_and_start_notification()
+            logger.debug(
+                "Waiting for INITIAL including session token [timeout=%ds]",
+                PUBLISH_TIMEOUT,
+            )
+            await asyncio.wait_for(session_token_future, PUBLISH_TIMEOUT)
+        except BaseException:
+            session_token_future.cancel()
+            if self._session_token_future is session_token_future:
+                self._session_token_future = None
+            raise
 
     async def register(self) -> bytes:
         """Executes the registration handshake to derive a device secret key.
@@ -506,6 +519,8 @@ class SesameOS3Protocol:
         return int.from_bytes(response.payload, "little")
 
     async def disconnect(self) -> None:
-        """Terminates the BLE connection if it is active."""
-        if self.is_connected:
+        """Releases the BLE transport and clears protocol state."""
+        try:
             await self._ble_device.disconnect()
+        finally:
+            self._cleanup()

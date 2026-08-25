@@ -68,8 +68,7 @@ class SesameBLETransport:
         self._bleak_client: BleakClient | None = None
         self._received_data_callback = received_data_callback
         self._unexpected_disconnect_callback = unexpected_disconnect_callback
-        self._is_expectedly_disconnected = False
-        self._unexpected_disconnect_task: asyncio.Task | None = None
+        self._disconnect_task: asyncio.Task[None] | None = None
         self._rx_buffer = b""
 
     @property
@@ -105,21 +104,17 @@ class SesameBLETransport:
             client: The BleakClient instance that disconnected.
         """
         logger.debug(
-            "BLE disconnected callback invoked [address=%s, is_expected=%s]",
+            "BLE disconnected callback invoked [address=%s]",
             self.address,
-            self._is_expectedly_disconnected,
         )
-        if self._is_expectedly_disconnected:
-            self._is_expectedly_disconnected = False
+        if client is not self._bleak_client:
             return
-        if self._unexpected_disconnect_task is not None:
-            return
-        self._unexpected_disconnect_task = asyncio.create_task(client.disconnect())
-        self._unexpected_disconnect_task.add_done_callback(
-            self._on_unexpected_disconnect_task_done
-        )
+        self._bleak_client = None
+        # Bleak still needs disconnect() after link loss to clear backend state.
+        self._disconnect_task = asyncio.create_task(client.disconnect())
+        self._disconnect_task.add_done_callback(self._disconnect_task_done)
 
-    def _on_unexpected_disconnect_task_done(self, task: asyncio.Task) -> None:
+    def _disconnect_task_done(self, task: asyncio.Task[None]) -> None:
         """Handles the completion of the unexpected disconnect task.
 
         Logs any exceptions raised during the cleanup process.
@@ -127,7 +122,9 @@ class SesameBLETransport:
         Args:
             task: The completed task that handled the disconnection.
         """
-        self._unexpected_disconnect_task = None
+        if self._disconnect_task is task:
+            self._disconnect_task = None
+        self._rx_buffer = b""
         exception = None if task.cancelled() else task.exception()
         if exception is not None:
             logger.error(
@@ -171,11 +168,6 @@ class SesameBLETransport:
         )
         self._received_data_callback(self._rx_buffer, packet.is_encrypted)
 
-    def cleanup(self) -> None:
-        """Resets the receive buffer."""
-        self._bleak_client = None
-        self._rx_buffer = b""
-
     async def connect_and_start_notification(self) -> None:
         """Connects to the device and starts receiving notifications.
 
@@ -183,21 +175,26 @@ class SesameBLETransport:
             SesameConnectionError: If already connected, if the device cannot be
                 found, or if the connection attempt fails.
         """
-        if self.is_connected:
-            raise SesameConnectionError("Already connected")
+        if self._bleak_client is not None or self._disconnect_task is not None:
+            raise SesameConnectionError("Connection already exists")
         logger.debug(
             "Initiating communication with Sesame device [address=%s]",
             self.address,
         )
-        self._bleak_client = BleakClient(self._ble_device, self.on_disconnect)
+        client = BleakClient(self._ble_device, self.on_disconnect)
+        self._bleak_client = client
         logger.debug("Initiating BLE connection [address=%s]", self.address)
         try:
-            await self._bleak_client.connect(timeout=SCAN_TIMEOUT)
+            await client.connect(timeout=SCAN_TIMEOUT)
+            if self._bleak_client is not client:
+                raise SesameConnectionError("Connection lost during setup")
             logger.debug(
-                        "BLE connection established, starting BLE notification [address=%s]",
-                        self.address,
-                    )
-            await self._bleak_client.start_notify(UUID_NOTIFICATION, self.on_notification)
+                "BLE connection established, starting BLE notification [address=%s]",
+                self.address,
+            )
+            await client.start_notify(UUID_NOTIFICATION, self.on_notification)
+            if self._bleak_client is not client:
+                raise SesameConnectionError("Connection lost during setup")
         except (AttributeError, BleakError) as e:
             raise SesameConnectionError("Failed to connect to device") from e
         logger.debug(
@@ -246,15 +243,19 @@ class SesameBLETransport:
             await client.write_gatt_char(UUID_WRITE, packet, response=False)
 
     async def disconnect(self) -> None:
-        """Disconnects from the Sesame device if currently connected."""
-        client = self._connected_client
+        """Releases the current Bleak client, regardless of connection state."""
+        disconnect_task = self._disconnect_task
+        if disconnect_task is not None:
+            await asyncio.shield(disconnect_task)
+            return
+        client, self._bleak_client = self._bleak_client, None
+        self._rx_buffer = b""
         if client is None:
             logger.debug(
-                "Skipping disconnect, device not connected [address=%s]",
+                "Skipping disconnect, no BLE client [address=%s]",
                 self.address,
             )
             return
         logger.debug("Closing BLE connection [address=%s]", self.address)
-        self._is_expectedly_disconnected = True
         await client.disconnect()
         logger.debug("BLE connection closed [address=%s]", self.address)

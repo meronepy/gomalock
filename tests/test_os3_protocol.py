@@ -1,4 +1,5 @@
-# pylint: disable=missing-module-docstring
+# pylint: disable=missing-module-docstring,protected-access
+import asyncio
 import base64
 import math
 import struct
@@ -26,11 +27,8 @@ def make_protocol(
         is_connected=is_connected,
         advertisement=advertisement,
     )
-    monkeypatch.setattr(
-        _os3_protocol,
-        "SesameBLETransport",
-        Mock(return_value=ble_device),
-    )
+    transport_factory = Mock(return_value=ble_device)
+    monkeypatch.setattr(_os3_protocol, "SesameBLETransport", transport_factory)
     publish_callback = Mock()
     disconnect_callback = Mock()
     scanned_device = _protocol_types.ScannedSesameDevice(
@@ -42,6 +40,7 @@ def make_protocol(
         publish_callback,
         disconnect_callback,
     )
+    ble_device.trigger_unexpected_disconnect = transport_factory.call_args.args[2]
     return protocol, ble_device, publish_callback, disconnect_callback
 
 
@@ -193,6 +192,26 @@ def test_on_received_encrypted_without_login(monkeypatch: pytest.MonkeyPatch) ->
 
 
 @pytest.mark.asyncio
+async def test_unexpected_disconnect_cleans_protocol_before_callback(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Fails pending work and clears session state before notifying the owner."""
+    protocol, ble_device, _, disconnect_callback = make_protocol(monkeypatch)
+    response_future = asyncio.get_running_loop().create_future()
+    protocol._response_futures[_const.ItemCode.LOGIN] = response_future
+    protocol._cipher = Mock()
+    observed_state: list[tuple[bool, bool]] = []
+    disconnect_callback.side_effect = lambda: observed_state.append(
+        (not protocol._response_futures, protocol._cipher is None)
+    )
+
+    ble_device.trigger_unexpected_disconnect()
+
+    assert observed_state == [(True, True)]
+    assert isinstance(response_future.exception(), _exc.SesameConnectionError)
+
+
+@pytest.mark.asyncio
 async def test_send_command_success(monkeypatch: pytest.MonkeyPatch) -> None:
     """Sends a command and returns a successful response."""
     protocol, ble_device, _, _ = make_protocol(monkeypatch)
@@ -265,6 +284,52 @@ async def test_send_command_timeout(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 @pytest.mark.asyncio
+async def test_send_command_connection_lost(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Raises SesameConnectionError when protocol cleanup interrupts a response."""
+    protocol, ble_device, _, disconnect_callback = make_protocol(monkeypatch)
+
+    async def write_gatt(send_data: bytes, is_encrypted: bool) -> None:
+        del send_data, is_encrypted
+        ble_device.trigger_unexpected_disconnect()
+
+    ble_device.write_gatt.side_effect = write_gatt
+
+    with pytest.raises(_exc.SesameConnectionError, match="Connection lost"):
+        await protocol.send_command(
+            _protocol_types.SesameCommand(_const.ItemCode.LOGIN, b""),
+            should_encrypt=False,
+        )
+
+    disconnect_callback.assert_called_once_with()
+
+
+@pytest.mark.asyncio
+async def test_send_command_cancellation(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Propagates caller cancellation instead of treating it as connection loss."""
+    protocol, ble_device, _, _ = make_protocol(monkeypatch)
+    write_started = asyncio.Event()
+
+    async def write_gatt(send_data: bytes, is_encrypted: bool) -> None:
+        del send_data, is_encrypted
+        write_started.set()
+        await asyncio.Event().wait()
+
+    ble_device.write_gatt.side_effect = write_gatt
+    command_task = asyncio.create_task(
+        protocol.send_command(
+            _protocol_types.SesameCommand(_const.ItemCode.LOGIN, b""),
+            should_encrypt=False,
+        )
+    )
+    await write_started.wait()
+
+    command_task.cancel()
+
+    with pytest.raises(asyncio.CancelledError):
+        await command_task
+
+
+@pytest.mark.asyncio
 async def test_connect_success(monkeypatch: pytest.MonkeyPatch) -> None:
     """Connects and waits for the initial session token publish."""
     protocol, ble_device, _, _ = make_protocol(monkeypatch)
@@ -282,6 +347,22 @@ async def test_connect_success(monkeypatch: pytest.MonkeyPatch) -> None:
     await protocol.connect()
 
     ble_device.connect_and_start_notification.assert_awaited_once_with()
+
+
+@pytest.mark.asyncio
+async def test_connect_transport_failure_cancels_session_wait(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Does not leave an unobserved session future after setup fails."""
+    protocol, ble_device, _, _ = make_protocol(monkeypatch)
+    ble_device.connect_and_start_notification.side_effect = (
+        _exc.SesameConnectionError("failed")
+    )
+
+    with pytest.raises(_exc.SesameConnectionError):
+        await protocol.connect()
+
+    assert protocol._session_token_future is None
 
 
 @pytest.mark.asyncio
@@ -388,12 +469,12 @@ async def test_disconnect_connected(monkeypatch: pytest.MonkeyPatch) -> None:
 
 @pytest.mark.asyncio
 async def test_disconnect_disconnected(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Skips BLE disconnect when already disconnected."""
+    """Releases the BLE transport even when the link is already down."""
     protocol, ble_device, _, _ = make_protocol(monkeypatch, is_connected=False)
 
     await protocol.disconnect()
 
-    ble_device.disconnect.assert_not_awaited()
+    ble_device.disconnect.assert_awaited_once_with()
 
 
 def test_properties_delegate(monkeypatch: pytest.MonkeyPatch) -> None:

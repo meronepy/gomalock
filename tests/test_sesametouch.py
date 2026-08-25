@@ -267,12 +267,12 @@ async def test_disconnect_connected(monkeypatch: pytest.MonkeyPatch) -> None:
 
 @pytest.mark.asyncio
 async def test_disconnect_disconnected(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Skips protocol disconnect when already disconnected."""
+    """Releases the protocol even when the link is already down."""
     device, os3_device = make_touch(monkeypatch, is_connected=False)
 
     await device.disconnect()
 
-    os3_device.disconnect.assert_not_awaited()
+    os3_device.disconnect.assert_awaited_once_with()
 
 
 @pytest.mark.asyncio

@@ -71,6 +71,8 @@ def make_lock(
         reconnect_attempts=auto_reconnection_limit,
     )
     lock._os3_device = os3_device
+    if is_connected:
+        lock._device_status = _const.DeviceStatus.CONNECTED
     return lock, os3_device
 
 
@@ -312,6 +314,30 @@ async def test_connect_device_not_found(monkeypatch: pytest.MonkeyPatch) -> None
 
 
 @pytest.mark.asyncio
+async def test_connect_cancellation_disconnects_protocol(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Releases a partially initialized protocol when connection is cancelled."""
+    lock, os3_device = make_lock(monkeypatch)
+    connect_started = asyncio.Event()
+
+    async def connect() -> None:
+        connect_started.set()
+        await asyncio.Event().wait()
+
+    os3_device.connect.side_effect = connect
+    connect_task = asyncio.create_task(lock.connect())
+    await connect_started.wait()
+
+    connect_task.cancel()
+
+    with pytest.raises(asyncio.CancelledError):
+        await connect_task
+    os3_device.disconnect.assert_awaited_once_with()
+    assert lock.device_status == _const.DeviceStatus.DISCONNECTED
+
+
+@pytest.mark.asyncio
 async def test_connect_connected(monkeypatch: pytest.MonkeyPatch) -> None:
     """Raises SesameConnectionError when already connected."""
     lock, os3_device = make_lock(monkeypatch, is_connected=True)
@@ -334,6 +360,7 @@ async def test_connect_reconnecting(monkeypatch: pytest.MonkeyPatch) -> None:
         await sleep_blocker
 
     monkeypatch.setattr(_os3_lock_base.asyncio, "sleep", blocked_sleep)
+    lock._device_status = _const.DeviceStatus.CONNECTED
     lock.on_unexpected_disconnect()
     await original_sleep(0)
 
@@ -446,6 +473,7 @@ async def test_login_reconnecting(monkeypatch: pytest.MonkeyPatch) -> None:
         await sleep_blocker
 
     monkeypatch.setattr(_os3_lock_base.asyncio, "sleep", blocked_sleep)
+    lock._device_status = _const.DeviceStatus.CONNECTED
     lock.on_unexpected_disconnect()
     await original_sleep(0)
 
@@ -484,12 +512,12 @@ async def test_disconnect_connected(monkeypatch: pytest.MonkeyPatch) -> None:
 
 @pytest.mark.asyncio
 async def test_disconnect_disconnected(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Skips protocol disconnect when already disconnected."""
+    """Releases the protocol even when the link is already down."""
     lock, os3_device = make_lock(monkeypatch, is_connected=False)
 
     await lock.disconnect()
 
-    os3_device.disconnect.assert_not_awaited()
+    os3_device.disconnect.assert_awaited_once_with()
 
 
 @pytest.mark.asyncio
@@ -548,6 +576,32 @@ async def test_disconnect_cancels_reconnection(
     await lock.disconnect()
 
     os3_device.disconnect.assert_awaited_once_with()
+
+
+@pytest.mark.asyncio
+async def test_disconnect_waits_for_connect(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Serializes explicit disconnect behind an active connection attempt."""
+    lock, os3_device = make_lock(monkeypatch)
+    connect_started = asyncio.Event()
+    release_connect = asyncio.Event()
+
+    async def connect() -> None:
+        connect_started.set()
+        await release_connect.wait()
+
+    os3_device.connect.side_effect = connect
+    connect_task = asyncio.create_task(lock.connect())
+    await connect_started.wait()
+    disconnect_task = asyncio.create_task(lock.disconnect())
+    await asyncio.sleep(0)
+
+    os3_device.disconnect.assert_not_awaited()
+    release_connect.set()
+    await connect_task
+    await disconnect_task
+
+    os3_device.disconnect.assert_awaited_once_with()
+    assert lock.device_status == _const.DeviceStatus.DISCONNECTED
 
 
 def test_generate_qr_url_owner(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -695,6 +749,7 @@ async def test_on_unexpected_disconnect_reconnects(
 
     os3_device.login.side_effect = login_side_effect
 
+    lock._device_status = _const.DeviceStatus.CONNECTED
     lock.on_unexpected_disconnect()
     for _ in range(3):
         if os3_device.login.await_count:
@@ -703,6 +758,7 @@ async def test_on_unexpected_disconnect_reconnects(
 
     os3_device.connect.assert_awaited_once_with()
     os3_device.login.assert_awaited_once_with(bytes.fromhex("00" * 16))
+    await lock.wait_for_reconnect()
     assert lock.device_status == _const.DeviceStatus.LOGGED_IN
     assert lock.mech_status.value == 8
 
@@ -718,6 +774,7 @@ async def test_on_unexpected_disconnect_reconnect_failure(
     monkeypatch.setattr(_os3_lock_base.asyncio, "sleep", AsyncMock())
     monkeypatch.setattr(_os3_lock_base.random, "random", Mock(return_value=0.0))
 
+    lock._device_status = _const.DeviceStatus.CONNECTED
     lock.on_unexpected_disconnect()
     for _ in range(5):
         if os3_device.connect.await_count == 2:
@@ -725,7 +782,39 @@ async def test_on_unexpected_disconnect_reconnect_failure(
         await original_sleep(0)
 
     assert os3_device.connect.await_count == 2
+    with pytest.raises(_exc.SesameConnectionError):
+        await lock.wait_for_reconnect()
     assert lock.device_status == _const.DeviceStatus.DISCONNECTED
+
+
+@pytest.mark.asyncio
+async def test_wait_for_reconnect_cancellation_does_not_cancel_reconnect(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Keeps the owned reconnect task alive when one waiter is cancelled."""
+    lock, _ = make_lock(monkeypatch)
+    reconnect_started = asyncio.Event()
+    release_reconnect = asyncio.Event()
+
+    async def reconnect() -> bool:
+        reconnect_started.set()
+        await release_reconnect.wait()
+        return True
+
+    reconnect_task = asyncio.create_task(reconnect())
+    lock._reconnect_task = reconnect_task
+    waiter = asyncio.create_task(lock.wait_for_reconnect())
+    await reconnect_started.wait()
+    await asyncio.sleep(0)
+
+    waiter.cancel()
+
+    with pytest.raises(asyncio.CancelledError):
+        await waiter
+    assert reconnect_task.cancelled() is False
+
+    release_reconnect.set()
+    await reconnect_task
 
 
 @pytest.mark.asyncio
@@ -813,6 +902,7 @@ async def test_on_unexpected_disconnect_callback_with_reconnect(
         await sleep_blocker
 
     monkeypatch.setattr(_os3_lock_base.asyncio, "sleep", blocked_sleep)
+    lock._device_status = _const.DeviceStatus.CONNECTED
     lock.on_unexpected_disconnect()
     await original_sleep(0)
 

@@ -116,8 +116,8 @@ class BaseOS3Lock[MechStatusT: BaseOS3MechStatus](ABC):
             convert_secret_key(secret_key) if secret_key is not None else None
         )
         self._reconnect_attempts = reconnect_attempts
-        self._reconnect_task: asyncio.Task[None] | None = None
-        self._reconnect_failure: SesameConnectionError | None = None
+        self._reconnect_task: asyncio.Task[bool] | None = None
+        self._lifecycle_lock = asyncio.Lock()
         self._mech_status: MechStatusT | None = None
         self._login_completed = asyncio.Event()
         self._device_status = DeviceStatus.DISCONNECTED
@@ -131,17 +131,10 @@ class BaseOS3Lock[MechStatusT: BaseOS3MechStatus](ABC):
             self.register_unexpected_disconnect_callback(unexpected_disconnect_callback)
 
     @property
-    def _background_reconnect_task(self) -> asyncio.Task[None] | None:
-        """Returns the active background reconnection task, if available."""
-        task = self._reconnect_task
-        if task is None or task.done() or asyncio.current_task() is task:
-            return None
-        return task
-
-    @property
     def is_background_reconnecting(self) -> bool:
         """Indicates whether a reconnection task is running in the background."""
-        return self._background_reconnect_task is not None
+        task = self._reconnect_task
+        return task is not None and not task.done()
 
     @property
     def address(self) -> str:
@@ -264,14 +257,23 @@ class BaseOS3Lock[MechStatusT: BaseOS3MechStatus](ABC):
         Initiates cleanup and schedules an auto-reconnection task if configured.
         """
         logger.error("Unexpected Sesame disconnection [address=%s]", self.address)
+        should_reconnect = self._device_status in {
+            DeviceStatus.CONNECTED,
+            DeviceStatus.LOGGING_IN,
+            DeviceStatus.LOGGED_IN,
+        }
         self._cleanup()
         loop = asyncio.get_running_loop()
         for callback in tuple(self._unexpected_disconnect_callbacks.values()):
             loop.call_soon(callback, self)
-        if self._reconnect_attempts and not self.is_background_reconnecting:
+        if (
+            should_reconnect
+            and self._reconnect_attempts
+            and not self.is_background_reconnecting
+        ):
             self._reconnect_task = asyncio.create_task(self._auto_reconnect())
 
-    async def _auto_reconnect(self) -> None:
+    async def _auto_reconnect(self) -> bool:
         """Attempts to reconnect and log in to the device automatically.
 
         Uses an exponential backoff strategy for consecutive reconnection attempts.
@@ -288,39 +290,43 @@ class BaseOS3Lock[MechStatusT: BaseOS3MechStatus](ABC):
             )
             await asyncio.sleep(delay)
             try:
-                await self.connect()
-                if self._secret_key is not None:
-                    await self.login()
+                async with self._lifecycle_lock:
+                    await self._connect_once()
+                    if self._secret_key is not None:
+                        await self._login_once(self._secret_key)
             except (SesameConnectionError, TimeoutError):
                 logger.exception(
                     "Auto-reconnection attempt failed [address=%s]", self.address
                 )
-                self._cleanup()
                 continue
-            return
-        self._reconnect_failure = SesameConnectionError(
-            f"Auto-reconnection failed after {self._reconnect_attempts} attempts"
-        )
+            # Bleak backends can surface platform-specific exception types. Keep
+            # an unexpected failure contained inside this background task.
+            except Exception:  # pylint: disable=broad-exception-caught
+                logger.exception(
+                    "Auto-reconnection aborted [address=%s]", self.address
+                )
+                return False
+            return True
         logger.error(
             "Auto-reconnection failed [address=%s, attempts=%d]",
             self.address,
             self._reconnect_attempts,
         )
+        return False
 
     async def wait_for_reconnect(self) -> None:
         """Awaits the completion of an ongoing auto-reconnection task."""
-        if self._reconnect_task is not None:
-            await self._reconnect_task
-            if self._reconnect_failure is not None:
-                raise self._reconnect_failure
+        reconnect_task = self._reconnect_task
+        if reconnect_task is not None and not await asyncio.shield(reconnect_task):
+            raise SesameConnectionError(
+                f"Auto-reconnection failed after {self._reconnect_attempts} attempts"
+            )
 
     def _cleanup(self) -> None:
         """Resets the device status, login state, and mechanical status."""
         self._device_status = DeviceStatus.DISCONNECTED
         self._login_completed.clear()
         self._mech_status = None
-        if self._os3_device is not None:
-            self._os3_device.cleanup()
 
     def _require_connected_device(self) -> SesameOS3Protocol:
         """Returns the connected OS3 protocol."""
@@ -416,6 +422,34 @@ class BaseOS3Lock[MechStatusT: BaseOS3MechStatus](ABC):
             raise SesameConnectionError("Device not found")
         return found_device
 
+    async def _disconnect_device(self) -> None:
+        """Releases the protocol and resets lock state."""
+        self._device_status = DeviceStatus.DISCONNECTING
+        try:
+            if self._os3_device is not None:
+                await self._os3_device.disconnect()
+        finally:
+            self._cleanup()
+
+    async def _connect_once(self) -> None:
+        """Performs one connection attempt without reconnection policy checks."""
+        logger.info("Connecting to Sesame [address=%s]", self.address)
+        self._device_status = DeviceStatus.CONNECTING
+        try:
+            scanned_sesame = await self._resolve_scanned_sesame()
+            type(self)._validate_model(scanned_sesame.advertisement_data)
+            self._os3_device = SesameOS3Protocol(
+                scanned_sesame,
+                self.on_published,
+                self.on_unexpected_disconnect,
+            )
+            await self._os3_device.connect()
+        except BaseException:
+            await self._disconnect_device()
+            raise
+        self._device_status = DeviceStatus.CONNECTED
+        logger.info("Connected to Sesame [address=%s]", self.address)
+
     async def connect(self) -> None:
         """Establishes a BLE connection to the Sesame device.
 
@@ -429,28 +463,13 @@ class BaseOS3Lock[MechStatusT: BaseOS3MechStatus](ABC):
             raise SesameConnectionError(
                 "Cannot connect while auto-reconnection is in progress"
             )
-        if self.is_connected:
-            raise SesameConnectionError("Already connected")
-        logger.info("Connecting to Sesame [address=%s]", self.address)
-        self._device_status = DeviceStatus.CONNECTING
-        try:
-            scanned_sesame = await self._resolve_scanned_sesame()
-            type(self)._validate_model(scanned_sesame.advertisement_data)
-            self._os3_device = SesameOS3Protocol(
-                scanned_sesame,
-                self.on_published,
-                self.on_unexpected_disconnect,
-            )
-            await self._os3_device.connect()
-        except Exception:
+        async with self._lifecycle_lock:
             if self.is_connected:
-                await self.disconnect()
-            else:
-                self._cleanup()
-            raise
-        self._reconnect_failure = None
-        self._device_status = DeviceStatus.CONNECTED
-        logger.info("Connected to Sesame [address=%s]", self.address)
+                raise SesameConnectionError("Already connected")
+            if self._device_status != DeviceStatus.DISCONNECTED:
+                raise SesameConnectionError("Connection lifecycle is in progress")
+            self._reconnect_task = None
+            await self._connect_once()
 
     async def register(self) -> str:
         """Registers the device to obtain its secret key.
@@ -469,6 +488,29 @@ class BaseOS3Lock[MechStatusT: BaseOS3MechStatus](ABC):
         secret_key = await device.register()
         return secret_key.hex()
 
+    async def _login_once(self, secret_key: bytes) -> int:
+        """Performs one login attempt without reconnection policy checks."""
+        device = self._require_connected_device()
+        if self.is_logged_in:
+            raise SesameLoginError("Already logged in")
+        logger.info("Logging in to Sesame [address=%s]", self.address)
+        self._device_status = DeviceStatus.LOGGING_IN
+        try:
+            timestamp = await device.login(secret_key)
+            await asyncio.wait_for(
+                self._login_completed.wait(), timeout=PUBLISH_TIMEOUT
+            )
+        except BaseException:
+            await self._disconnect_device()
+            raise
+        self._device_status = DeviceStatus.LOGGED_IN
+        logger.info(
+            "Logged in to Sesame [address=%s, timestamp=%d]",
+            self.address,
+            timestamp,
+        )
+        return timestamp
+
     async def login(self, secret_key: str | None = None) -> int:
         """Authenticates with the device.
 
@@ -486,13 +528,10 @@ class BaseOS3Lock[MechStatusT: BaseOS3MechStatus](ABC):
             SesameLoginError: If already logged in or if no secret key is available.
             SesameOperationError: If the login command fails.
         """
-        device = self._require_connected_device()
         if self.is_background_reconnecting:
             raise SesameConnectionError(
                 "Cannot login while auto-reconnection is in progress"
             )
-        if self.is_logged_in:
-            raise SesameLoginError("Already logged in")
         bytes_key = (
             convert_secret_key(secret_key)
             if secret_key is not None
@@ -500,48 +539,23 @@ class BaseOS3Lock[MechStatusT: BaseOS3MechStatus](ABC):
         )
         if bytes_key is None:
             raise SesameLoginError("A secret key is required for login")
-        logger.info("Logging in to Sesame [address=%s]", self.address)
-        self._device_status = DeviceStatus.LOGGING_IN
-        try:
-            timestamp = await device.login(bytes_key)
-            await asyncio.wait_for(
-                self._login_completed.wait(), timeout=PUBLISH_TIMEOUT
-            )
-        except Exception:
-            if self.is_connected:
-                await self.disconnect()
-            else:
-                self._cleanup()
-            raise
-        self._device_status = DeviceStatus.LOGGED_IN
-        logger.info(
-            "Logged in to Sesame [address=%s, timestamp=%d]",
-            self.address,
-            timestamp,
-        )
-        return timestamp
+        async with self._lifecycle_lock:
+            return await self._login_once(bytes_key)
 
     async def disconnect(self) -> None:
         """Disconnects from the device and stops any active auto-reconnection tasks."""
-        reconnect_task = self._background_reconnect_task
-        if reconnect_task is not None:
+        self._device_status = DeviceStatus.DISCONNECTING
+        reconnect_task = self._reconnect_task
+        if reconnect_task is not None and not reconnect_task.done():
             reconnect_task.cancel()
             with suppress(asyncio.CancelledError):
                 await reconnect_task
-        device = self._connected_device
-        if device is None:
-            logger.debug(
-                "Skipping disconnect, device not connected [address=%s]",
-                self.address,
-            )
-            return
-        logger.info("Disconnecting from Sesame [address=%s]", self.address)
-        self._device_status = DeviceStatus.DISCONNECTING
-        try:
-            await device.disconnect()
-        finally:
-            self._cleanup()
-        logger.info("Disconnected from Sesame [address=%s]", self.address)
+        if self._reconnect_task is reconnect_task:
+            self._reconnect_task = None
+        async with self._lifecycle_lock:
+            logger.info("Disconnecting from Sesame [address=%s]", self.address)
+            await self._disconnect_device()
+            logger.info("Disconnected from Sesame [address=%s]", self.address)
 
     async def fetch_firmware_version(self) -> str:
         """Fetches the firmware version string from the device.
